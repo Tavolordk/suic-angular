@@ -1,1 +1,61 @@
-<p>person-result-card works!</p>
+<article class="person-card suic-panel">
+    <div class="person-card__avatar">
+        {{ initials }}
+    </div>
+
+    <div class="person-card__content">
+        <header class="person-card__header">
+            <div>
+                <h3>{{ person.fullName }}</h3>
+                <p>{{ person.curp }}</p>
+            </div>
+
+            <div class="person-card__badges">
+                <span class="person-card__badge" [class]="'person-card__badge--' + person.riskLevel">
+                    {{ riskLabel }}
+                </span>
+
+                <span class="person-card__badge person-card__badge--status">
+                    {{ statusLabel }}
+                </span>
+            </div>
+        </header>
+
+        <div class="person-card__meta">
+            <span>
+                <i class="fa-regular fa-calendar"></i>
+                {{ person.birthDate }} · {{ person.age }} años
+            </span>
+
+            <span>
+                <i class="fa-solid fa-venus-mars"></i>
+                {{ person.gender }}
+            </span>
+
+            <span>
+                <i class="fa-solid fa-location-dot"></i>
+                {{ person.lastKnownAddress }}
+            </span>
+        </div>
+
+        <div class="person-card__aliases">
+            @if (person.aliases.length > 0) {
+            @for (alias of person.aliases; track alias) {
+            <span>{{ alias }}</span>
+            }
+            } @else {
+            <span>Sin alias registrados</span>
+            }
+        </div>
+
+        <footer class="person-card__footer">
+            <a class="person-card__link" [routerLink]="['/persona', person.id]">
+                Ver detalle
+            </a>
+
+            <a class="person-card__link person-card__link--dark" [routerLink]="['/red', person.id]">
+                Ver red
+            </a>
+        </footer>
+    </div>
+</article>

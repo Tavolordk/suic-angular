@@ -1,9 +1,19 @@
 <section class="search-page">
     <header class="search-page__header suic-panel">
-        <h1 class="suic-page-title">Búsqueda</h1>
+        <div>
+            <h1 class="suic-page-title">Sistema Único de Información Criminal</h1>
+            <p>Consulta integral de identidad, vínculos y registros asociados.</p>
+        </div>
+
+        <div class="search-page__summary">
+            <span>{{ totalResults() }}</span>
+            <small>resultados</small>
+        </div>
     </header>
 
-    <div class="search-page__content suic-panel">
-        <p>Shell SUIC cargado correctamente.</p>
+    <div class="search-page__layout">
+        <app-search-form (searchSubmitted)="search($event)" (cleared)="clear()" />
+
+        <app-search-results [people]="results()" [hasSearched]="hasSearched()" />
     </div>
 </section>

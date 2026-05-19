@@ -1,1 +1,94 @@
-<p>search-form works!</p>
+<form class="search-form" (ngSubmit)="submit()">
+    <section class="search-form__quick suic-panel">
+        <div class="search-form__quick-header">
+            <div>
+                <h2>Búsqueda de persona</h2>
+                <p>Consulta información por nombre, CURP o identificadores asociados.</p>
+            </div>
+
+            <span class="suic-pill">
+                <i class="fa-solid fa-shield-halved"></i>
+                SUIC
+            </span>
+        </div>
+
+        <div class="search-form__quick-row">
+            <div class="search-form__field search-form__field--fluid">
+                <label>Consulta general</label>
+                <div class="search-form__input-icon">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input class="suic-input" type="text" placeholder="Nombre, CURP, alias o identificador"
+                        [ngModel]="filter().query" name="query" (ngModelChange)="updateField('query', $event)" />
+                </div>
+            </div>
+
+            <button class="suic-button" type="submit">
+                Buscar
+            </button>
+
+            <button class="suic-button secondary" type="button" (click)="clear()">
+                Limpiar
+            </button>
+        </div>
+    </section>
+
+    <section class="search-form__advanced suic-panel">
+        <header class="search-form__advanced-header">
+            <h3>Filtros avanzados</h3>
+        </header>
+
+        <div class="search-form__grid">
+            <div class="search-form__field">
+                <label>CURP</label>
+                <input class="suic-input" type="text" placeholder="Ingresa CURP" [ngModel]="filter().curp" name="curp"
+                    (ngModelChange)="updateField('curp', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Nombre</label>
+                <input class="suic-input" type="text" placeholder="Nombre" [ngModel]="filter().name" name="name"
+                    (ngModelChange)="updateField('name', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Apellido paterno</label>
+                <input class="suic-input" type="text" placeholder="Apellido paterno" [ngModel]="filter().firstLastName"
+                    name="firstLastName" (ngModelChange)="updateField('firstLastName', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Apellido materno</label>
+                <input class="suic-input" type="text" placeholder="Apellido materno" [ngModel]="filter().secondLastName"
+                    name="secondLastName" (ngModelChange)="updateField('secondLastName', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Fecha de nacimiento</label>
+                <input class="suic-input" type="date" [ngModel]="filter().birthDate" name="birthDate"
+                    (ngModelChange)="updateField('birthDate', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Sexo</label>
+                <select class="suic-select" [ngModel]="filter().gender" name="gender"
+                    (ngModelChange)="updateField('gender', $event)">
+                    <option value="">Todos</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                </select>
+            </div>
+
+            <div class="search-form__field">
+                <label>Entidad</label>
+                <input class="suic-input" type="text" placeholder="Entidad" [ngModel]="filter().entity" name="entity"
+                    (ngModelChange)="updateField('entity', $event)" />
+            </div>
+
+            <div class="search-form__field">
+                <label>Municipio</label>
+                <input class="suic-input" type="text" placeholder="Municipio" [ngModel]="filter().municipality"
+                    name="municipality" (ngModelChange)="updateField('municipality', $event)" />
+            </div>
+        </div>
+    </section>
+</form>

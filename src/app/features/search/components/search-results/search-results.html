@@ -1,1 +1,41 @@
-<p>search-results works!</p>
+<section class="search-results suic-panel">
+    <header class="search-results__header">
+        <div>
+            <h2>Resultados</h2>
+            <p>
+                @if (hasSearched) {
+                {{ people.length }} registro(s) encontrados
+                } @else {
+                Realiza una búsqueda para consultar información.
+                }
+            </p>
+        </div>
+
+        <span class="suic-pill">
+            <i class="fa-solid fa-database"></i>
+            Plataforma México
+        </span>
+    </header>
+
+    <div class="search-results__content suic-scrollbar">
+        @if (!hasSearched) {
+        <div class="search-results__empty">
+            <i class="fa-solid fa-fingerprint"></i>
+            <h3>Consulta de identidad</h3>
+            <p>Ingresa criterios de búsqueda para iniciar la consulta.</p>
+        </div>
+        } @else if (people.length === 0) {
+        <div class="search-results__empty">
+            <i class="fa-regular fa-circle-xmark"></i>
+            <h3>Sin resultados</h3>
+            <p>No se encontraron coincidencias con los filtros ingresados.</p>
+        </div>
+        } @else {
+        <div class="search-results__grid">
+            @for (person of people; track person.id) {
+            <app-person-result-card [person]="person" />
+            }
+        </div>
+        }
+    </div>
+</section>

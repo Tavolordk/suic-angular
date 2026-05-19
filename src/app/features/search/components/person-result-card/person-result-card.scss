@@ -1,0 +1,174 @@
+.person-card {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  padding: 12px;
+  transition: 160ms ease;
+}
+
+.person-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--suic-shadow-md);
+}
+
+.person-card__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffffff;
+  background: linear-gradient(135deg, #263f4d, #4f7388);
+}
+
+.person-card__content {
+  min-width: 0;
+}
+
+.person-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.person-card__header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--suic-text);
+  letter-spacing: -0.02em;
+}
+
+.person-card__header p {
+  margin: 3px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--suic-text-muted);
+}
+
+.person-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.person-card__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.person-card__badge--low {
+  background: var(--suic-green);
+}
+
+.person-card__badge--medium {
+  background: var(--suic-yellow);
+  color: #473800;
+}
+
+.person-card__badge--high {
+  background: var(--suic-orange);
+}
+
+.person-card__badge--critical {
+  background: var(--suic-red);
+}
+
+.person-card__badge--status {
+  color: var(--suic-primary);
+  background: #e5edf2;
+}
+
+.person-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.person-card__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--suic-text-muted);
+}
+
+.person-card__meta i {
+  font-size: 10px;
+  color: #607887;
+}
+
+.person-card__aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.person-card__aliases span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #486171;
+  background: #edf3f7;
+}
+
+.person-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.person-card__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--suic-primary);
+  background: #dfe8ee;
+}
+
+.person-card__link--dark {
+  color: #ffffff;
+  background: var(--suic-primary);
+}
+
+@media (max-width: 620px) {
+  .person-card {
+    grid-template-columns: 1fr;
+  }
+
+  .person-card__header {
+    flex-direction: column;
+  }
+
+  .person-card__badges {
+    justify-content: flex-start;
+  }
+
+  .person-card__footer {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
