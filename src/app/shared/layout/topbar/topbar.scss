@@ -1,0 +1,79 @@
+.topbar {
+  display: grid;
+  grid-template-columns: 220px 1fr 220px;
+  align-items: center;
+  height: var(--suic-topbar-height);
+  padding: 0 12px;
+  color: #ffffff;
+  background: linear-gradient(180deg, var(--suic-header) 0%, var(--suic-header-dark) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.topbar__brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.topbar__brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.topbar__brand-subtitle {
+  margin-top: 1px;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.topbar__center {
+  justify-self: center;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.topbar__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar__icon-button,
+.topbar__user {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.topbar__icon-button i,
+.topbar__user i {
+  font-size: 11px;
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+  }
+
+  .topbar__center {
+    display: none;
+  }
+
+  .topbar__actions {
+    gap: 4px;
+  }
+}

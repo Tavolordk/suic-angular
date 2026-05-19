@@ -1,0 +1,10 @@
+<aside class="sidebar">
+    <nav class="sidebar__nav" aria-label="Navegación principal">
+        @for (item of items; track item.path) {
+        <a class="sidebar__item" [routerLink]="item.path" routerLinkActive="sidebar__item--active"
+            [attr.aria-label]="item.label">
+            <i [class]="item.icon"></i>
+        </a>
+        }
+    </nav>
+</aside>

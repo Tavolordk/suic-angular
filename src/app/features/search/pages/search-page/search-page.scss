@@ -1,0 +1,25 @@
+.search-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+}
+
+.search-page__header {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 14px;
+}
+
+.search-page__content {
+  flex: 1;
+  padding: 18px;
+}
+
+.search-page__content p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--suic-text-muted);
+}

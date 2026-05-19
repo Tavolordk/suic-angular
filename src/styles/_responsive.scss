@@ -1,0 +1,12 @@
+@media (max-width: 992px) {
+  :root {
+    --suic-page-padding: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --suic-topbar-height: 52px;
+    --suic-sidebar-width: 0px;
+  }
+}

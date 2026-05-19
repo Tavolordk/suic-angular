@@ -1,0 +1,56 @@
+.suic-button {
+  min-height: 28px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  background: var(--suic-primary);
+  transition: 160ms ease;
+}
+
+.suic-button:hover {
+  background: var(--suic-primary-hover);
+}
+
+.suic-button.secondary {
+  color: var(--suic-primary);
+  background: #dfe8ee;
+}
+
+.suic-input,
+.suic-select {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--suic-border-soft);
+  border-radius: var(--suic-radius-md);
+  outline: none;
+  font-size: 11px;
+  color: var(--suic-text);
+  background: #ffffff;
+}
+
+.suic-input::placeholder {
+  color: #a2afb8;
+}
+
+.suic-input:focus,
+.suic-select:focus {
+  border-color: #8aa2b1;
+  box-shadow: 0 0 0 3px rgba(63, 111, 143, 0.12);
+}
+
+.suic-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #edf3f7;
+  color: var(--suic-primary);
+}

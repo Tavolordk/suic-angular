@@ -1,0 +1,33 @@
+.suic-card {
+  background: var(--suic-surface);
+  border: 1px solid var(--suic-border-soft);
+  border-radius: var(--suic-radius-lg);
+  box-shadow: var(--suic-shadow-sm);
+}
+
+.suic-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--suic-border);
+  border-radius: var(--suic-radius-lg);
+  box-shadow: var(--suic-shadow-sm);
+  backdrop-filter: blur(8px);
+}
+
+.suic-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #93a4b0 transparent;
+}
+
+.suic-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.suic-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suic-scrollbar::-webkit-scrollbar-thumb {
+  background: #93a4b0;
+  border-radius: 999px;
+}

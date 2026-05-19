@@ -1,0 +1,58 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  font-family: var(--font-family);
+  color: var(--suic-text);
+  background: var(--suic-bg);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.suic-page-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--suic-text);
+}
+
+.suic-section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--suic-text);
+}
+
+.suic-muted {
+  color: var(--suic-text-muted);
+}
