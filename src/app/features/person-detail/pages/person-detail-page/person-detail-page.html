@@ -1,3 +1,203 @@
-<section class="person-detail-page suic-panel">
-    <h1 class="suic-page-title">Detalle de persona</h1>
+@if (person(); as person) {
+<section class="person-detail-page">
+    <header class="person-detail-page__header suic-panel">
+        <div class="person-detail-page__identity">
+            <div class="person-detail-page__avatar">
+                {{ initials() }}
+            </div>
+
+            <div>
+                <div class="person-detail-page__breadcrumb">
+                    <a routerLink="/busqueda">Búsqueda</a>
+                    <i class="fa-solid fa-chevron-right"></i>
+                    <span>Detalle de persona</span>
+                </div>
+
+                <h1>{{ person.fullName }}</h1>
+
+                <p>
+                    {{ person.curp }} · {{ person.gender }} · {{ person.age }} años
+                </p>
+            </div>
+        </div>
+
+        <div class="person-detail-page__actions">
+            <span class="person-detail-page__badge" [class]="'person-detail-page__badge--' + person.riskLevel">
+                Riesgo {{ getRiskLabel(person.riskLevel) }}
+            </span>
+
+            <span class="person-detail-page__badge person-detail-page__badge--status">
+                {{ getStatusLabel(person.status) }}
+            </span>
+
+            <a class="person-detail-page__button" [routerLink]="['/red', person.id]">
+                Ver red
+            </a>
+        </div>
+    </header>
+
+    <div class="person-detail-page__grid">
+        <aside class="person-detail-page__left">
+            <section class="detail-card suic-panel">
+                <h2>Datos generales</h2>
+
+                <div class="detail-list">
+                    <div>
+                        <span>Nombre completo</span>
+                        <strong>{{ person.fullName }}</strong>
+                    </div>
+
+                    <div>
+                        <span>CURP</span>
+                        <strong>{{ person.curp }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Fecha de nacimiento</span>
+                        <strong>{{ person.birthDate }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Nacionalidad</span>
+                        <strong>{{ person.nationality }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Último domicilio</span>
+                        <strong>{{ person.lastKnownAddress }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-card suic-panel">
+                <h2>Alias</h2>
+
+                <div class="alias-list">
+                    @if (person.aliases.length > 0) {
+                    @for (alias of person.aliases; track alias) {
+                    <span>{{ alias }}</span>
+                    }
+                    } @else {
+                    <p>Sin alias registrados</p>
+                    }
+                </div>
+            </section>
+        </aside>
+
+        <main class="person-detail-page__center">
+            <section class="detail-card suic-panel">
+                <div class="detail-card__header">
+                    <h2>Identificadores</h2>
+                    <span>{{ person.identifiers.length }} registros</span>
+                </div>
+
+                <div class="identifier-grid">
+                    @for (identifier of person.identifiers; track identifier.label) {
+                    <article>
+                        <span>{{ identifier.label }}</span>
+                        <strong>{{ identifier.value }}</strong>
+                    </article>
+                    }
+                </div>
+            </section>
+
+            <section class="detail-card suic-panel">
+                <div class="detail-card__header">
+                    <h2>Domicilios asociados</h2>
+                    <span>{{ addresses().length }} registros</span>
+                </div>
+
+                <div class="data-table">
+                    <div class="data-table__head">
+                        <span>Tipo</span>
+                        <span>Domicilio</span>
+                        <span>Fecha</span>
+                    </div>
+
+                    @for (address of addresses(); track address.type) {
+                    <div class="data-table__row">
+                        <span>{{ address.type }}</span>
+                        <strong>{{ address.value }}</strong>
+                        <span>{{ address.date }}</span>
+                    </div>
+                    }
+                </div>
+            </section>
+
+            <section class="detail-card suic-panel">
+                <div class="detail-card__header">
+                    <h2>Historial de registros</h2>
+                    <span>{{ records().length }} eventos</span>
+                </div>
+
+                <div class="timeline">
+                    @for (record of records(); track record.date) {
+                    <article class="timeline__item">
+                        <div class="timeline__dot"></div>
+
+                        <div>
+                            <header>
+                                <strong>{{ record.source }}</strong>
+                                <span>{{ record.date }}</span>
+                            </header>
+
+                            <p>{{ record.description }}</p>
+
+                            <small>{{ record.status }}</small>
+                        </div>
+                    </article>
+                    }
+                </div>
+            </section>
+        </main>
+
+        <aside class="person-detail-page__right">
+            <section class="detail-card suic-panel">
+                <div class="detail-card__header">
+                    <h2>Relaciones</h2>
+                    <span>{{ relations().length }}</span>
+                </div>
+
+                <div class="relation-list">
+                    @for (relation of relations(); track relation.name) {
+                    <article class="relation-card">
+                        <div>
+                            <strong>{{ relation.name }}</strong>
+                            <span>{{ relation.type }}</span>
+                        </div>
+
+                        <small>{{ relation.risk }}</small>
+                    </article>
+                    }
+                </div>
+            </section>
+
+            <section class="detail-card detail-card--dark">
+                <h2>Acciones rápidas</h2>
+
+                <a [routerLink]="['/red', person.id]">
+                    <i class="fa-solid fa-circle-nodes"></i>
+                    Analizar red de vínculos
+                </a>
+
+                <button type="button">
+                    <i class="fa-solid fa-file-lines"></i>
+                    Generar reporte
+                </button>
+
+                <button type="button">
+                    <i class="fa-solid fa-print"></i>
+                    Imprimir ficha
+                </button>
+            </section>
+        </aside>
+    </div>
 </section>
+} @else {
+<section class="person-detail-page person-detail-page--empty suic-panel">
+    <i class="fa-regular fa-circle-xmark"></i>
+    <h1>Persona no encontrada</h1>
+    <p>No existe información asociada al identificador solicitado.</p>
+    <a routerLink="/busqueda">Volver a búsqueda</a>
+</section>
+}

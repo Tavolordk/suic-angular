@@ -1,79 +1,102 @@
 .topbar {
   display: grid;
-  grid-template-columns: 220px 1fr 220px;
+  grid-template-columns: 340px 1fr 340px;
   align-items: center;
   height: var(--suic-topbar-height);
-  padding: 0 12px;
+  padding: 0 20px;
   color: #ffffff;
-  background: linear-gradient(180deg, var(--suic-header) 0%, var(--suic-header-dark) 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--suic-header);
+  box-shadow: 0 3px 8px rgba(20, 35, 48, 0.25);
 }
 
 .topbar__brand {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
+  align-items: center;
+  height: 100%;
 }
 
-.topbar__brand-title {
-  font-size: 17px;
+.topbar__brand img {
+  width: 245px;
+  height: auto;
+  object-fit: contain;
+}
+
+.topbar__title {
+  margin: 0;
+  text-align: center;
+  font-size: 25px;
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.topbar__brand-subtitle {
-  margin-top: 1px;
-  font-size: 7px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  opacity: 0.78;
-}
-
-.topbar__center {
-  justify-self: center;
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.9;
-}
-
-.topbar__actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-}
-
-.topbar__icon-button,
-.topbar__user {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
   color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+.topbar__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.topbar__clock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 155px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
 }
 
-.topbar__icon-button i,
-.topbar__user i {
-  font-size: 11px;
+.topbar__clock i {
+  font-size: 13px;
+  opacity: 0.8;
 }
 
-@media (max-width: 768px) {
+.topbar__clock strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.topbar__clock span {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.topbar__user {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.topbar__user i {
+  font-size: 18px;
+}
+
+@media (max-width: 900px) {
   .topbar {
     grid-template-columns: 1fr auto;
-    gap: 12px;
   }
 
-  .topbar__center {
+  .topbar__brand img {
+    width: 190px;
+  }
+
+  .topbar__title {
     display: none;
   }
 
-  .topbar__actions {
-    gap: 4px;
+  .topbar__clock {
+    display: none;
   }
 }

@@ -1,0 +1,123 @@
+.association-graph {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(46, 118, 159, 0.32), transparent 34%),
+    radial-gradient(circle at 20% 20%, rgba(84, 169, 205, 0.12), transparent 28%),
+    linear-gradient(135deg, #071523 0%, #0c1d2c 52%, #07111d 100%);
+}
+
+.association-graph::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(circle at center, black 0%, transparent 78%);
+}
+
+.association-graph__canvas {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: min(65vh, 640px);
+  min-height: 520px;
+  display: block;
+}
+
+.association-graph__grid line {
+  stroke: rgba(255, 255, 255, 0.04);
+  stroke-width: 1;
+}
+
+.association-graph__links line {
+  stroke: rgba(133, 190, 220, 0.42);
+  stroke-linecap: round;
+}
+
+.association-graph__link-label {
+  font-size: 8px;
+  font-weight: 700;
+  fill: rgba(210, 232, 243, 0.58);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(7, 21, 35, 0.85);
+  stroke-width: 4px;
+}
+
+.association-graph__node {
+  cursor: pointer;
+  filter: url(#softShadow);
+}
+
+.association-graph__node-glow {
+  fill: url(#nodeGlow);
+  opacity: 0.35;
+}
+
+.association-graph__node-circle {
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 2;
+}
+
+.association-graph__node-icon {
+  font-size: 18px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.association-graph__node-label {
+  font-size: 10px;
+  font-weight: 900;
+  fill: #eaf5fb;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(7, 21, 35, 0.9);
+  stroke-width: 4px;
+}
+
+.association-graph__node-type {
+  font-size: 8px;
+  font-weight: 800;
+  fill: rgba(234, 245, 251, 0.62);
+  text-anchor: middle;
+  text-transform: uppercase;
+}
+
+.association-graph__node--low .association-graph__node-circle {
+  fill: #4fa66a;
+}
+
+.association-graph__node--medium .association-graph__node-circle {
+  fill: #d99145;
+}
+
+.association-graph__node--high .association-graph__node-circle {
+  fill: #ce7a3d;
+}
+
+.association-graph__node--critical .association-graph__node-circle {
+  fill: #ce5f5f;
+}
+
+.association-graph__node--selected .association-graph__node-circle {
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.association-graph__node:hover .association-graph__node-circle {
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+@media (max-width: 768px) {
+  .association-graph__canvas {
+    height: 520px;
+  }
+}

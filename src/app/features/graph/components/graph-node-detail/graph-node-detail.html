@@ -1,1 +1,46 @@
-<p>graph-node-detail works!</p>
+<aside class="graph-node-detail">
+    @if (node; as node) {
+    <header class="graph-node-detail__header">
+        <span class="graph-node-detail__eyebrow">Nodo seleccionado</span>
+        <h2>{{ node.label }}</h2>
+        <p>{{ node.description }}</p>
+    </header>
+
+    <div class="graph-node-detail__meta">
+        <article>
+            <span>Tipo</span>
+            <strong>{{ typeLabel }}</strong>
+        </article>
+
+        <article>
+            <span>Riesgo</span>
+            <strong [class]="'graph-node-detail__risk graph-node-detail__risk--' + node.risk">
+                {{ riskLabel }}
+            </strong>
+        </article>
+
+        <article>
+            <span>Identificador</span>
+            <strong>{{ node.id }}</strong>
+        </article>
+    </div>
+
+    <div class="graph-node-detail__actions">
+        <button type="button">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Consultar nodo
+        </button>
+
+        <button type="button">
+            <i class="fa-solid fa-link"></i>
+            Ver relaciones
+        </button>
+    </div>
+    } @else {
+    <div class="graph-node-detail__empty">
+        <i class="fa-solid fa-circle-nodes"></i>
+        <h2>Selecciona un nodo</h2>
+        <p>Da clic en un elemento del grafo para consultar su información.</p>
+    </div>
+    }
+</aside>

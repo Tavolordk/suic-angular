@@ -1,0 +1,118 @@
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid rgba(124, 167, 190, 0.28);
+  border-radius: 16px;
+  color: #ffffff;
+  background: rgba(10, 29, 44, 0.78);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.graph-toolbar__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.graph-toolbar__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #315a72, #12283a);
+}
+
+.graph-toolbar__icon i {
+  font-size: 18px;
+}
+
+.graph-toolbar__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: 850;
+  color: rgba(234, 245, 251, 0.58);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.graph-toolbar__breadcrumb a {
+  color: #b7d9ea;
+}
+
+.graph-toolbar__breadcrumb i {
+  font-size: 7px;
+}
+
+.graph-toolbar h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+}
+
+.graph-toolbar__stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.graph-toolbar__stats article {
+  display: grid;
+  place-items: center;
+  min-width: 58px;
+  min-height: 38px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.graph-toolbar__stats strong {
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.graph-toolbar__stats span {
+  margin-top: 2px;
+  font-size: 8px;
+  font-weight: 850;
+  color: rgba(234, 245, 251, 0.62);
+  text-transform: uppercase;
+}
+
+.graph-toolbar__stats button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 999px;
+  color: #0c1d2c;
+  font-size: 10px;
+  font-weight: 900;
+  background: #eaf5fb;
+}
+
+@media (max-width: 760px) {
+  .graph-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .graph-toolbar__stats {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}

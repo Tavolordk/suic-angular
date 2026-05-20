@@ -8,8 +8,15 @@ export const routes: Routes = [
         children: [
             {
                 path: '',
-                redirectTo: 'busqueda',
+                redirectTo: 'dashboard',
                 pathMatch: 'full'
+            },
+            {
+                path: 'dashboard',
+                loadComponent: () =>
+                    import('./features/dashboard/pages/dashboard-page/dashboard-page').then(
+                        m => m.DashboardPage
+                    )
             },
             {
                 path: 'busqueda',
@@ -31,18 +38,11 @@ export const routes: Routes = [
                     import('./features/graph/pages/graph-page/graph-page').then(
                         m => m.GraphPage
                     )
-            },
-            {
-                path: 'dashboard',
-                loadComponent: () =>
-                    import('./features/dashboard/pages/dashboard-page/dashboard-page').then(
-                        m => m.DashboardPage
-                    )
             }
         ]
     },
     {
         path: '**',
-        redirectTo: 'busqueda'
+        redirectTo: 'dashboard'
     }
 ];

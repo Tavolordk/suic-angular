@@ -1,1 +1,36 @@
-<p>graph-toolbar works!</p>
+<header class="graph-toolbar">
+    <div class="graph-toolbar__title">
+        <div class="graph-toolbar__icon">
+            <i class="fa-solid fa-circle-nodes"></i>
+        </div>
+
+        <div>
+            <div class="graph-toolbar__breadcrumb">
+                <a routerLink="/busqueda">Búsqueda</a>
+                <i class="fa-solid fa-chevron-right"></i>
+                <a [routerLink]="['/persona', personId]">Detalle</a>
+                <i class="fa-solid fa-chevron-right"></i>
+                <span>Red de asociaciones</span>
+            </div>
+
+            <h1>Red de asociaciones</h1>
+        </div>
+    </div>
+
+    <div class="graph-toolbar__stats">
+        <article>
+            <strong>{{ totalNodes }}</strong>
+            <span>Nodos</span>
+        </article>
+
+        <article>
+            <strong>{{ totalLinks }}</strong>
+            <span>Vínculos</span>
+        </article>
+
+        <button type="button">
+            <i class="fa-solid fa-file-export"></i>
+            Exportar
+        </button>
+    </div>
+</header>

@@ -1,19 +1,156 @@
-<section class="search-page">
-    <header class="search-page__header suic-panel">
+<section class="suic-search">
+    <header class="suic-search__header">
         <div>
-            <h1 class="suic-page-title">Sistema Único de Información Criminal</h1>
-            <p>Consulta integral de identidad, vínculos y registros asociados.</p>
+            <h1>Búsqueda</h1>
+            <p>Puedes buscar con uno o más campos por entidad</p>
         </div>
 
-        <div class="search-page__summary">
-            <span>{{ totalResults() }}</span>
-            <small>resultados</small>
-        </div>
+        <button type="button" class="suic-search__collapse" (click)="toggleExpanded()">
+            {{ expanded() ? 'Contraer' : 'Expandir' }}
+            <i [class]="expanded() ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+        </button>
     </header>
 
-    <div class="search-page__layout">
-        <app-search-form (searchSubmitted)="search($event)" (cleared)="clear()" />
+    @if (expanded()) {
+    <section class="suic-search__box">
+        <aside class="suic-search__entities">
+            <h2>Entidades</h2>
 
-        <app-search-results [people]="results()" [hasSearched]="hasSearched()" />
-    </div>
+            <button type="button" [class.is-active]="selectedEntity() === 'personas'"
+                (click)="selectEntity('personas')">
+                Personas
+            </button>
+
+            <button type="button" [class.is-active]="selectedEntity() === 'vehiculo'"
+                (click)="selectEntity('vehiculo')">
+                Vehículo
+            </button>
+
+            <button type="button" [class.is-active]="selectedEntity() === 'armas'" (click)="selectEntity('armas')">
+                Armas
+            </button>
+        </aside>
+
+        <form class="suic-search__form" (ngSubmit)="search()">
+            <div class="suic-search__grid">
+                @for (field of fields; track field.placeholder) {
+                <label class="suic-field">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input class="suic-input" type="text" [placeholder]="field.placeholder" />
+                </label>
+                }
+            </div>
+
+            <div class="suic-search__actions">
+                <button type="button" class="suic-search__btn suic-search__btn--clear" (click)="clear()">
+                    Limpiar
+                </button>
+
+                <button type="submit" class="suic-search__btn suic-search__btn--search">
+                    Buscar
+                </button>
+            </div>
+        </form>
+    </section>
+    }
+
+    @if (!searched()) {
+    <section class="suic-search__empty-card">
+        Sin búsquedas frecuentes
+    </section>
+
+    <section class="suic-search__empty-card suic-search__empty-card--large">
+        No has realizado ninguna búsqueda
+    </section>
+    } @else {
+    <section class="suic-search__results-header">
+        <p><strong>68</strong> resultados encontrados</p>
+
+        <div class="suic-search__view-options">
+            <button type="button" [class.is-active]="pageSize() === 10" (click)="setPageSize(10)">10</button>
+            <button type="button" [class.is-active]="pageSize() === 18" (click)="setPageSize(18)">18</button>
+            <button type="button" class="is-dark">
+                <i class="fa-solid fa-table-cells-large"></i>
+            </button>
+            <button type="button">
+                <i class="fa-solid fa-table-cells"></i>
+            </button>
+        </div>
+    </section>
+
+    <section class="suic-search__results" [class.suic-search__results--large]="pageSize() === 18">
+        @for (result of results; track result.id) {
+        <article class="result-card">
+            <div class="result-card__badges">
+                @if (result.vehicles > 0) {
+                <span class="badge badge--vehicle">
+                    <i class="fa-solid fa-car-side"></i>
+                    {{ result.vehicles }}
+                </span>
+                }
+
+                @if (result.weapons > 0) {
+                <span class="badge badge--weapon">
+                    <i class="fa-solid fa-gun"></i>
+                    {{ result.weapons }}
+                </span>
+                }
+
+                @if (result.people > 0) {
+                <span class="badge badge--people">
+                    <i class="fa-regular fa-user"></i>
+                    {{ result.people }}
+                </span>
+                }
+            </div>
+
+            <button class="result-card__bookmark" type="button" [class.is-active]="result.bookmarked">
+                <i class="fa-regular fa-bookmark"></i>
+            </button>
+
+            <dl>
+                <div>
+                    <dt><i class="fa-regular fa-user"></i> Nombre:</dt>
+                    <dd>{{ result.name }}</dd>
+                </div>
+
+                <div>
+                    <dt>Alias:</dt>
+                    <dd>{{ result.alias }}</dd>
+                </div>
+
+                <div>
+                    <dt>CURP:</dt>
+                    <dd>{{ result.curp }}</dd>
+                </div>
+
+                <div>
+                    <dt>RFC:</dt>
+                    <dd>{{ result.rfc }}</dd>
+                </div>
+            </dl>
+        </article>
+        }
+    </section>
+
+    <nav class="suic-search__pagination">
+        <button type="button" disabled>
+            <i class="fa-solid fa-chevron-left"></i>
+            Anterior
+        </button>
+
+        <button type="button" class="is-active">1</button>
+        <button type="button">2</button>
+        <button type="button">3</button>
+        <button type="button">4</button>
+        <button type="button">5</button>
+        <button type="button">6</button>
+        <button type="button">7</button>
+
+        <button type="button">
+            Siguiente
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </nav>
+    }
 </section>

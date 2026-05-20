@@ -1,3 +1,153 @@
-<section class="dashboard-page suic-panel">
-    <h1 class="suic-page-title">Dashboard</h1>
+<section class="dashboard-page">
+    <header class="dashboard-page__hero suic-panel">
+        <div>
+            <span class="dashboard-page__eyebrow">Sistema Único de Información Criminal</span>
+            <h1>Panel operativo</h1>
+            <p>
+                Consulta, analiza y relaciona información de personas, vínculos, registros y alertas.
+            </p>
+        </div>
+
+        <div class="dashboard-page__hero-actions">
+            <a routerLink="/busqueda">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Nueva búsqueda
+            </a>
+
+            <a routerLink="/red/1" class="dashboard-page__hero-actions--secondary">
+                <i class="fa-solid fa-circle-nodes"></i>
+                Ver red demo
+            </a>
+        </div>
+    </header>
+
+    <section class="dashboard-page__metrics">
+        @for (metric of metrics; track metric.label) {
+        <article class="metric-card suic-panel" [class]="'metric-card metric-card--' + metric.tone">
+            <div class="metric-card__icon">
+                <i [class]="metric.icon"></i>
+            </div>
+
+            <div>
+                <span>{{ metric.label }}</span>
+                <strong>{{ metric.value }}</strong>
+                <small>{{ metric.trend }} contra periodo anterior</small>
+            </div>
+        </article>
+        }
+    </section>
+
+    <section class="dashboard-page__content">
+        <main class="dashboard-page__main">
+            <section class="dashboard-table suic-panel">
+                <header class="dashboard-table__header">
+                    <div>
+                        <h2>Consultas recientes</h2>
+                        <p>Últimos registros consultados dentro de la plataforma.</p>
+                    </div>
+
+                    <a routerLink="/busqueda">Ver búsqueda</a>
+                </header>
+
+                <div class="dashboard-table__content suic-scrollbar">
+                    <div class="dashboard-table__head">
+                        <span>Persona</span>
+                        <span>CURP</span>
+                        <span>Fecha</span>
+                        <span>Estatus</span>
+                        <span>Riesgo</span>
+                        <span></span>
+                    </div>
+
+                    @for (item of recentSearches; track item.id) {
+                    <div class="dashboard-table__row">
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ item.curp }}</span>
+                        <span>{{ item.date }}</span>
+                        <span>{{ item.status }}</span>
+                        <small [class]="'dashboard-table__risk dashboard-table__risk--' + item.risk.toLowerCase()">
+                            {{ item.risk }}
+                        </small>
+                        <a [routerLink]="['/persona', item.id]">Detalle</a>
+                    </div>
+                    }
+                </div>
+            </section>
+
+            <section class="quick-actions suic-panel">
+                <header>
+                    <h2>Accesos rápidos</h2>
+                    <p>Operaciones frecuentes del sistema.</p>
+                </header>
+
+                <div class="quick-actions__grid">
+                    <a routerLink="/busqueda">
+                        <i class="fa-solid fa-user-magnifying-glass"></i>
+                        <strong>Búsqueda por persona</strong>
+                        <span>Consulta por nombre, CURP o alias.</span>
+                    </a>
+
+                    <a routerLink="/red/1">
+                        <i class="fa-solid fa-diagram-project"></i>
+                        <strong>Análisis de vínculos</strong>
+                        <span>Explora relaciones en grafo.</span>
+                    </a>
+
+                    <button type="button">
+                        <i class="fa-solid fa-file-export"></i>
+                        <strong>Exportar reporte</strong>
+                        <span>Genera ficha de consulta.</span>
+                    </button>
+
+                    <button type="button">
+                        <i class="fa-solid fa-filter"></i>
+                        <strong>Filtros avanzados</strong>
+                        <span>Refina coincidencias y registros.</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <aside class="dashboard-page__side">
+            <section class="activity-panel suic-panel">
+                <header>
+                    <h2>Actividad reciente</h2>
+                    <span>Tiempo real</span>
+                </header>
+
+                <div class="activity-panel__list">
+                    @for (item of activity; track item.title) {
+                    <article class="activity-item">
+                        <div class="activity-item__icon">
+                            <i [class]="item.icon"></i>
+                        </div>
+
+                        <div>
+                            <strong>{{ item.title }}</strong>
+                            <p>{{ item.description }}</p>
+                            <small>{{ item.time }}</small>
+                        </div>
+                    </article>
+                    }
+                </div>
+            </section>
+
+            <section class="alert-panel">
+                <div class="alert-panel__icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+
+                <h2>Monitoreo activo</h2>
+
+                <p>
+                    El sistema se encuentra consultando registros, asociaciones y coincidencias operativas.
+                </p>
+
+                <div class="alert-panel__status">
+                    <span></span>
+                    En línea
+                </div>
+            </section>
+        </aside>
+    </section>
 </section>

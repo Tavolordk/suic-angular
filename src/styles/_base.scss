@@ -14,7 +14,7 @@ body {
 }
 
 body {
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 button,
@@ -35,24 +35,39 @@ a {
 }
 
 img {
-  max-width: 100%;
   display: block;
+  max-width: 100%;
 }
 
-.suic-page-title {
-  margin: 0;
+.suic-field {
+  position: relative;
+}
+
+.suic-field i {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  font-size: 15px;
+  color: #9aa4ad;
+  transform: translateY(-50%);
+}
+
+.suic-input {
+  width: 100%;
+  height: 39px;
+  padding: 0 18px 0 40px;
+  border: 2px solid #d5dde5;
+  border-radius: 999px;
+  outline: none;
   font-size: 14px;
-  font-weight: 700;
-  color: var(--suic-text);
+  color: #333;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.03),
+    0 2px 4px rgba(70, 84, 96, 0.16);
 }
 
-.suic-section-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--suic-text);
-}
-
-.suic-muted {
-  color: var(--suic-text-muted);
+.suic-input::placeholder {
+  color: #858b91;
 }
