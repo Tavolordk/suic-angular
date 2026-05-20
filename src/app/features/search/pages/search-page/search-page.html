@@ -67,8 +67,15 @@
     </section>
     } @else {
     <section class="suic-search__results-header">
-        <p><strong>{{ totalFilteredResults() }}</strong> resultados encontrados</p>
-
+        <p>
+            <strong>{{ totalFilteredResults() }}</strong> resultados encontrados
+            @if (totalFilteredResults() > 0) {
+            <span>
+                · Mostrando {{ firstVisibleResult() }} - {{ lastVisibleResult() }}
+                · Página {{ currentPage() }} de {{ totalPages() }}
+            </span>
+            }
+        </p>
         <div class="suic-search__view-options">
             <button type="button" [class.is-active]="pageSize() === 10" (click)="setPageSize(10)">
                 10
@@ -91,6 +98,7 @@
     <section class="suic-search__results" [class.suic-search__results--large]="pageSize() === 18">
         @for (result of visibleResults(); track result.id) {
         <article class="result-card">
+            <span class="result-card__id">#{{ result.id }}</span>
             <div class="result-card__badges">
                 @if (result.vehicles > 0) {
                 <span class="badge badge--vehicle">
@@ -144,20 +152,18 @@
     </section>
 
     <nav class="suic-search__pagination">
-        <button type="button" disabled>
+        <button type="button" [disabled]="currentPage() === 1" (click)="previousPage($event)">
             <i class="fa-solid fa-chevron-left"></i>
             Anterior
         </button>
 
-        <button type="button" class="is-active">1</button>
-        <button type="button">2</button>
-        <button type="button">3</button>
-        <button type="button">4</button>
-        <button type="button">5</button>
-        <button type="button">6</button>
-        <button type="button">7</button>
+        @for (page of pages(); track page) {
+        <button type="button" [class.is-active]="currentPage() === page" (click)="goToPage(page, $event)">
+            {{ page }}
+        </button>
+        }
 
-        <button type="button">
+        <button type="button" [disabled]="currentPage() === totalPages()" (click)="nextPage($event)">
             Siguiente
             <i class="fa-solid fa-chevron-right"></i>
         </button>

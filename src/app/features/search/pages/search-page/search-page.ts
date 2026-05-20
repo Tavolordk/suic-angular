@@ -31,10 +31,10 @@ export class SearchPage {
   readonly expanded = signal(true);
   readonly searched = signal(false);
   readonly pageSize = signal(10);
-
+  readonly currentPage = signal(1);
   readonly searchValues = signal<Record<string, string>>({});
 
-  readonly results: SearchResult[] = [
+  private readonly baseResults: SearchResult[] = [
     {
       id: 1,
       name: 'Benito Juárez García',
@@ -51,7 +51,7 @@ export class SearchPage {
       name: 'María López Hernández',
       alias: 'La Sombra',
       curp: 'MLFH870315MMNRXZ',
-      rfc: '—',
+      rfc: 'MLFH870315A91',
       vehicles: 1,
       weapons: 3,
       people: 2,
@@ -62,7 +62,7 @@ export class SearchPage {
       name: 'Omar Hernández Reyes',
       alias: 'El Rojo',
       curp: 'OHRR920614HDFQWP',
-      rfc: 'APGE910812MMNNKL',
+      rfc: 'OHRR920614P20',
       vehicles: 0,
       weapons: 0,
       people: 2,
@@ -71,7 +71,7 @@ export class SearchPage {
     {
       id: 4,
       name: 'Carmen Villanueva Torres',
-      alias: '—',
+      alias: 'La Jefa',
       curp: 'CVLT850901MDFMNS',
       rfc: 'RCDS750630HDFPML',
       vehicles: 1,
@@ -92,39 +92,6 @@ export class SearchPage {
     },
     {
       id: 6,
-      name: 'Ana Patricia Gómez',
-      alias: 'La Gata',
-      curp: 'APGE910812MMNNKL',
-      rfc: '—',
-      vehicles: 1,
-      weapons: 0,
-      people: 0,
-      bookmarked: false
-    },
-    {
-      id: 7,
-      name: 'Roberto Carlos Díaz',
-      alias: 'El Tigre',
-      curp: 'RCDS750630HDFPML',
-      rfc: 'GEMM800710MMNSPL',
-      vehicles: 0,
-      weapons: 3,
-      people: 2,
-      bookmarked: false
-    },
-    {
-      id: 8,
-      name: 'Lucía Fernández Ruiz',
-      alias: 'La Doctora',
-      curp: 'LFRZ881120MMNDRT',
-      rfc: 'FJPP721005HDFBCD',
-      vehicles: 1,
-      weapons: 0,
-      people: 0,
-      bookmarked: true
-    },
-    {
-      id: 9,
       name: 'Miguel Ángel Sánchez',
       alias: 'El Chato',
       curp: 'MASV940225HDFQRT',
@@ -135,18 +102,7 @@ export class SearchPage {
       bookmarked: false
     },
     {
-      id: 10,
-      name: 'Gloria Esperanza Mora',
-      alias: 'La Reina',
-      curp: 'GEMM800710MMNSPL',
-      rfc: '—',
-      vehicles: 0,
-      weapons: 0,
-      people: 2,
-      bookmarked: false
-    },
-    {
-      id: 11,
+      id: 7,
       name: 'Miguel Antonio Rivera Cruz',
       alias: 'El Norteño',
       curp: 'RCCM890214HGRVZG04',
@@ -157,7 +113,7 @@ export class SearchPage {
       bookmarked: false
     },
     {
-      id: 12,
+      id: 8,
       name: 'Miguel Eduardo Torres Silva',
       alias: 'El Flaco',
       curp: 'TOSM910503HDFRLG08',
@@ -168,7 +124,7 @@ export class SearchPage {
       bookmarked: true
     },
     {
-      id: 13,
+      id: 9,
       name: 'Miguel Alejandro Vargas Ruiz',
       alias: 'El Güero',
       curp: 'VARM871126HGRRZG05',
@@ -179,7 +135,7 @@ export class SearchPage {
       bookmarked: false
     },
     {
-      id: 14,
+      id: 10,
       name: 'Miguel Francisco Pérez Luna',
       alias: 'El Padrino',
       curp: 'PELM800719HDFRNG01',
@@ -188,74 +144,26 @@ export class SearchPage {
       weapons: 3,
       people: 2,
       bookmarked: false
-    },
-    {
-      id: 15,
-      name: 'Luis Miguel Hernández Soto',
-      alias: 'El Rápido',
-      curp: 'HESL930608HGRRZS02',
-      rfc: 'HESL930608C18',
-      vehicles: 1,
-      weapons: 0,
-      people: 1,
-      bookmarked: false
-    },
-    {
-      id: 16,
-      name: 'Miguel Ángel Mendoza Castro',
-      alias: 'El Mando',
-      curp: 'MECM850312HDFNSG09',
-      rfc: 'MECM850312R27',
-      vehicles: 2,
-      weapons: 2,
-      people: 5,
-      bookmarked: true
-    },
-    {
-      id: 17,
-      name: 'Miguel Ernesto Jiménez Rojas',
-      alias: 'El Jefe',
-      curp: 'JIRM780925HGRMJS06',
-      rfc: 'JIRM780925N43',
-      vehicles: 0,
-      weapons: 1,
-      people: 2,
-      bookmarked: false
-    },
-    {
-      id: 18,
-      name: 'Miguel Adrián Salgado Méndez',
-      alias: 'El Sur',
-      curp: 'SAMM960221HGRLND07',
-      rfc: 'SAMM960221T54',
-      vehicles: 1,
-      weapons: 1,
-      people: 0,
-      bookmarked: false
-    },
-    {
-      id: 19,
-      name: 'Miguel Mauricio Cano de la Cruz',
-      alias: 'El Negro',
-      curp: 'RAOM880430HGRMRG03',
-      rfc: 'RAOM880430B62',
-      vehicles: 4,
-      weapons: 0,
-      people: 3,
-      bookmarked: false
-    },
-    {
-      id: 20,
-      name: 'Miguel Ángel Flores Medina',
-      alias: 'El Contador',
-      curp: 'FOMM900118HDFLDR05',
-      rfc: 'FOMM900118M81',
-      vehicles: 2,
-      weapons: 3,
-      people: 2,
-      bookmarked: false
     }
   ];
+
+  readonly results: SearchResult[] = Array.from({ length: 80 }, (_, index) => {
+    const base = this.baseResults[index % this.baseResults.length];
+    const sequence = index + 1;
+
+    return {
+      ...base,
+      id: sequence,
+      name: index % 2 === 0 ? base.name : `${base.name} ${sequence}`,
+      alias: base.alias === '—' ? `Alias ${sequence}` : `${base.alias}`,
+      curp: `${base.curp.slice(0, 14)}${String(sequence).padStart(4, '0')}`,
+      rfc: base.rfc === '—' ? '—' : `${base.rfc.slice(0, 9)}${String(sequence).padStart(3, '0')}`,
+      vehicles: sequence % 4,
+      weapons: sequence % 5,
+      people: sequence % 6,
+      bookmarked: sequence % 7 === 0
+    };
+  });
 
   readonly filteredResults = computed(() => {
     if (!this.searched()) {
@@ -278,12 +186,43 @@ export class SearchPage {
       return values.every(value => searchableText.includes(value));
     });
   });
-  readonly visibleResults = computed(() => {
-    return this.filteredResults().slice(0, this.pageSize());
-  });
-
   readonly totalFilteredResults = computed(() => {
     return this.filteredResults().length;
+  });
+
+  readonly totalPages = computed(() => {
+    const total = this.totalFilteredResults();
+    const size = this.pageSize();
+
+    return Math.max(1, Math.ceil(total / size));
+  });
+
+  readonly pages = computed(() => {
+    return Array.from({ length: this.totalPages() }, (_, index) => index + 1);
+  });
+
+  readonly visibleResults = computed(() => {
+    const page = this.currentPage();
+    const size = this.pageSize();
+
+    const start = (page - 1) * size;
+    const end = start + size;
+
+    return this.filteredResults().slice(start, end);
+  });
+  readonly firstVisibleResult = computed(() => {
+    if (this.totalFilteredResults() === 0) {
+      return 0;
+    }
+
+    return (this.currentPage() - 1) * this.pageSize() + 1;
+  });
+
+  readonly lastVisibleResult = computed(() => {
+    return Math.min(
+      this.currentPage() * this.pageSize(),
+      this.totalFilteredResults()
+    );
   });
   get fields(): SearchField[] {
     if (this.selectedEntity() === 'vehiculo') {
@@ -321,6 +260,7 @@ export class SearchPage {
   selectEntity(entity: EntityType): void {
     this.selectedEntity.set(entity);
     this.searchValues.set({});
+    this.currentPage.set(1);
     this.searched.set(false);
   }
 
@@ -333,11 +273,13 @@ export class SearchPage {
 
   search(event?: Event): void {
     event?.preventDefault();
+    this.currentPage.set(1);
     this.searched.set(true);
   }
 
   clear(): void {
     this.searchValues.set({});
+    this.currentPage.set(1);
     this.searched.set(false);
   }
 
@@ -347,6 +289,31 @@ export class SearchPage {
 
   setPageSize(size: number): void {
     this.pageSize.set(size);
+    this.currentPage.set(1);
+  }
+  goToPage(page: number, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (page < 1 || page > this.totalPages()) {
+      return;
+    }
+
+    this.currentPage.set(page);
+  }
+
+  previousPage(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    this.goToPage(this.currentPage() - 1);
+  }
+
+  nextPage(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    this.goToPage(this.currentPage() + 1);
   }
 
   private normalize(value: string): string {
