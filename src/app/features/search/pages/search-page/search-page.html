@@ -31,12 +31,15 @@
             </button>
         </aside>
 
-        <form class="suic-search__form" (ngSubmit)="search()">
+        <form class="suic-search__form" (submit)="search($event)">
             <div class="suic-search__grid">
-                @for (field of fields; track field.placeholder) {
+                @for (field of fields; track field.key) {
                 <label class="suic-field">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input class="suic-input" type="text" [placeholder]="field.placeholder" />
+
+                    <input class="suic-input" type="text" [placeholder]="field.placeholder"
+                        [value]="searchValues()[field.key] || ''"
+                        (input)="updateValue(field.key, $any($event.target).value)" />
                 </label>
                 }
             </div>
@@ -64,14 +67,21 @@
     </section>
     } @else {
     <section class="suic-search__results-header">
-        <p><strong>68</strong> resultados encontrados</p>
+        <p><strong>{{ totalFilteredResults() }}</strong> resultados encontrados</p>
 
         <div class="suic-search__view-options">
-            <button type="button" [class.is-active]="pageSize() === 10" (click)="setPageSize(10)">10</button>
-            <button type="button" [class.is-active]="pageSize() === 18" (click)="setPageSize(18)">18</button>
+            <button type="button" [class.is-active]="pageSize() === 10" (click)="setPageSize(10)">
+                10
+            </button>
+
+            <button type="button" [class.is-active]="pageSize() === 18" (click)="setPageSize(18)">
+                18
+            </button>
+
             <button type="button" class="is-dark">
                 <i class="fa-solid fa-table-cells-large"></i>
             </button>
+
             <button type="button">
                 <i class="fa-solid fa-table-cells"></i>
             </button>
@@ -79,7 +89,7 @@
     </section>
 
     <section class="suic-search__results" [class.suic-search__results--large]="pageSize() === 18">
-        @for (result of results; track result.id) {
+        @for (result of visibleResults(); track result.id) {
         <article class="result-card">
             <div class="result-card__badges">
                 @if (result.vehicles > 0) {

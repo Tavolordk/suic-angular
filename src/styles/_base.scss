@@ -41,28 +41,33 @@ img {
 
 .suic-field {
   position: relative;
+  display: block;
+  width: 100%;
 }
 
 .suic-field i {
   position: absolute;
   top: 50%;
-  left: 14px;
-  z-index: 1;
+  left: 16px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
   font-size: 15px;
   color: #9aa4ad;
+  pointer-events: none;
   transform: translateY(-50%);
 }
 
 .suic-input {
   width: 100%;
   height: 39px;
-  padding: 0 18px 0 40px;
+  padding: 0 18px 0 48px;
   border: 2px solid #d5dde5;
   border-radius: 999px;
   outline: none;
   font-size: 14px;
   color: #333;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.88);
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.03),
     0 2px 4px rgba(70, 84, 96, 0.16);
@@ -70,4 +75,8 @@ img {
 
 .suic-input::placeholder {
   color: #858b91;
+}
+.suic-input:focus {
+  border-color: #b7c8d7;
+  background: #ffffff;
 }
