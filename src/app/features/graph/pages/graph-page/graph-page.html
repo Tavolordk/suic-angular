@@ -1,12 +1,43 @@
 <section class="graph-page">
-    <app-graph-toolbar [personId]="personId" [totalNodes]="totalNodes()" [totalLinks]="totalLinks()" />
+    <app-graph-toolbar [personId]="personId" [profileName]="profileName()" [curp]="curp()" [totalNodes]="totalNodes()"
+        [totalLinks]="totalLinks()" [activeFilter]="activeFilter()" (filterSelected)="filterGraph($event)" />
 
     <div class="graph-page__layout">
+        <aside class="graph-page__summary">
+            <section class="graph-summary-card">
+                <span>Detalle</span>
+                <h2>{{ profileName() }}</h2>
+                <p>{{ curp() }}</p>
+
+                <div class="graph-summary-card__stats">
+                    <article>
+                        <strong>{{ summary().people }}</strong>
+                        <small>Personas</small>
+                    </article>
+
+                    <article>
+                        <strong>{{ summary().vehicles }}</strong>
+                        <small>Vehículos</small>
+                    </article>
+
+                    <article>
+                        <strong>{{ summary().weapons }}</strong>
+                        <small>Armas</small>
+                    </article>
+
+                    <article>
+                        <strong>{{ summary().sources }}</strong>
+                        <small>Fuentes</small>
+                    </article>
+                </div>
+            </section>
+
+            <app-graph-node-detail [node]="selectedNode()" />
+        </aside>
+
         <main class="graph-page__canvas">
             <app-association-graph [nodes]="nodes()" [links]="links()" [selectedNodeId]="selectedNode()?.id"
                 (nodeSelected)="selectNode($event)" />
         </main>
-
-        <app-graph-node-detail [node]="selectedNode()" />
     </div>
 </section>

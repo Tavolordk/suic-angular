@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ConsolidatedProfileComponent } from '../../components/consolidated-profile/consolidated-profile';
 import { DataSelectionComponent } from '../../components/data-selection/data-selection';
@@ -17,7 +17,7 @@ import { ProfileConsolidationFacade } from '../../profile-consolidation.facade';
   templateUrl: './profile-consolidation-page.html',
   styleUrl: './profile-consolidation-page.scss'
 })
-export class ProfileConsolidationPage {
+export class ProfileConsolidationPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly facade = inject(ProfileConsolidationFacade);
 
@@ -28,6 +28,10 @@ export class ProfileConsolidationPage {
   readonly selectedFields = this.facade.selectedFields;
   readonly completedLabel = this.facade.completedLabel;
   readonly accepted = this.facade.accepted;
+
+  ngOnInit(): void {
+    this.facade.loadProfile(this.profileId);
+  }
 
   selectSource(sourceId: string): void {
     this.facade.selectSource(sourceId);

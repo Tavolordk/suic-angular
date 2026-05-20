@@ -2,7 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AssociationGraph } from '../../components/association-graph/association-graph';
 import { GraphNodeDetail } from '../../components/graph-node-detail/graph-node-detail';
-import { GraphToolbar } from '../../components/graph-toolbar/graph-toolbar';
+import { GraphFilter, GraphToolbar } from '../../components/graph-toolbar/graph-toolbar';
 import { GraphFacade } from '../../graph.facade';
 
 @Component({
@@ -19,8 +19,12 @@ export class GraphPage implements OnInit {
   readonly nodes = this.facade.nodes;
   readonly links = this.facade.links;
   readonly selectedNode = this.facade.selectedNode;
+  readonly profileName = this.facade.profileName;
+  readonly curp = this.facade.curp;
+  readonly summary = this.facade.summary;
   readonly totalNodes = this.facade.totalNodes;
   readonly totalLinks = this.facade.totalLinks;
+  readonly activeFilter = this.facade.currentFilter;
 
   personId = '1';
 
@@ -31,5 +35,9 @@ export class GraphPage implements OnInit {
 
   selectNode(nodeId: string): void {
     this.facade.selectNode(nodeId);
+  }
+
+  filterGraph(filter: GraphFilter): void {
+    this.facade.filterBy(filter);
   }
 }

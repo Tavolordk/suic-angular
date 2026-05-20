@@ -26,9 +26,20 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  height: min(65vh, 640px);
-  min-height: 520px;
+  height: calc(100vh - var(--suic-topbar-height) - 118px);
+  min-height: 640px;
   display: block;
+  cursor: grab;
+  user-select: none;
+}
+
+.association-graph__canvas:active {
+  cursor: grabbing;
+}
+
+.association-graph__viewport {
+  transform-origin: center;
+  transition: transform 120ms ease-out;
 }
 
 .association-graph__grid line {
@@ -66,10 +77,22 @@
   stroke-width: 2;
 }
 
+.association-graph__node-icon-wrapper {
+  overflow: visible;
+  pointer-events: none;
+}
+
 .association-graph__node-icon {
-  font-size: 18px;
-  text-anchor: middle;
-  dominant-baseline: middle;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: #ffffff;
+}
+
+.association-graph__node-icon i {
+  font-size: 14px;
+  line-height: 1;
 }
 
 .association-graph__node-label {
@@ -116,8 +139,86 @@
   stroke-width: 3;
 }
 
+.association-graph__navigation {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid rgba(124, 167, 190, 0.22);
+  border-radius: 16px;
+  background: rgba(12, 29, 44, 0.72);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.association-graph__navigation div {
+  display: flex;
+  gap: 5px;
+}
+
+.association-graph__navigation button,
+.association-graph__zoom button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #dcecf5;
+  background: rgba(255, 255, 255, 0.08);
+  transition: 150ms ease;
+}
+
+.association-graph__navigation button:hover,
+.association-graph__zoom button:hover {
+  color: #ffffff;
+  background: rgba(133, 190, 220, 0.22);
+}
+
+.association-graph__navigation i,
+.association-graph__zoom i {
+  font-size: 12px;
+}
+
+.association-graph__zoom {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(124, 167, 190, 0.22);
+  border-radius: 999px;
+  background: rgba(12, 29, 44, 0.72);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.association-graph__zoom span {
+  min-width: 44px;
+  text-align: center;
+  color: #dcecf5;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 @media (max-width: 768px) {
   .association-graph__canvas {
     height: 520px;
+  }
+
+  .association-graph__navigation {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .association-graph__zoom {
+    right: 10px;
+    top: 10px;
   }
 }

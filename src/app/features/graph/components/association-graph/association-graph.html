@@ -1,6 +1,43 @@
 <div class="association-graph">
+    <div class="association-graph__navigation">
+        <button type="button" aria-label="Mover arriba" (click)="moveUp()">
+            <i class="fa-solid fa-chevron-up"></i>
+        </button>
+
+        <div>
+            <button type="button" aria-label="Mover izquierda" (click)="moveLeft()">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <button type="button" aria-label="Centrar grafo" (click)="resetView()">
+                <i class="fa-solid fa-crosshairs"></i>
+            </button>
+
+            <button type="button" aria-label="Mover derecha" (click)="moveRight()">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <button type="button" aria-label="Mover abajo" (click)="moveDown()">
+            <i class="fa-solid fa-chevron-down"></i>
+        </button>
+    </div>
+
+    <div class="association-graph__zoom">
+        <button type="button" aria-label="Acercar" (click)="zoomIn()">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <span>{{ (zoom() * 100).toFixed(0) }}%</span>
+
+        <button type="button" aria-label="Alejar" (click)="zoomOut()">
+            <i class="fa-solid fa-minus"></i>
+        </button>
+    </div>
+
     <svg class="association-graph__canvas" [attr.viewBox]="'0 0 ' + width + ' ' + height"
-        preserveAspectRatio="xMidYMid meet">
+        preserveAspectRatio="xMidYMid meet" (mousedown)="startDrag($event)" (mousemove)="drag($event)"
+        (mouseup)="stopDrag()" (mouseleave)="stopDrag()" (wheel)="handleWheel($event)">
         <defs>
             <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stop-color="rgba(255,255,255,0.32)" />
@@ -12,53 +49,57 @@
             </filter>
         </defs>
 
-        <g class="association-graph__grid">
-            @for (line of [80, 160, 240, 320, 400, 480, 560, 640, 720, 800]; track line) {
-            <line [attr.x1]="line" y1="0" [attr.x2]="line" [attr.y2]="height" />
-            }
+        <g class="association-graph__viewport" [attr.transform]="graphTransform">
+            <g class="association-graph__grid">
+                @for (line of [80, 160, 240, 320, 400, 480, 560, 640, 720, 800, 880, 960, 1040]; track line) {
+                <line [attr.x1]="line" y1="0" [attr.x2]="line" [attr.y2]="height" />
+                }
 
-            @for (line of [80, 160, 240, 320, 400, 480]; track line) {
-            <line x1="0" [attr.y1]="line" [attr.x2]="width" [attr.y2]="line" />
-            }
-        </g>
-
-        <g class="association-graph__links">
-            @for (link of links; track link.id) {
-            @if (findNode(link.source); as source) {
-            @if (findNode(link.target); as target) {
-            <line [attr.x1]="source.x" [attr.y1]="source.y" [attr.x2]="target.x" [attr.y2]="target.y"
-                [attr.stroke-width]="getLineWidth(link.strength)" />
-
-            <text class="association-graph__link-label" [attr.x]="(source.x + target.x) / 2"
-                [attr.y]="(source.y + target.y) / 2 - 8">
-                {{ link.label }}
-            </text>
-            }
-            }
-            }
-        </g>
-
-        <g class="association-graph__nodes">
-            @for (node of nodes; track node.id) {
-            <g class="association-graph__node" [class.association-graph__node--selected]="selectedNodeId === node.id"
-                [class]="'association-graph__node association-graph__node--' + node.risk"
-                [attr.transform]="'translate(' + node.x + ',' + node.y + ')'" (click)="selectNode(node.id)">
-                <circle class="association-graph__node-glow" r="42"></circle>
-                <circle class="association-graph__node-circle" r="27"></circle>
-
-                <text class="association-graph__node-icon" y="5">
-                    {{ getNodeIcon(node.type) }}
-                </text>
-
-                <text class="association-graph__node-label" y="48">
-                    {{ node.label }}
-                </text>
-
-                <text class="association-graph__node-type" y="64">
-                    {{ node.type }}
-                </text>
+                @for (line of [80, 160, 240, 320, 400, 480, 560, 640]; track line) {
+                <line x1="0" [attr.y1]="line" [attr.x2]="width" [attr.y2]="line" />
+                }
             </g>
-            }
+
+            <g class="association-graph__links">
+                @for (link of links; track link.id) {
+                @if (findNode(link.source); as source) {
+                @if (findNode(link.target); as target) {
+                <line [attr.x1]="source.x" [attr.y1]="source.y" [attr.x2]="target.x" [attr.y2]="target.y"
+                    [attr.stroke-width]="getLineWidth(link.strength)" />
+
+                <text class="association-graph__link-label" [attr.x]="(source.x + target.x) / 2"
+                    [attr.y]="(source.y + target.y) / 2 - 8">
+                    {{ link.label }}
+                </text>
+                }
+                }
+                }
+            </g>
+
+            <g class="association-graph__nodes">
+                @for (node of nodes; track node.id) {
+                <g [attr.class]="'association-graph__node association-graph__node--' + node.risk + (selectedNodeId === node.id ? ' association-graph__node--selected' : '')"
+                    [attr.transform]="'translate(' + node.x + ',' + node.y + ')'"
+                    (click)="selectNode(node.id); $event.stopPropagation()">
+                    <circle class="association-graph__node-glow" r="42"></circle>
+                    <circle class="association-graph__node-circle" r="27"></circle>
+
+                    <foreignObject x="-13" y="-13" width="26" height="26" class="association-graph__node-icon-wrapper">
+                        <div class="association-graph__node-icon">
+                            <i [class]="getNodeIcon(node.type, node.id)"></i>
+                        </div>
+                    </foreignObject>
+
+                    <text class="association-graph__node-label" y="48">
+                        {{ node.label }}
+                    </text>
+
+                    <text class="association-graph__node-type" y="64">
+                        {{ node.type }}
+                    </text>
+                </g>
+                }
+            </g>
         </g>
     </svg>
 </div>

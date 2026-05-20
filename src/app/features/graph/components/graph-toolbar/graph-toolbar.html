@@ -1,20 +1,39 @@
 <header class="graph-toolbar">
     <div class="graph-toolbar__title">
         <div class="graph-toolbar__icon">
-            <i class="fa-solid fa-circle-nodes"></i>
+            <i class="fa-solid fa-share-nodes"></i>
         </div>
 
         <div>
             <div class="graph-toolbar__breadcrumb">
                 <a routerLink="/busqueda">Búsqueda</a>
                 <i class="fa-solid fa-chevron-right"></i>
-                <a [routerLink]="['/persona', personId]">Detalle</a>
+                <a [routerLink]="['/perfil-consolidado', personId]">Perfil consolidado</a>
                 <i class="fa-solid fa-chevron-right"></i>
-                <span>Red de asociaciones</span>
+                <span>Grafo</span>
             </div>
 
-            <h1>Red de asociaciones</h1>
+            <h1>{{ profileName }}</h1>
+            <p>{{ curp }}</p>
         </div>
+    </div>
+
+    <div class="graph-toolbar__filters">
+        <button type="button" [class.is-active]="activeFilter === 'all'" (click)="filterSelected.emit('all')">
+            Todo
+        </button>
+
+        <button type="button" [class.is-active]="activeFilter === 'person'" (click)="filterSelected.emit('person')">
+            Personas
+        </button>
+
+        <button type="button" [class.is-active]="activeFilter === 'vehicle'" (click)="filterSelected.emit('vehicle')">
+            Vehículos
+        </button>
+
+        <button type="button" [class.is-active]="activeFilter === 'weapon'" (click)="filterSelected.emit('weapon')">
+            Armas
+        </button>
     </div>
 
     <div class="graph-toolbar__stats">
@@ -27,10 +46,5 @@
             <strong>{{ totalLinks }}</strong>
             <span>Vínculos</span>
         </article>
-
-        <button type="button">
-            <i class="fa-solid fa-file-export"></i>
-            Exportar
-        </button>
     </div>
 </header>

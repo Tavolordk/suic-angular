@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SEARCH_RESULTS_MOCK } from '../../../../core/infrastructure/data/search-results.mock';
 type EntityType = 'personas' | 'vehiculo' | 'armas';
 
 interface SearchField {
@@ -147,23 +148,7 @@ export class SearchPage {
     }
   ];
 
-  readonly results: SearchResult[] = Array.from({ length: 80 }, (_, index) => {
-    const base = this.baseResults[index % this.baseResults.length];
-    const sequence = index + 1;
-
-    return {
-      ...base,
-      id: sequence,
-      name: index % 2 === 0 ? base.name : `${base.name} ${sequence}`,
-      alias: base.alias === '—' ? `Alias ${sequence}` : `${base.alias}`,
-      curp: `${base.curp.slice(0, 14)}${String(sequence).padStart(4, '0')}`,
-      rfc: base.rfc === '—' ? '—' : `${base.rfc.slice(0, 9)}${String(sequence).padStart(3, '0')}`,
-      vehicles: sequence % 4,
-      weapons: sequence % 5,
-      people: sequence % 6,
-      bookmarked: sequence % 7 === 0
-    };
-  });
+  readonly results: SearchResult[] = SEARCH_RESULTS_MOCK;
 
   readonly filteredResults = computed(() => {
     if (!this.searched()) {
