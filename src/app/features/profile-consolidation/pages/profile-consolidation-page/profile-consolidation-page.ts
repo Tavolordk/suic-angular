@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ConsolidatedProfileComponent } from '../../components/consolidated-profile/consolidated-profile';
 import { DataSelectionComponent } from '../../components/data-selection/data-selection';
 import { SourceListComponent } from '../../components/source-list/source-list';
@@ -18,10 +18,14 @@ import { ProfileConsolidationFacade } from '../../profile-consolidation.facade';
   styleUrl: './profile-consolidation-page.scss'
 })
 export class ProfileConsolidationPage {
+  private readonly route = inject(ActivatedRoute);
   private readonly facade = inject(ProfileConsolidationFacade);
+
+  readonly profileId: string = this.route.snapshot.paramMap.get('id') ?? '1';
 
   readonly sources = this.facade.sources;
   readonly selectedSource = this.facade.selectedSource;
+  readonly selectedFields = this.facade.selectedFields;
   readonly completedLabel = this.facade.completedLabel;
   readonly accepted = this.facade.accepted;
 

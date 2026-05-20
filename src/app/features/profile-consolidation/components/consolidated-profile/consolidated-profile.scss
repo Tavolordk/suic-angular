@@ -214,3 +214,45 @@
   gap: 8px;
   background: var(--suic-primary);
 }
+.selected-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.selected-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid #e0e7ee;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.selected-field span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #7d8892;
+}
+
+.selected-field strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--suic-text);
+}
+
+.selected-field small {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 900;
+}

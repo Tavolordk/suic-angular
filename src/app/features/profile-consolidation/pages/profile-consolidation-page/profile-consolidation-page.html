@@ -20,7 +20,7 @@
         <app-data-selection [source]="selectedSource()" (fieldToggled)="toggleField($event)"
             (selectAllRequested)="selectAll()" />
 
-        <app-consolidated-profile [completedLabel]="completedLabel()" [accepted]="accepted()"
-            (acceptedRequested)="accept()" />
+        <app-consolidated-profile [profileId]="profileId" [completedLabel]="completedLabel()"
+            [selectedFields]="selectedFields()" [accepted]="accepted()" (acceptedRequested)="accept()" />
     </div>
 </section>

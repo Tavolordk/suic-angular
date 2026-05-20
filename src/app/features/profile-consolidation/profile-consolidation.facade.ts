@@ -158,6 +158,19 @@ export class ProfileConsolidationFacade {
       .filter(field => field.selected).length;
   });
 
+  readonly selectedFields = computed(() => {
+    return this.sources()
+      .flatMap(source =>
+        source.fields
+          .filter(field => field.selected)
+          .map(field => ({
+            ...field,
+            sourceTitle: source.title,
+            sourceColor: source.color
+          }))
+      );
+  });
+
   readonly totalFieldsCount = computed(() => {
     return 49;
   });

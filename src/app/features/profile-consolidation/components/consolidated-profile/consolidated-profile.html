@@ -40,10 +40,27 @@
             <i class="fa-solid fa-chevron-up"></i>
         </button>
 
+        @if (selectedFields.length === 0) {
         <div class="accordion-card__empty">
             <i class="fa-solid fa-spinner"></i>
             Sin campos seleccionados
         </div>
+        } @else {
+        <div class="selected-fields">
+            @for (field of selectedFields; track field.sourceTitle + field.id) {
+            <article class="selected-field">
+                <div>
+                    <span>{{ field.label }}</span>
+                    <strong>{{ field.value }}</strong>
+                </div>
+
+                <small [style.background]="field.sourceColor">
+                    {{ field.sourceTitle }}
+                </small>
+            </article>
+            }
+        </div>
+        }
     </div>
 
     <div class="accordion-card">
@@ -93,7 +110,7 @@
             Aceptado
         </button>
 
-        <a routerLink="/red/1" class="graph-button">
+        <a [routerLink]="['/red', profileId]" class="graph-button">
             <i class="fa-solid fa-share-nodes"></i>
             Visualizar grafo
         </a>
