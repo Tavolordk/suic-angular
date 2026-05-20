@@ -1,0 +1,56 @@
+<section class="selection-panel">
+    <header class="selection-panel__header">
+        <h2>2. Selección de datos</h2>
+        <p>Elige los campos a incluir en el perfil</p>
+    </header>
+
+    <div class="selection-panel__source">
+        <span class="selection-panel__avatar" [style.background]="source.color">
+            {{ source.code }}
+        </span>
+
+        <div>
+            <strong>{{ source.title }}</strong>
+            <small>{{ source.description }}</small>
+        </div>
+
+        <div class="selection-panel__match">
+            <strong>{{ source.percentage }}%</strong>
+            <small>Coincidencia</small>
+        </div>
+    </div>
+
+    <div class="selection-panel__counter">
+        <span>{{ selectedCount }} de {{ source.fields.length }} campos</span>
+
+        <button type="button" (click)="selectAllRequested.emit()">
+            Seleccionar todo
+        </button>
+    </div>
+
+    <div class="selection-panel__fields">
+        @for (field of source.fields; track field.id) {
+        <button type="button" class="field-row" (click)="fieldToggled.emit(field.id)">
+            <span class="field-row__checkbox" [class.is-selected]="field.selected">
+                @if (field.selected) {
+                <i class="fa-solid fa-check"></i>
+                }
+            </span>
+
+            <strong>{{ field.label }}</strong>
+            <span>{{ field.value }}</span>
+        </button>
+        }
+    </div>
+
+    <footer class="selection-panel__info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+            <strong>Información</strong>
+            <p>
+                Esta fuente tiene {{ source.fields.length }} campos disponibles con un nivel de coincidencia {{
+                coincidenceLabel }}.
+            </p>
+        </div>
+    </footer>
+</section>

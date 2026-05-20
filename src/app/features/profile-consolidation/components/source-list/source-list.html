@@ -1,0 +1,28 @@
+<section class="source-panel">
+    <header class="source-panel__header">
+        <h2>1. Fuentes detectadas</h2>
+        <p>Selecciona una fuente para elegir sus campos</p>
+    </header>
+
+    <div class="source-panel__body">
+        @for (source of sources; track source.id) {
+        <button type="button" class="source-card" [class.is-active]="selectedSourceId === source.id"
+            (click)="sourceSelected.emit(source.id)">
+            <span class="source-card__avatar" [style.background]="source.color">
+                {{ source.code }}
+            </span>
+
+            <span class="source-card__content">
+                <strong>{{ source.title }}</strong>
+                <small>{{ source.description }}</small>
+            </span>
+
+            <span class="source-card__match">
+                <strong>{{ source.percentage }}%</strong>
+                <small>Coincidencia</small>
+                <em>No incluido</em>
+            </span>
+        </button>
+        }
+    </div>
+</section>

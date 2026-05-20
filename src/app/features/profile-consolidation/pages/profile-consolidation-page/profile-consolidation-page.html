@@ -1,0 +1,26 @@
+<section class="profile-page">
+    <header class="profile-page__toolbar">
+        <a routerLink="/busqueda" class="profile-page__back">
+            <i class="fa-solid fa-arrow-left"></i>
+            Regresar a resultados
+        </a>
+
+        <span class="profile-page__section">Personas</span>
+
+        <button type="button" class="profile-page__save">
+            <i class="fa-regular fa-floppy-disk"></i>
+            Guardar perfil
+        </button>
+    </header>
+
+    <div class="profile-page__grid">
+        <app-source-list [sources]="sources()" [selectedSourceId]="selectedSource().id"
+            (sourceSelected)="selectSource($event)" />
+
+        <app-data-selection [source]="selectedSource()" (fieldToggled)="toggleField($event)"
+            (selectAllRequested)="selectAll()" />
+
+        <app-consolidated-profile [completedLabel]="completedLabel()" [accepted]="accepted()"
+            (acceptedRequested)="accept()" />
+    </div>
+</section>

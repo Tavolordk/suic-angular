@@ -38,6 +38,13 @@ export const routes: Routes = [
                     import('./features/graph/pages/graph-page/graph-page').then(
                         m => m.GraphPage
                     )
+            },
+            {
+                path: 'perfil-consolidado/:id',
+                loadComponent: () =>
+                    import('./features/profile-consolidation/pages/profile-consolidation-page/profile-consolidation-page').then(
+                        m => m.ProfileConsolidationPage
+                    )
             }
         ]
     },

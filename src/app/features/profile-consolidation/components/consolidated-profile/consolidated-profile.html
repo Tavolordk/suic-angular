@@ -1,0 +1,102 @@
+<section class="consolidated-panel">
+    <header class="consolidated-panel__header">
+        <h2>3. Perfil consolidado</h2>
+        <p>Campos seleccionados de las fuentes</p>
+    </header>
+
+    <div class="consolidated-panel__progress">
+        <div>
+            <span>Datos completados</span>
+            <strong>{{ completedLabel }}</strong>
+        </div>
+
+        <div class="progress-line">
+            <span [style.width]="completedLabel.startsWith('0') ? '0%' : '42%'"></span>
+        </div>
+    </div>
+
+    <div class="profile-gallery">
+        <button type="button" class="profile-gallery__arrow">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
+        <div class="profile-gallery__images">
+            @for (image of profileImages; track image.src) {
+            <img [src]="image.src" [alt]="image.alt" />
+            }
+        </div>
+
+        <button type="button" class="profile-gallery__arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <div class="accordion-card is-open">
+        <button type="button">
+            <span>
+                <i class="fa-regular fa-user"></i>
+                Datos personales
+            </span>
+            <i class="fa-solid fa-chevron-up"></i>
+        </button>
+
+        <div class="accordion-card__empty">
+            <i class="fa-solid fa-spinner"></i>
+            Sin campos seleccionados
+        </div>
+    </div>
+
+    <div class="accordion-card">
+        <button type="button">
+            <span>
+                <i class="fa-solid fa-paperclip"></i>
+                Archivos relacionados 2
+            </span>
+            <i class="fa-solid fa-chevron-down"></i>
+        </button>
+    </div>
+
+    <div class="accordion-card">
+        <button type="button">
+            <span>
+                <i class="fa-solid fa-border-all"></i>
+                Objetos adicionales 1
+            </span>
+            <i class="fa-solid fa-chevron-down"></i>
+        </button>
+    </div>
+
+    <div class="links-card">
+        <p>Se han encontrado <strong>4</strong> vínculos</p>
+
+        <div>
+            <span class="links-card__vehicle">
+                <i class="fa-solid fa-car-side"></i>
+                Vehículos 1
+            </span>
+
+            <span class="links-card__weapon">
+                <i class="fa-solid fa-gun"></i>
+                Armas 3
+            </span>
+        </div>
+    </div>
+
+    <footer class="consolidated-panel__footer">
+        @if (!accepted) {
+        <button type="button" class="accept-button" (click)="acceptedRequested.emit()">
+            Aceptar
+        </button>
+        } @else {
+        <button type="button" class="accepted-button">
+            <i class="fa-solid fa-check"></i>
+            Aceptado
+        </button>
+
+        <a routerLink="/red/1" class="graph-button">
+            <i class="fa-solid fa-share-nodes"></i>
+            Visualizar grafo
+        </a>
+        }
+    </footer>
+</section>

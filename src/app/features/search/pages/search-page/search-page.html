@@ -97,8 +97,8 @@
 
     <section class="suic-search__results" [class.suic-search__results--large]="pageSize() === 18">
         @for (result of visibleResults(); track result.id) {
-        <article class="result-card">
-            <span class="result-card__id">#{{ result.id }}</span>
+        <article class="result-card" role="button" tabindex="0" [routerLink]="['/perfil-consolidado', result.id]"> <span
+                class="result-card__id">#{{ result.id }}</span>
             <div class="result-card__badges">
                 @if (result.vehicles > 0) {
                 <span class="badge badge--vehicle">

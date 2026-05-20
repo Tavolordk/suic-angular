@@ -1,5 +1,5 @@
 import { Component, computed, signal } from '@angular/core';
-
+import { RouterLink } from '@angular/router';
 type EntityType = 'personas' | 'vehiculo' | 'armas';
 
 interface SearchField {
@@ -22,7 +22,7 @@ interface SearchResult {
 @Component({
   selector: 'app-search-page',
   standalone: true,
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './search-page.html',
   styleUrl: './search-page.scss'
 })
