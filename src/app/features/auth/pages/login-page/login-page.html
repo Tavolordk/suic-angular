@@ -1,0 +1,178 @@
+<section class="login-page">
+    <div class="login-page__background"></div>
+    <div class="login-page__grid"></div>
+    <div class="login-page__vignette"></div>
+
+    <main class="login-page__content">
+        <header class="login-header">
+            <div class="login-header__logo-wrap">
+                <div class="login-header__glow"></div>
+                <img src="/login-seguridad-logo.png" alt="Logotipo institucional" class="login-header__logo" />
+            </div>
+
+            <div class="login-header__text">
+                <h1>Sistema Plataforma México</h1>
+                <p>Bienvenido</p>
+            </div>
+        </header>
+
+        <section class="login-card" aria-label="Formulario de inicio de sesión">
+            <div class="login-card__steps">
+                <span class="login-card__step login-card__step--active"></span>
+                <span class="login-card__step"></span>
+            </div>
+
+            <p class="login-card__subtitle">
+                Ingresa tus credenciales para continuar
+            </p>
+
+            <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
+                <div class="login-field">
+                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(usuario)">
+                        <span class="login-field__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 26" fill="none">
+                                <path
+                                    d="M21.75 24.25V21.75C21.75 19.27 19.73 17.25 17.25 17.25H6.75C4.27 17.25 2.25 19.27 2.25 21.75V24.25M16.75 6.75C16.75 9.51 14.51 11.75 11.75 11.75C8.99 11.75 6.75 9.51 6.75 6.75C6.75 3.99 8.99 1.75 11.75 1.75C14.51 1.75 16.75 3.99 16.75 6.75Z"
+                                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </span>
+
+                        <input type="text" formControlName="usuario" placeholder="Usuario" autocomplete="off"
+                            maxlength="80" />
+                    </div>
+
+                    <small class="login-error" *ngIf="shouldShowError(usuario)">
+                        El usuario es obligatorio.
+                    </small>
+                </div>
+
+                <div class="login-field">
+                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(correo)">
+                        <span class="login-field__icon" aria-hidden="true">
+                            <svg viewBox="0 0 20 16" fill="none">
+                                <path
+                                    d="M18 0H2C0.9 0 0.01 0.9 0.01 2L0 14C0 15.1 0.9 16 2 16H18C19.1 16 20 15.1 20 14V2C20 0.9 19.1 0 18 0ZM18 4L10 9L2 4V2L10 7L18 2V4Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </span>
+
+                        <input type="email" formControlName="correo" placeholder="Correo" autocomplete="off"
+                            maxlength="120" />
+                    </div>
+
+                    <small class="login-error" *ngIf="shouldShowError(correo)">
+                        Ingresa un correo válido.
+                    </small>
+                </div>
+
+                <div class="login-field">
+                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(telefono)">
+                        <span class="login-field__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path
+                                    d="M17 1.01L7 1C5.9 1 5 1.9 5 3V21C5 22.1 5.9 23 7 23H17C18.1 23 19 22.1 19 21V3C19 1.9 18.1 1.01 17 1.01ZM17 19H7V5H17V19Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </span>
+
+                        <input type="tel" formControlName="telefono" placeholder="Teléfono" autocomplete="off"
+                            maxlength="10" inputmode="numeric" (input)="onPhoneInput($event)" />
+                    </div>
+
+                    <small class="login-error" *ngIf="shouldShowError(telefono)">
+                        El teléfono debe tener 10 dígitos.
+                    </small>
+
+                    <small class="login-error"
+                        *ngIf="form.errors?.['contactRequired'] && (submitted() || correo?.touched || telefono?.touched)">
+                        Ingresa correo o teléfono.
+                    </small>
+                </div>
+
+                <div class="captcha">
+                    <div class="captcha__header">
+                        <label>Verificación CAPTCHA</label>
+
+                        <button type="button" class="captcha__refresh" title="Actualizar CAPTCHA"
+                            aria-label="Actualizar CAPTCHA" (click)="refreshCaptcha()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 2v6h-6"></path>
+                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                                <path d="M3 22v-6h6"></path>
+                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="captcha__box">
+                        <svg class="captcha__lines" aria-hidden="true">
+                            <line x1="0" y1="35%" x2="100%" y2="60%" stroke="#2D5771" stroke-width="1"></line>
+                            <line x1="10%" y1="80%" x2="90%" y2="20%" stroke="#162836" stroke-width="0.8"></line>
+                        </svg>
+
+                        <span class="captcha__code">
+                            {{ captchaCode() }}
+                        </span>
+                    </div>
+
+                    <div class="login-field__control"
+                        [class.login-field__control--invalid]="shouldShowError(captcha) || captchaMismatch()">
+                        <span class="login-field__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+
+                        <input type="text" formControlName="captcha" placeholder="Escribe el código" autocomplete="off"
+                            maxlength="6" class="captcha__input" (input)="onCaptchaInput($event)" />
+                    </div>
+
+                    <small class="login-error" *ngIf="shouldShowError(captcha) && !captchaMismatch()">
+                        El código CAPTCHA es obligatorio.
+                    </small>
+
+                    <small class="login-error" *ngIf="captchaMismatch()">
+                        CAPTCHA incorrecto.
+                    </small>
+                </div>
+
+                <div class="terms">
+                    <button type="button" class="terms__checkbox"
+                        [class.terms__checkbox--checked]="aceptaTerminos?.value"
+                        [class.terms__checkbox--invalid]="shouldShowError(aceptaTerminos)"
+                        aria-label="Aceptar términos y condiciones"
+                        (click)="form.patchValue({ aceptaTerminos: !aceptaTerminos?.value })">
+                        <svg *ngIf="aceptaTerminos?.value" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                            <path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+
+                    <p>
+                        Acepto
+                        <span>términos y condiciones</span>
+                    </p>
+                </div>
+
+                <small class="login-error login-error--center" *ngIf="shouldShowError(aceptaTerminos)">
+                    Debes aceptar los términos y condiciones.
+                </small>
+
+                <p class="login-error login-error--center" *ngIf="loginError()">
+                    {{ loginError() }}
+                </p>
+
+                <button type="submit" class="login-submit">
+                    Enviar código
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <p class="login-version">
+        v.1.0.0.0
+    </p>
+</section>
