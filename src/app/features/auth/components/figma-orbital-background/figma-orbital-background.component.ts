@@ -1,15 +1,15 @@
+import { isPlatformBrowser } from '@angular/common';
 import {
     AfterViewInit,
     Component,
     ElementRef,
     NgZone,
     OnDestroy,
+    PLATFORM_ID,
     ViewChild,
     inject
 } from '@angular/core';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { FigmaOrbitalBackgroundReact } from './figma-orbital-background.react';
+import type { Root } from 'react-dom/client';
 
 @Component({
     selector: 'app-figma-orbital-background',
@@ -51,9 +51,17 @@ export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy
     private readonly reactHost?: ElementRef<HTMLDivElement>;
 
     private readonly ngZone = inject(NgZone);
+    private readonly platformId = inject(PLATFORM_ID);
+    private readonly isBrowser = isPlatformBrowser(this.platformId);
+
     private reactRoot?: Root;
+    private destroyed = false;
 
     ngAfterViewInit(): void {
+        if (!this.isBrowser) {
+            return;
+        }
+
         const host = this.reactHost?.nativeElement;
 
         if (!host) {
@@ -61,14 +69,36 @@ export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy
         }
 
         this.ngZone.runOutsideAngular(() => {
-            this.reactRoot = createRoot(host);
-            this.reactRoot.render(React.createElement(FigmaOrbitalBackgroundReact));
+            void this.mountReactBackground(host);
         });
     }
 
     ngOnDestroy(): void {
+        this.destroyed = true;
+
+        if (!this.isBrowser || !this.reactRoot) {
+            return;
+        }
+
         this.ngZone.runOutsideAngular(() => {
             this.reactRoot?.unmount();
+            this.reactRoot = undefined;
         });
+    }
+
+    private async mountReactBackground(host: HTMLDivElement): Promise<void> {
+        const [{ createElement }, { createRoot }, { FigmaOrbitalBackgroundReact }] =
+            await Promise.all([
+                import('react'),
+                import('react-dom/client'),
+                import('./figma-orbital-background.react')
+            ]);
+
+        if (this.destroyed) {
+            return;
+        }
+
+        this.reactRoot = createRoot(host);
+        this.reactRoot.render(createElement(FigmaOrbitalBackgroundReact));
     }
 }
