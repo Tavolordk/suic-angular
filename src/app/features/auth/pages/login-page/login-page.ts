@@ -7,7 +7,7 @@ import {
     ValidationErrors,
     Validators
 } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { FigmaOrbitalBackgroundComponent } from '../../components/figma-orbital-background/figma-orbital-background.component';
 
@@ -25,7 +25,6 @@ import { FigmaOrbitalBackgroundComponent } from '../../components/figma-orbital-
 export class LoginPage implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
-    private readonly route = inject(ActivatedRoute);
     private readonly authService = inject(AuthService);
 
     readonly currentYear = new Date().getFullYear();
@@ -49,7 +48,7 @@ export class LoginPage implements OnInit {
 
     ngOnInit(): void {
         if (this.authService.isAuthenticated()) {
-            this.router.navigateByUrl('/dashboard');
+            this.router.navigateByUrl('/busqueda');
         }
     }
 
@@ -116,16 +115,21 @@ export class LoginPage implements OnInit {
             return;
         }
 
+        /*
+         * Flujo visual:
+         * 1. Captura credenciales.
+         * 2. Envía a autenticación de dos pasos.
+         *
+         * Cuando conectemos backend real, aquí debe llamarse el endpoint que envía
+         * el código SMS, y el login definitivo debe hacerse después de validar OTP.
+         */
         this.authService.login({
             usuario: value.usuario ?? '',
             correo: value.correo ?? '',
             telefono: value.telefono ?? ''
         });
 
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-        const safeReturnUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard';
-
-        this.router.navigateByUrl(safeReturnUrl);
+        this.router.navigateByUrl('/autenticacion');
     }
 
     shouldShowError(control: AbstractControl | null): boolean {

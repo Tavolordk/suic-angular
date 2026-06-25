@@ -1,0 +1,76 @@
+<section class="two-step-page">
+    <div class="two-step-page__background"></div>
+    <app-figma-orbital-background class="two-step-page__canvas"></app-figma-orbital-background>
+    <div class="two-step-page__vignette"></div>
+
+    <main class="two-step-page__content">
+        <div class="two-step-logo">
+            <div class="two-step-logo__glow"></div>
+            <img src="/login-seguridad-logo.png" alt="Logotipo institucional" class="two-step-logo__image" />
+        </div>
+
+        <div class="two-step-title">
+            <h1>Sistema Plataforma México</h1>
+            <p>Bienvenido</p>
+        </div>
+
+        <section class="two-step-card" aria-label="Verificación en dos pasos">
+            <div class="two-step-card__steps">
+                <span class="two-step-card__step"></span>
+                <span class="two-step-card__step two-step-card__step--active"></span>
+            </div>
+
+            <div class="two-step-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                        d="M22 16.92V20A2 2 0 0 1 19.82 22A19.79 19.79 0 0 1 11.19 18.93A19.5 19.5 0 0 1 5.07 12.81A19.79 19.79 0 0 1 2 4.16A2 2 0 0 1 4 2H7.09A2 2 0 0 1 9.09 3.72C9.21 4.64 9.42 5.55 9.72 6.42A2 2 0 0 1 9.27 8.53L7.96 9.84A16 16 0 0 0 14.16 16.04L15.47 14.73A2 2 0 0 1 17.58 14.28C18.45 14.58 19.36 14.79 20.28 14.91A2 2 0 0 1 22 16.92Z"
+                        stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+
+            <h2>Verificación en dos pasos</h2>
+
+            <p class="two-step-card__description">
+                Código enviado por SMS · Ingresa los 6<br />
+                dígitos recibidos
+            </p>
+
+            <form class="two-step-form" [formGroup]="form" (ngSubmit)="verifyAndLogin()">
+                <div class="two-step-code" formArrayName="code">
+                    <input #codeInput *ngFor="let control of codeControls; let i = index" type="password"
+                        pattern="[0-9]*" inputmode="numeric" maxlength="1" autocomplete="one-time-code"
+                        [formControlName]="i" [class.two-step-code__input--invalid]="shouldShowCodeError()"
+                        class="two-step-code__input" (input)="onCodeInput($event, i)"
+                        (keydown)="onCodeKeydown($event, i)" (paste)="onPaste($event)" />
+                </div>
+
+                <p class="two-step-error" *ngIf="authError()">
+                    {{ authError() }}
+                </p>
+
+                <p class="two-step-card__resend">
+                    ¿No recibiste el código?
+                    <button type="button" (click)="resendCode()">
+                        Reenviar
+                    </button>
+                </p>
+
+                <p class="two-step-card__message" *ngIf="resendMessage()">
+                    {{ resendMessage() }}
+                </p>
+
+                <button type="submit" class="two-step-submit">
+                    Verificar e ingresar
+                </button>
+
+                <button type="button" class="two-step-back" (click)="backToLogin()">
+                    ← Volver a credenciales
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <p class="two-step-version">
+        v.1.0.0.0
+    </p>
+</section>
