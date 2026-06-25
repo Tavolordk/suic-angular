@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import {
     AbstractControl,
     FormBuilder,
@@ -9,11 +9,16 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { FigmaOrbitalBackgroundComponent } from '../../components/figma-orbital-background/figma-orbital-background.component';
 
 @Component({
     selector: 'app-login-page',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
+    imports: [
+        CommonModule,
+        ReactiveFormsModule,
+        FigmaOrbitalBackgroundComponent
+    ],
     templateUrl: './login-page.html',
     styleUrl: './login-page.scss'
 })
@@ -157,6 +162,7 @@ export class LoginPage implements OnInit {
 
     private createCaptcha(): string {
         const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
         return Array.from(
             { length: 6 },
             () => alphabet[Math.floor(Math.random() * alphabet.length)]
