@@ -123,9 +123,19 @@
                     <h1>Búsqueda</h1>
                     <p>Puedes buscar con uno o más campos por entidad</p>
                 </div>
+
+                <button type="button" class="search-collapse-button" (click)="toggleSearchPanel()">
+                    {{ searchPanelExpanded() ? 'Contraer' : 'Expandir' }}
+
+                    <svg viewBox="0 0 24 24" fill="none"
+                        [class.search-collapse-button__icon--collapsed]="!searchPanelExpanded()">
+                        <path d="M5 15l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round"></path>
+                    </svg>
+                </button>
             </section>
 
-            <section class="search-panel">
+            <section class="search-panel" [class.search-panel--collapsed]="!searchPanelExpanded()">
                 <aside class="search-entities">
                     <p>Entidades</p>
 
@@ -225,7 +235,14 @@
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'vehiculo'">
-                            <label class="search-field">
+                            <label class="search-field" *ngFor="let field of [
+                { control: 'niv', label: 'NIV/VIN' },
+                { control: 'placa', label: 'Placa' },
+                { control: 'noMotor', label: 'No. motor' },
+                { control: 'marca', label: 'Marca' },
+                { control: 'modelo', label: 'Modelo' },
+                { control: 'color', label: 'Color' }
+              ]">
                                 <span class="search-field__icon">
                                     <svg fill="none" viewBox="0 0 20.5 20.5">
                                         <path
@@ -234,72 +251,19 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="niv" placeholder="NIV/VIN" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="placa" placeholder="Placa" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="noMotor" placeholder="No. motor" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="marca" placeholder="Marca" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="modelo" placeholder="Modelo" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="color" placeholder="Color" />
+                                <input type="text" [formControlName]="field.control" [placeholder]="field.label" />
                             </label>
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'armas'">
-                            <label class="search-field">
+                            <label class="search-field" *ngFor="let field of [
+                { control: 'matricula', label: 'Matrícula' },
+                { control: 'marca', label: 'Marca' },
+                { control: 'modelo', label: 'Modelo' },
+                { control: 'calibre', label: 'Calibre' },
+                { control: 'tipoArma', label: 'Tipo de arma' },
+                { control: 'licencia', label: 'Número licencia' }
+              ]">
                                 <span class="search-field__icon">
                                     <svg fill="none" viewBox="0 0 20.5 20.5">
                                         <path
@@ -308,84 +272,39 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="matricula" placeholder="Matrícula" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="marca" placeholder="Marca" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="modelo" placeholder="Modelo" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="calibre" placeholder="Calibre" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="tipoArma" placeholder="Tipo de arma" />
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
-                                </span>
-                                <input type="text" formControlName="licencia" placeholder="Número licencia" />
+                                <input type="text" [formControlName]="field.control" [placeholder]="field.label" />
                             </label>
                         </div>
                     </ng-container>
 
                     <div class="search-form__actions">
-                        <button type="button" class="search-button search-button--clear" (click)="clearSearch()">
+                        <button type="button" class="search-button search-button--clear" (click)="clearSearch()"
+                            [disabled]="canShowSearching()">
                             Limpiar
                         </button>
 
-                        <button type="submit" class="search-button search-button--submit">
+                        <button type="submit" class="search-button search-button--submit"
+                            [disabled]="canShowSearching()">
                             Buscar
                         </button>
                     </div>
                 </form>
             </section>
 
-            <section class="search-empty-states" *ngIf="!hasSearched()">
+            <section class="search-loading-panel" *ngIf="canShowSearching()">
+                <div class="search-loading-card">
+                    <div class="search-loading-dots" aria-hidden="true">
+                        <span class="search-dot"></span>
+                        <span class="search-dot"></span>
+                        <span class="search-dot"></span>
+                    </div>
+
+                    <h2>Buscando resultados</h2>
+                    <p>Esto puede tardar unos segundos</p>
+                </div>
+            </section>
+
+            <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
                     <p>Sin búsquedas frecuentes</p>
                 </div>
@@ -395,10 +314,159 @@
                 </div>
             </section>
 
-            <section class="search-empty-states" *ngIf="hasSearched()">
-                <div class="search-empty-card search-empty-card--results">
-                    <p>Búsqueda enviada</p>
-                    <span>Después conectamos aquí los resultados reales.</span>
+            <section class="search-results" *ngIf="canShowResults()">
+                <div class="search-results__toolbar">
+                    <p>
+                        <strong>{{ totalResults() }}</strong>
+                        resultados encontrados
+                    </p>
+
+                    <div class="search-results__actions">
+                        <div class="search-page-size">
+                            <button type="button" title="Mostrar 10 resultados por página"
+                                [class.search-page-size__button--active]="pageSize() === 10" (click)="setPageSize(10)">
+                                10
+                            </button>
+
+                            <button type="button" title="Mostrar 18 resultados por página"
+                                [class.search-page-size__button--active]="pageSize() === 18" (click)="setPageSize(18)">
+                                18
+                            </button>
+                        </div>
+
+                        <div class="search-view-mode">
+                            <button type="button" title="Mostrar 10 resultados"
+                                [class.search-view-mode__button--active]="pageSize() === 10" (click)="setPageSize(10)">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                </svg>
+                            </button>
+
+                            <button type="button" title="Mostrar 18 resultados"
+                                [class.search-view-mode__button--active]="pageSize() === 18" (click)="setPageSize(18)">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <rect x="4" y="4" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="10" y="4" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="16" y="4" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="4" y="10" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="10" y="10" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="16" y="10" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="4" y="16" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="10" y="16" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                    <rect x="16" y="16" width="4" height="4" rx="1" stroke="currentColor"
+                                        stroke-width="2"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
+                    <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
+                        [style.animation-delay.ms]="i * 35" title="Doble clic para ver detalle"
+                        (dblclick)="openResultDetail(result)">
+                        <div class="search-result-card__header">
+                            <div class="search-result-card__tags">
+                                <div *ngFor="let tag of result.tags" class="search-result-tag"
+                                    [ngClass]="getTagClass(tag)" [title]="getTagLabel(tag) + ': ' + tag.count">
+                                    <button type="button" class="search-result-tag__icon">
+                                        <svg *ngIf="tag.type === 'vehiculo'" viewBox="0 0 24 24" fill="none"
+                                            aria-hidden="true">
+                                            <path
+                                                d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round"></path>
+                                        </svg>
+
+                                        <svg *ngIf="tag.type === 'armas'" viewBox="0 0 24 24" fill="none"
+                                            aria-hidden="true">
+                                            <path d="M3 12h9m0 0l2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round"></path>
+                                        </svg>
+
+                                        <svg *ngIf="tag.type === 'personas'" viewBox="0 0 24 24" fill="none"
+                                            aria-hidden="true">
+                                            <path
+                                                d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round"></path>
+                                        </svg>
+                                    </button>
+
+                                    <span>{{ tag.count }}</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="search-result-card__save"
+                                [class.search-result-card__save--active]="result.saved"
+                                [title]="result.saved ? 'Quitar de guardados' : 'Guardar'"
+                                (click)="toggleSave(result, $event)">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="search-result-card__data">
+                            <span class="search-result-card__label search-result-card__label--name">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path
+                                        d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"></path>
+                                </svg>
+                                Nombre:
+                            </span>
+
+                            <span class="search-result-card__value">
+                                {{ result.name }}
+                            </span>
+
+                            <span class="search-result-card__label">
+                                Alias:
+                            </span>
+
+                            <span class="search-result-card__value"
+                                [class.search-result-card__value--empty]="!result.alias">
+                                {{ result.alias || '—' }}
+                            </span>
+
+                            <span class="search-result-card__label">
+                                CURP:
+                            </span>
+
+                            <span class="search-result-card__value"
+                                [class.search-result-card__value--empty]="!result.curp">
+                                {{ result.curp || '—' }}
+                            </span>
+
+                            <span class="search-result-card__label">
+                                RFC:
+                            </span>
+
+                            <span class="search-result-card__value"
+                                [class.search-result-card__value--empty]="!result.rfc">
+                                {{ result.rfc || '—' }}
+                            </span>
+                        </div>
+                    </article>
                 </div>
             </section>
         </main>
