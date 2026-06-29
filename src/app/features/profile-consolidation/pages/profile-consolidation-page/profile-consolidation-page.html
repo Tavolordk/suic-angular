@@ -2,8 +2,7 @@
     <header class="profile-topbar">
         <div class="profile-topbar__content">
             <div class="profile-topbar__logo">
-                <img src="https://bonus-gala-11863518.figma.site/_assets/v11/4cffc9f7d9766e4721ba576cd83f4ce575d4e163.png"
-                    alt="Logo SSPC" />
+                <img src="seguridad-logo.png" alt="Logo SSPC" />
             </div>
 
             <p class="profile-topbar__title">Sistema Plataforma México</p>
@@ -17,13 +16,14 @@
                     </svg>
 
                     <div class="profile-clock__text">
-                        <span>15:17:52</span>
-                        <small>vie, 26 de jun de 2026</small>
+                        <span>{{ currentTime() | date:'HH:mm:ss' }}</span>
+                        <small>{{ currentTime() | date:'EEE, d MMM y' }}</small>
                     </div>
                 </div>
 
                 <div class="profile-user">
-                    <button type="button" class="profile-user__button" aria-label="Perfil de usuario">
+                    <button type="button" class="profile-user__button" aria-label="Perfil de usuario"
+                        [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">
                         <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
                             <path
                                 d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
@@ -35,6 +35,57 @@
                                 stroke-width="1.75"></path>
                         </svg>
                     </button>
+
+                    @if (profileOpen()) {
+                    <div class="profile-user__dropdown">
+                        <div class="profile-user__summary">
+                            <span class="profile-user__avatar">
+                                <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
+                                    <path
+                                        d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
+                                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="1.75"></path>
+                                    <path
+                                        d="M14 13.2083C16.5773 13.2083 18.6667 11.119 18.6667 8.54167C18.6667 5.96434 16.5773 3.875 14 3.875C11.4227 3.875 9.33333 5.96434 9.33333 8.54167C9.33333 11.119 11.4227 13.2083 14 13.2083Z"
+                                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                        stroke-width="1.75"></path>
+                                </svg>
+                            </span>
+
+                            <div>
+                                <strong>{{ displayName() }}</strong>
+                                <small>SSPC · Analista</small>
+                            </div>
+                        </div>
+
+                        <div class="profile-user__meta">
+                            <p>
+                                <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                                Unidad de Inteligencia
+                            </p>
+
+                            <p>
+                                <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                                Rol: Analista de Seguridad
+                            </p>
+                        </div>
+
+                        <button type="button" class="profile-user__logout" (click)="logout()">
+                            <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"></path>
+                            </svg>
+                            Cerrar sesión
+                        </button>
+                    </div>
+                    }
                 </div>
             </div>
         </div>
@@ -42,100 +93,345 @@
 
     <div class="profile-main">
         <aside class="profile-sidebar">
-            <a routerLink="/busqueda" class="profile-sidebar__button" title="Regresar a resultados">
+            <button type="button" class="profile-sidebar__button" title="Búsqueda principal" (click)="goToResults()">
                 <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                     <path
                         d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                         stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
                 </svg>
-            </a>
+            </button>
 
-            <button type="button" class="profile-sidebar__button" title="Historial de búsquedas">
+            <button type="button" class="profile-sidebar__button" title="Historial de búsquedas"
+                [class.profile-sidebar__button--active]="activeSidebarPanel() === 'history'" (click)="goToHistory()">
                 <img src="https://bonus-gala-11863518.figma.site/_assets/v11/dc921f3ee657675c983856841306c0bef69d643f.png"
                     alt="Historial" />
             </button>
 
-            <button type="button" class="profile-sidebar__button" title="Búsquedas guardadas">
+            <button type="button" class="profile-sidebar__button" title="Búsquedas guardadas"
+                [class.profile-sidebar__button--active]="activeSidebarPanel() === 'bookmarks'" (click)="goToSaved()">
                 <img src="https://bonus-gala-11863518.figma.site/_assets/v11/aa191e0b980b8721759117f656f5337f51d248ff.png"
                     alt="Guardados" />
             </button>
         </aside>
 
-        <main class="profile-content">
-            <section class="profile-toolbar">
-                <a routerLink="/busqueda" class="profile-toolbar__back">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round"></path>
-                    </svg>
-                    Regresar
-                </a>
-
-                <div class="profile-toolbar__center">
-                    <h1>Perfil consolidado</h1>
-                    <p>Personas · Perfil #{{ profileId }}</p>
+        @if (activeSidebarPanel() === 'history') {
+        <aside class="profile-side-panel">
+            <header>
+                <div>
+                    <strong>Historial</strong>
+                    <span>Búsquedas recientes</span>
                 </div>
 
-                <button type="button" class="profile-toolbar__save" [class.profile-toolbar__save--accepted]="accepted()"
-                    (click)="accept()">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        <path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round"></path>
-                    </svg>
-                    {{ accepted() ? 'Perfil guardado' : 'Guardar perfil' }}
+                <button type="button" aria-label="Cerrar historial" (click)="closeSidebarPanel()">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
+            </header>
+
+            <div class="profile-side-panel__list">
+                @for (item of recentSearches; track item.id) {
+                <button type="button" class="profile-quick-search" (click)="runQuickSearch(item)">
+                    <span class="profile-quick-search__icon">
+                        @switch (getQuickSearchIcon(item)) {
+                        @case ('person') {
+                        <i class="fa-regular fa-user"></i>
+                        }
+                        @case ('curp') {
+                        <i class="fa-regular fa-id-card"></i>
+                        }
+                        @case ('vehicle') {
+                        <i class="fa-solid fa-car-side"></i>
+                        }
+                        @case ('weapon') {
+                        <i class="fa-solid fa-gun"></i>
+                        }
+                        }
+                    </span>
+
+                    <span>
+                        <strong>{{ item.label }}</strong>
+                        <small>{{ item.type }}</small>
+                    </span>
+                </button>
+                }
+            </div>
+        </aside>
+        }
+
+        @if (activeSidebarPanel() === 'bookmarks') {
+        <aside class="profile-side-panel">
+            <header>
+                <div>
+                    <strong>Guardados</strong>
+                    <span>Búsquedas favoritas</span>
+                </div>
+
+                <button type="button" aria-label="Cerrar guardados" (click)="closeSidebarPanel()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="profile-side-panel__list">
+                @for (item of savedSearches; track item.id) {
+                <button type="button" class="profile-quick-search" (click)="runQuickSearch(item)">
+                    <span class="profile-quick-search__icon">
+                        @switch (getQuickSearchIcon(item)) {
+                        @case ('person') {
+                        <i class="fa-regular fa-user"></i>
+                        }
+                        @case ('curp') {
+                        <i class="fa-regular fa-id-card"></i>
+                        }
+                        @case ('vehicle') {
+                        <i class="fa-solid fa-car-side"></i>
+                        }
+                        @case ('weapon') {
+                        <i class="fa-solid fa-gun"></i>
+                        }
+                        }
+                    </span>
+
+                    <span>
+                        <strong>{{ item.label }}</strong>
+                        <small>{{ item.type }}</small>
+                    </span>
+                </button>
+                }
+            </div>
+        </aside>
+        }
+
+        <main class="profile-content">
+            <section class="profile-header-card">
+                <div>
+                    <h1>Perfil consolidado</h1>
+                    <p>Integra información de distintas fuentes para construir el perfil final</p>
+                </div>
+
+                <div class="profile-header-card__actions">
+                    <button type="button" class="profile-header-card__secondary" (click)="goToResults()">
+                        Regresar a resultados
+                    </button>
+
+                    <button type="button" class="profile-header-card__primary"
+                        [class.profile-header-card__primary--accepted]="accepted()" (click)="accept()">
+                        <i class="fa-regular fa-floppy-disk"></i>
+                        {{ accepted() ? 'Perfil guardado' : 'Guardar perfil' }}
+                    </button>
+                </div>
             </section>
 
             @if (selectedSource(); as source) {
             <section class="profile-grid">
                 <article class="profile-card profile-card--sources">
                     <header class="profile-card__header">
-                        <p>1. Fuentes</p>
-                        <span>Selecciona una fuente</span>
+                        <h2>1. Fuentes detectadas</h2>
+                        <p>Selecciona una fuente para elegir sus campos</p>
                     </header>
 
-                    <div class="profile-card__body">
-                        <app-source-list [sources]="sources()" [selectedSourceId]="source.id"
-                            (sourceSelected)="selectSource($event)" />
+                    <div class="profile-sources">
+                        @for (item of sources(); track item.id) {
+                        <button type="button" class="source-card" [class.source-card--active]="source.id === item.id"
+                            (click)="selectSource(item.id)">
+                            <span class="source-card__avatar" [style.background]="item.color">
+                                {{ item.code }}
+                            </span>
+
+                            <span class="source-card__content">
+                                <strong>{{ item.title }}</strong>
+                                <small>{{ item.description }}</small>
+                            </span>
+
+                            <span class="source-card__match">
+                                <strong>{{ item.percentage }}%</strong>
+                                <small>Coincidencia</small>
+                                <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : 'No incluido' }}</em>
+                            </span>
+                        </button>
+                        }
                     </div>
                 </article>
 
                 <article class="profile-card profile-card--selection">
                     <header class="profile-card__header">
-                        <p>2. Selección de datos</p>
-                        <span>Elige los campos a incluir en el perfil</span>
+                        <h2>2. Selección de datos</h2>
+                        <p>Elige los campos a incluir en el perfil</p>
                     </header>
 
-                    <div class="profile-card__body">
-                        <app-data-selection [source]="source" (fieldToggled)="toggleField($event)"
-                            (selectAllRequested)="selectAll()" />
-                    </div>
+                    <section class="selection-source">
+                        <span class="selection-source__avatar" [style.background]="source.color">
+                            {{ source.code }}
+                        </span>
+
+                        <div>
+                            <strong>{{ source.title }}</strong>
+                            <small>{{ source.description }}</small>
+                        </div>
+
+                        <div class="selection-source__match">
+                            <strong>{{ source.percentage }}%</strong>
+                            <small>Coincidencia</small>
+                        </div>
+                    </section>
+
+                    <section class="selection-counter">
+                        <span>{{ getSelectedSourceCount(source) }} de {{ source.fields.length }} campos</span>
+
+                        <button type="button" (click)="selectAll()">
+                            Seleccionar todo
+                        </button>
+                    </section>
+
+                    <section class="selection-fields">
+                        @for (field of source.fields; track field.id) {
+                        <button type="button" class="field-row" [class.field-row--selected]="field.selected"
+                            (click)="toggleField(field.id)">
+                            <span class="field-row__checkbox" [class.field-row__checkbox--selected]="field.selected">
+                                @if (field.selected) {
+                                <i class="fa-solid fa-check"></i>
+                                }
+                            </span>
+
+                            <strong>{{ field.label }}</strong>
+                            <span>{{ field.value }}</span>
+                        </button>
+                        }
+                    </section>
+
+                    <footer class="selection-info">
+                        <i class="fa-solid fa-circle-info"></i>
+
+                        <div>
+                            <strong>Información</strong>
+                            <p>
+                                Esta fuente tiene {{ source.fields.length }} campos disponibles.
+                                Selecciona los datos que formarán parte del perfil consolidado.
+                            </p>
+                        </div>
+                    </footer>
                 </article>
 
                 <article class="profile-card profile-card--consolidated">
                     <header class="profile-card__header">
-                        <p>3. Perfil consolidado</p>
-                        <span>Campos seleccionados de las fuentes</span>
+                        <h2>3. Perfil consolidado</h2>
+                        <p>Campos seleccionados de las fuentes</p>
                     </header>
 
-                    <div class="profile-card__progress">
-                        <div class="profile-progress__header">
+                    <section class="consolidated-progress">
+                        <div>
                             <span>Datos completados</span>
                             <strong>{{ completedLabel() }}</strong>
                         </div>
 
-                        <div class="profile-progress__track">
-                            <div class="profile-progress__bar"></div>
+                        <div class="progress-line">
+                            <span [style.width.%]="completionPercent()"></span>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="profile-card__body profile-card__body--consolidated">
-                        <app-consolidated-profile [profileId]="profileId" [completedLabel]="completedLabel()"
-                            [selectedFields]="selectedFields()" [accepted]="accepted()"
-                            (acceptedRequested)="accept()" />
-                    </div>
+                    <section class="profile-gallery">
+                        <button type="button" class="profile-gallery__arrow" aria-label="Foto anterior">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+
+                        <div class="profile-gallery__images">
+                            <img src="person-left.png" alt="Perfil izquierdo" />
+                            <img src="person-front.png" alt="Perfil frontal" />
+                            <img src="person-right.png" alt="Perfil derecho" />
+                        </div>
+
+                        <button type="button" class="profile-gallery__arrow" aria-label="Foto siguiente">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </section>
+
+                    <section class="accordion-card accordion-card--open">
+                        <button type="button" class="accordion-card__button">
+                            <span>
+                                <i class="fa-regular fa-user"></i>
+                                Datos personales
+                            </span>
+
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
+
+                        @if (selectedFields().length === 0) {
+                        <div class="accordion-card__empty">
+                            <i class="fa-solid fa-spinner"></i>
+                            Sin campos seleccionados
+                        </div>
+                        } @else {
+                        <div class="selected-fields">
+                            @for (field of selectedFields(); track field.sourceTitle + field.id) {
+                            <article class="selected-field">
+                                <div>
+                                    <span>{{ field.label }}</span>
+                                    <strong>{{ field.value }}</strong>
+                                </div>
+
+                                <small [style.background]="field.sourceColor">
+                                    {{ field.sourceTitle }}
+                                </small>
+                            </article>
+                            }
+                        </div>
+                        }
+                    </section>
+
+                    <section class="accordion-card">
+                        <button type="button" class="accordion-card__button">
+                            <span>
+                                <i class="fa-solid fa-paperclip"></i>
+                                Archivos relacionados 2
+                            </span>
+
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </section>
+
+                    <section class="accordion-card">
+                        <button type="button" class="accordion-card__button">
+                            <span>
+                                <i class="fa-solid fa-border-all"></i>
+                                Objetos adicionales 1
+                            </span>
+
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </section>
+
+                    <section class="links-card">
+                        <p>Se han encontrado <strong>4</strong> vínculos</p>
+
+                        <div>
+                            <span class="links-card__vehicle">
+                                <i class="fa-solid fa-car-side"></i>
+                                Vehículos 1
+                            </span>
+
+                            <span class="links-card__weapon">
+                                <i class="fa-solid fa-gun"></i>
+                                Armas 3
+                            </span>
+                        </div>
+                    </section>
+
+                    <footer class="consolidated-footer">
+                        @if (!accepted()) {
+                        <button type="button" class="accept-button" [disabled]="selectedFields().length === 0"
+                            (click)="accept()">
+                            Aceptar
+                        </button>
+                        } @else {
+                        <button type="button" class="accepted-button">
+                            <i class="fa-solid fa-check"></i>
+                            Aceptado
+                        </button>
+
+                        <a routerLink="/grafo" class="graph-button">
+                            <i class="fa-solid fa-share-nodes"></i>
+                            Visualizar grafo
+                        </a>
+                        }
+                    </footer>
                 </article>
             </section>
             }
