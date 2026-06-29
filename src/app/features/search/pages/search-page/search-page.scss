@@ -307,7 +307,7 @@
 
 .search-sidebar__button--active {
   background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 2px 10px rgba(34, 53, 68, 0.08);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
 }
 
 .search-sidebar__button:active {
@@ -327,6 +327,13 @@
   min-width: 0;
   padding: 16px;
   overflow-y: auto;
+  transition:
+    filter 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.search-content--panel-open {
+  pointer-events: none;
 }
 
 .search-title-card {
@@ -573,6 +580,158 @@
 
 .search-button--submit:hover {
   background: rgba(34, 53, 68, 0.9);
+}
+
+/* Panel lateral: recientes / guardadas */
+
+.search-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
+  animation: sidebarOverlayIn 0.18s ease both;
+}
+
+.search-sidebar-panel {
+  position: fixed;
+  top: 87px;
+  left: 68px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: 256px;
+  max-width: calc(100vw - 84px);
+  overflow: hidden;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: sidebarPanelIn 0.22s ease both;
+}
+
+.search-sidebar-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 14px 16px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.8);
+  flex: 0 0 auto;
+}
+
+.search-sidebar-panel__header h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.search-sidebar-panel__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #1e1e1e;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.search-sidebar-panel__close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.search-sidebar-panel__close:active {
+  transform: scale(0.94);
+}
+
+.search-sidebar-panel__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.search-sidebar-panel__list {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.search-sidebar-panel__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  font-family: 'Noto Sans', Arial, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.search-sidebar-panel__item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.search-sidebar-panel__item::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  bottom: 0;
+  left: 16px;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.search-sidebar-panel__item:last-child::after {
+  display: none;
+}
+
+.search-sidebar-panel__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  background: rgba(34, 53, 68, 0.07);
+  color: rgba(30, 30, 30, 0.7);
+  transition: background 0.2s ease;
+}
+
+.search-sidebar-panel__item:hover .search-sidebar-panel__icon {
+  background: rgba(34, 53, 68, 0.14);
+}
+
+.search-sidebar-panel__icon svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.search-sidebar-panel__text {
+  overflow: hidden;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Animación original de búsqueda */
@@ -1021,6 +1180,28 @@
   }
 }
 
+@keyframes sidebarOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sidebarPanelIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
 /* Responsive */
 
 @media (max-width: 1320px) {
@@ -1130,6 +1311,13 @@
     flex-basis: 48px;
   }
 
+  .search-sidebar-panel {
+    top: 87px;
+    left: 60px;
+    width: calc(100vw - 76px);
+    max-width: none;
+  }
+
   .search-content {
     padding: 12px;
   }
@@ -1167,4 +1355,10 @@
   .search-results__grid--compact {
     grid-template-columns: 1fr;
   }
+}
+.search-sidebar-panel__curp-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.7;
 }

@@ -4,5 +4,5 @@
 @use './styles/components';
 @use './styles/responsive';
 
-@import 'bootstrap/scss/bootstrap';
-@import '@fortawesome/fontawesome-free/css/all.min.css'; /* You can add global styles to this file, and also import other style files */
+@use 'bootstrap/scss/bootstrap';
+@use '@fortawesome/fontawesome-free/css/all.min.css'; /* You can add global styles to this file, and also import other style files */

@@ -1,26 +1,144 @@
-<section class="profile-page">
-    <header class="profile-page__toolbar">
-        <a routerLink="/busqueda" class="profile-page__back">
-            <i class="fa-solid fa-arrow-left"></i>
-            Regresar a resultados
-        </a>
+<section class="profile-shell">
+    <header class="profile-topbar">
+        <div class="profile-topbar__content">
+            <div class="profile-topbar__logo">
+                <img src="https://bonus-gala-11863518.figma.site/_assets/v11/4cffc9f7d9766e4721ba576cd83f4ce575d4e163.png"
+                    alt="Logo SSPC" />
+            </div>
 
-        <span class="profile-page__section">Personas</span>
+            <p class="profile-topbar__title">Sistema Plataforma México</p>
 
-        <button type="button" class="profile-page__save">
-            <i class="fa-regular fa-floppy-disk"></i>
-            Guardar perfil
-        </button>
+            <div class="profile-topbar__actions">
+                <div class="profile-clock">
+                    <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"></circle>
+                        <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                            stroke-linejoin="round"></path>
+                    </svg>
+
+                    <div class="profile-clock__text">
+                        <span>15:17:52</span>
+                        <small>vie, 26 de jun de 2026</small>
+                    </div>
+                </div>
+
+                <div class="profile-user">
+                    <button type="button" class="profile-user__button" aria-label="Perfil de usuario">
+                        <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
+                            <path
+                                d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
+                                stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="1.75"></path>
+                            <path
+                                d="M14 13.2083C16.5773 13.2083 18.6667 11.119 18.6667 8.54167C18.6667 5.96434 16.5773 3.875 14 3.875C11.4227 3.875 9.33333 5.96434 9.33333 8.54167C9.33333 11.119 11.4227 13.2083 14 13.2083Z"
+                                stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="1.75"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
     </header>
 
-    @if (selectedSource(); as source) {
-    <div class="profile-page__grid">
-        <app-source-list [sources]="sources()" [selectedSourceId]="source.id" (sourceSelected)="selectSource($event)" />
+    <div class="profile-main">
+        <aside class="profile-sidebar">
+            <a routerLink="/busqueda" class="profile-sidebar__button" title="Regresar a resultados">
+                <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                    <path
+                        d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
+                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                </svg>
+            </a>
 
-        <app-data-selection [source]="source" (fieldToggled)="toggleField($event)" (selectAllRequested)="selectAll()" />
+            <button type="button" class="profile-sidebar__button" title="Historial de búsquedas">
+                <img src="https://bonus-gala-11863518.figma.site/_assets/v11/dc921f3ee657675c983856841306c0bef69d643f.png"
+                    alt="Historial" />
+            </button>
 
-        <app-consolidated-profile [profileId]="profileId" [completedLabel]="completedLabel()"
-            [selectedFields]="selectedFields()" [accepted]="accepted()" (acceptedRequested)="accept()" />
+            <button type="button" class="profile-sidebar__button" title="Búsquedas guardadas">
+                <img src="https://bonus-gala-11863518.figma.site/_assets/v11/aa191e0b980b8721759117f656f5337f51d248ff.png"
+                    alt="Guardados" />
+            </button>
+        </aside>
+
+        <main class="profile-content">
+            <section class="profile-toolbar">
+                <a routerLink="/busqueda" class="profile-toolbar__back">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round"></path>
+                    </svg>
+                    Regresar
+                </a>
+
+                <div class="profile-toolbar__center">
+                    <h1>Perfil consolidado</h1>
+                    <p>Personas · Perfil #{{ profileId }}</p>
+                </div>
+
+                <button type="button" class="profile-toolbar__save" [class.profile-toolbar__save--accepted]="accepted()"
+                    (click)="accept()">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round"></path>
+                    </svg>
+                    {{ accepted() ? 'Perfil guardado' : 'Guardar perfil' }}
+                </button>
+            </section>
+
+            @if (selectedSource(); as source) {
+            <section class="profile-grid">
+                <article class="profile-card profile-card--sources">
+                    <header class="profile-card__header">
+                        <p>1. Fuentes</p>
+                        <span>Selecciona una fuente</span>
+                    </header>
+
+                    <div class="profile-card__body">
+                        <app-source-list [sources]="sources()" [selectedSourceId]="source.id"
+                            (sourceSelected)="selectSource($event)" />
+                    </div>
+                </article>
+
+                <article class="profile-card profile-card--selection">
+                    <header class="profile-card__header">
+                        <p>2. Selección de datos</p>
+                        <span>Elige los campos a incluir en el perfil</span>
+                    </header>
+
+                    <div class="profile-card__body">
+                        <app-data-selection [source]="source" (fieldToggled)="toggleField($event)"
+                            (selectAllRequested)="selectAll()" />
+                    </div>
+                </article>
+
+                <article class="profile-card profile-card--consolidated">
+                    <header class="profile-card__header">
+                        <p>3. Perfil consolidado</p>
+                        <span>Campos seleccionados de las fuentes</span>
+                    </header>
+
+                    <div class="profile-card__progress">
+                        <div class="profile-progress__header">
+                            <span>Datos completados</span>
+                            <strong>{{ completedLabel() }}</strong>
+                        </div>
+
+                        <div class="profile-progress__track">
+                            <div class="profile-progress__bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="profile-card__body profile-card__body--consolidated">
+                        <app-consolidated-profile [profileId]="profileId" [completedLabel]="completedLabel()"
+                            [selectedFields]="selectedFields()" [accepted]="accepted()"
+                            (acceptedRequested)="accept()" />
+                    </div>
+                </article>
+            </section>
+            }
+        </main>
     </div>
-    }
 </section>

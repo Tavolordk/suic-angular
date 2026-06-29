@@ -43,6 +43,16 @@ interface SearchResult {
   saved: boolean;
 }
 
+type SidebarPanel = 'history' | 'bookmarks' | null;
+
+type QuickSearchIcon = 'person' | 'curp' | 'vehicle' | 'weapon';
+
+interface QuickSearchItem {
+  id: number;
+  label: string;
+  type: SearchEntity;
+  icon: QuickSearchIcon;
+}
 @Component({
   selector: 'app-search-page',
   standalone: true,
@@ -51,6 +61,21 @@ interface SearchResult {
   styleUrl: './search-page.scss'
 })
 export class SearchPage implements OnInit, OnDestroy {
+  readonly activeSidebarPanel = signal<SidebarPanel>(null);
+
+  readonly recentSearches: QuickSearchItem[] = [
+    { id: 1, label: 'Benito Juárez García', type: 'personas', icon: 'person' },
+    { id: 2, label: 'JDPS950728HDFABC', type: 'personas', icon: 'curp' },
+    { id: 3, label: 'Omar Hernández', type: 'personas', icon: 'person' },
+    { id: 4, label: 'Toyota Corolla 2020', type: 'vehiculo', icon: 'vehicle' },
+    { id: 5, label: 'Pistola Glock 9mm', type: 'armas', icon: 'weapon' }
+  ];
+
+  readonly savedSearches: QuickSearchItem[] = [
+    { id: 1, label: 'Ana Sofía García Hernández', type: 'personas', icon: 'person' },
+    { id: 2, label: 'Nissan Versa 2020', type: 'vehiculo', icon: 'vehicle' },
+    { id: 3, label: 'Rifle calibre .223', type: 'armas', icon: 'weapon' }
+  ];
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
@@ -257,20 +282,24 @@ export class SearchPage implements OnInit, OnDestroy {
 
   logout(): void {
     this.closeProfile();
+    this.activeSidebarPanel.set(null);
     this.authService.logout();
     this.router.navigateByUrl('/login');
   }
 
   goToMainSearch(): void {
     this.closeProfile();
+    this.activeSidebarPanel.set(null);
   }
 
   goToHistory(): void {
     this.closeProfile();
+    this.activeSidebarPanel.set('history');
   }
 
   goToSaved(): void {
     this.closeProfile();
+    this.activeSidebarPanel.set('bookmarks');
   }
 
   toggleSave(result: SearchResult, event: MouseEvent): void {
@@ -512,5 +541,43 @@ export class SearchPage implements OnInit, OnDestroy {
         saved: index % 7 === 0
       };
     });
+  }
+  closeSidebarPanel(): void {
+    this.activeSidebarPanel.set(null);
+  }
+
+  runQuickSearch(item: QuickSearchItem): void {
+    this.selectedEntity.set(item.type);
+    this.activeSidebarPanel.set(null);
+    this.profileOpen.set(false);
+    this.searchPanelExpanded.set(true);
+
+    this.personForm.reset();
+    this.vehicleForm.reset();
+    this.weaponForm.reset();
+
+    if (item.type === 'personas') {
+      this.personForm.patchValue({
+        nombres: item.label
+      });
+    }
+
+    if (item.type === 'vehiculo') {
+      this.vehicleForm.patchValue({
+        marca: item.label
+      });
+    }
+
+    if (item.type === 'armas') {
+      this.weaponForm.patchValue({
+        marca: item.label
+      });
+    }
+
+    this.search();
+  }
+
+  getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {
+    return item.icon;
   }
 }
