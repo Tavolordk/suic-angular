@@ -454,14 +454,39 @@
   overflow: hidden;
 }
 
+.graph-stage::before {
+  content: '';
+  position: absolute;
+  inset: 12% 14%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgba(252, 176, 37, 0.14) 0%,
+    rgba(153, 168, 190, 0.055) 28%,
+    rgba(11, 22, 39, 0) 62%
+  );
+  filter: blur(8px);
+  opacity: 0.78;
+}
+
 .graph-canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
+  user-select: none;
   cursor: grab;
 }
 
-.graph-canvas:active {
+.graph-canvas:active,
+.graph-canvas--dragging {
+  cursor: grabbing;
+}
+
+.graph-canvas--dragging .graph-node {
   cursor: grabbing;
 }
 
@@ -473,12 +498,31 @@
     stroke-width 0.2s ease;
 }
 
+.graph-result-light {
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.95;
+  filter: blur(2px);
+  transition:
+    cx 0.28s ease,
+    cy 0.28s ease,
+    fill 0.28s ease,
+    opacity 0.28s ease;
+}
+
+.graph-result-light--core {
+  opacity: 0.36;
+  filter: blur(18px);
+}
+
 .graph-node {
   cursor: pointer;
   transition: opacity 0.35s ease;
 }
 
 .graph-node__circle {
+  transform-box: fill-box;
+  transform-origin: center;
   transition:
     transform 0.15s ease,
     stroke 0.2s ease,
@@ -492,6 +536,7 @@
 
 .graph-node--selected .graph-node__circle {
   filter: url('#glow-lg');
+  animation: graph-node-focus 0.72s ease-out;
 }
 
 .graph-node__pulse {
@@ -726,6 +771,24 @@
   50% {
     opacity: 0.45;
     transform: scale(0.72);
+  }
+}
+
+@keyframes graph-node-focus {
+  0% {
+    transform: scale(1);
+  }
+
+  38% {
+    transform: scale(1.24);
+  }
+
+  68% {
+    transform: scale(0.94);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }
 

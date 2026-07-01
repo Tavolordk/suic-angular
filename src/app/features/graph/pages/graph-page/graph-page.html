@@ -184,7 +184,11 @@
             </button>
             }
 
-            <svg class="graph-canvas" viewBox="0 0 1100 680" preserveAspectRatio="xMidYMid meet">
+            <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()" viewBox="0 0 1100 680"
+                preserveAspectRatio="xMidYMid meet" (pointerdown)="onGraphPointerDown($event)"
+                (pointermove)="onGraphPointerMove($event)" (pointerup)="onGraphPointerUp($event)"
+                (pointercancel)="onGraphPointerUp($event)" (pointerleave)="onGraphPointerUp($event)"
+                (wheel)="onGraphWheel($event)">
                 <defs>
                     <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
                         <feGaussianBlur stdDeviation="3" result="blur"></feGaussianBlur>
@@ -201,9 +205,26 @@
                             <feMergeNode in="SourceGraphic"></feMergeNode>
                         </feMerge>
                     </filter>
+
+                    <radialGradient id="selected-node-light" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" [attr.stop-color]="getNodeColor(selectedNode().type)" stop-opacity="0.42">
+                        </stop>
+                        <stop offset="42%" [attr.stop-color]="getNodeColor(selectedNode().type)" stop-opacity="0.18">
+                        </stop>
+                        <stop offset="100%" [attr.stop-color]="getNodeColor(selectedNode().type)" stop-opacity="0">
+                        </stop>
+                    </radialGradient>
                 </defs>
 
                 <g [attr.transform]="graphTransform()">
+                    <circle class="graph-result-light" [attr.cx]="selectedNode().x" [attr.cy]="selectedNode().y" r="190"
+                        fill="url(#selected-node-light)">
+                    </circle>
+
+                    <circle class="graph-result-light graph-result-light--core" [attr.cx]="selectedNode().x"
+                        [attr.cy]="selectedNode().y" r="88" [attr.fill]="getGlowColor(selectedNode().type)">
+                    </circle>
+
                     @for (link of visibleLinks(); track link.id) {
                     <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
                         [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
@@ -304,7 +325,7 @@
                     +
                 </button>
 
-                <button type="button" aria-label="Restablecer zoom" (click)="resetZoom()">
+                <button type="button" aria-label="Restablecer zoom y posición" (click)="resetZoom()">
                     {{ zoom() * 100 | number:'1.0-0' }}%
                 </button>
 

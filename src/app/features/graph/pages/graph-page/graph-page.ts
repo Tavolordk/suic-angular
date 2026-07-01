@@ -52,6 +52,20 @@ export class GraphPage {
   readonly selectedNodeId = signal('benito');
   readonly zoom = signal(1);
 
+  readonly panX = signal(0);
+  readonly panY = signal(0);
+  readonly dragging = signal(false);
+
+  private readonly viewBoxWidth = 1100;
+  private readonly viewBoxHeight = 680;
+
+  private dragStartClientX = 0;
+  private dragStartClientY = 0;
+  private dragStartPanX = 0;
+  private dragStartPanY = 0;
+  private pointerMoved = false;
+  private suppressNodeClick = false;
+
   readonly activeFilters = signal<Record<GraphNodeType, boolean>>({
     person: true,
     vehicle: true,
@@ -292,8 +306,7 @@ export class GraphPage {
   });
 
   readonly graphTransform = computed(() => {
-    const currentZoom = this.zoom();
-    return `translate(0 0) scale(${currentZoom})`;
+    return `translate(${this.panX()} ${this.panY()}) scale(${this.zoom()})`;
   });
 
   goBack(): void {
@@ -301,6 +314,10 @@ export class GraphPage {
   }
 
   selectNode(nodeId: string): void {
+    if (this.suppressNodeClick) {
+      return;
+    }
+
     this.selectedNodeId.set(nodeId);
     this.detailPanelOpen.set(true);
   }
@@ -352,6 +369,84 @@ export class GraphPage {
 
   resetZoom(): void {
     this.zoom.set(1);
+    this.panX.set(0);
+    this.panY.set(0);
+  }
+
+  onGraphPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const svg = event.currentTarget as SVGSVGElement;
+
+    this.dragging.set(true);
+    this.pointerMoved = false;
+
+    this.dragStartClientX = event.clientX;
+    this.dragStartClientY = event.clientY;
+    this.dragStartPanX = this.panX();
+    this.dragStartPanY = this.panY();
+
+    svg.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  onGraphPointerMove(event: PointerEvent): void {
+    if (!this.dragging()) {
+      return;
+    }
+
+    const svg = event.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+
+    const deltaClientX = event.clientX - this.dragStartClientX;
+    const deltaClientY = event.clientY - this.dragStartClientY;
+
+    if (Math.abs(deltaClientX) > 3 || Math.abs(deltaClientY) > 3) {
+      this.pointerMoved = true;
+    }
+
+    const deltaSvgX = (deltaClientX / rect.width) * this.viewBoxWidth;
+    const deltaSvgY = (deltaClientY / rect.height) * this.viewBoxHeight;
+
+    const zoomFactor = this.zoom();
+
+    this.panX.set(this.dragStartPanX + deltaSvgX / zoomFactor);
+    this.panY.set(this.dragStartPanY + deltaSvgY / zoomFactor);
+  }
+
+  onGraphPointerUp(event: PointerEvent): void {
+    if (!this.dragging()) {
+      return;
+    }
+
+    const svg = event.currentTarget as SVGSVGElement;
+
+    this.dragging.set(false);
+
+    if (this.pointerMoved) {
+      this.suppressNodeClick = true;
+
+      setTimeout(() => {
+        this.suppressNodeClick = false;
+      });
+    }
+
+    if (svg.hasPointerCapture(event.pointerId)) {
+      svg.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  onGraphWheel(event: WheelEvent): void {
+    event.preventDefault();
+
+    if (event.deltaY < 0) {
+      this.zoomIn();
+      return;
+    }
+
+    this.zoomOut();
   }
 
   isFilterActive(type: GraphNodeType): boolean {
