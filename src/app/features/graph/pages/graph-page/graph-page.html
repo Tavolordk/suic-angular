@@ -1,43 +1,317 @@
-<section class="graph-page">
-    <app-graph-toolbar [personId]="personId" [profileName]="profileName()" [curp]="curp()" [totalNodes]="totalNodes()"
-        [totalLinks]="totalLinks()" [activeFilter]="activeFilter()" (filterSelected)="filterGraph($event)" />
+<section class="graph-shell">
+    <svg class="graph-background" aria-hidden="true">
+        <defs>
+            <pattern id="dot-grid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="0.8"></circle>
+            </pattern>
+        </defs>
 
-    <div class="graph-page__layout">
-        <aside class="graph-page__summary">
-            <section class="graph-summary-card">
+        <rect width="100%" height="100%" fill="url(#dot-grid)"></rect>
+    </svg>
+
+    <header class="graph-topbar">
+        <div class="graph-topbar__left">
+            <button type="button" class="graph-back" (click)="goBack()">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M19 12H5M5 12l7-7M5 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round"></path>
+                </svg>
+                Volver
+            </button>
+
+            <div class="graph-title">
+                <span></span>
+                <strong>Grafo de Investigación</strong>
+            </div>
+
+            <div class="graph-active-node">
+                <span></span>
+                Nodo activo:
+                <strong>{{ selectedNode().title }}</strong>
+            </div>
+        </div>
+
+        <div class="graph-topbar__right">
+            <span class="graph-filter-label">Filtros:</span>
+
+            @for (filter of filters; track filter.type) {
+            <button type="button" class="graph-filter" [class.graph-filter--active]="isFilterActive(filter.type)"
+                [class.graph-filter--person]="filter.type === 'person'"
+                [class.graph-filter--vehicle]="filter.type === 'vehicle'"
+                [class.graph-filter--weapon]="filter.type === 'weapon'" (click)="toggleFilter(filter.type)">
+                @switch (filter.type) {
+                @case ('person') {
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round"></path>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
+                </svg>
+                }
+                @case ('vehicle') {
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                        d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                }
+                @case ('weapon') {
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                }
+                }
+
+                {{ filter.label }}
+            </button>
+            }
+        </div>
+    </header>
+
+    <div class="graph-layout">
+        @if (detailPanelOpen()) {
+        <aside class="graph-detail">
+            <header class="graph-detail__header">
                 <span>Detalle</span>
-                <h2>{{ profileName() }}</h2>
-                <p>{{ curp() }}</p>
 
-                <div class="graph-summary-card__stats">
-                    <article>
-                        <strong>{{ summary().people }}</strong>
-                        <small>Personas</small>
-                    </article>
+                <button type="button" aria-label="Cerrar detalle" (click)="toggleDetailPanel()">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        </path>
+                    </svg>
+                </button>
+            </header>
 
-                    <article>
-                        <strong>{{ summary().vehicles }}</strong>
-                        <small>Vehículos</small>
-                    </article>
+            <section class="graph-detail__body">
+                <div class="graph-detail__type" [style.background]="getNodeDetailBackground(selectedNode().type)"
+                    [style.border]="getNodeDetailBorder(selectedNode().type)"
+                    [style.color]="getNodeColor(selectedNode().type)">
+                    @switch (selectedNode().type) {
+                    @case ('person') {
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round"></path>
+                        <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
+                    </svg>
+                    }
+                    @case ('vehicle') {
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                            d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        </path>
+                    </svg>
+                    }
+                    @case ('weapon') {
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    }
+                    }
 
-                    <article>
-                        <strong>{{ summary().weapons }}</strong>
-                        <small>Armas</small>
-                    </article>
+                    <span>{{ getNodeTypeLabel(selectedNode().type) }}</span>
+                </div>
 
-                    <article>
-                        <strong>{{ summary().sources }}</strong>
-                        <small>Fuentes</small>
-                    </article>
+                <div class="graph-detail__identity">
+                    <h1>{{ selectedNode().title }}</h1>
+                    <p>{{ selectedNode().subtitle }}</p>
+                </div>
+
+                <div class="graph-detail__fields">
+                    @for (detail of selectedNode().details; track detail.label) {
+                    <div class="graph-detail__field">
+                        <span>{{ detail.label }}</span>
+                        <strong>{{ detail.value }}</strong>
+                    </div>
+                    }
+                </div>
+
+                <div class="graph-detail__links">
+                    <p>Vínculos</p>
+
+                    <div class="graph-link-chip graph-link-chip--person">
+                        <span>
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor"
+                                    stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
+                            </svg>
+                            Personas
+                        </span>
+
+                        <strong>{{ selectedNode().links.persons }}</strong>
+                    </div>
+
+                    <div class="graph-link-chip graph-link-chip--vehicle">
+                        <span>
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path
+                                    d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"></path>
+                            </svg>
+                            Vehículos
+                        </span>
+
+                        <strong>{{ selectedNode().links.vehicles }}</strong>
+                    </div>
+
+                    <div class="graph-link-chip graph-link-chip--weapon">
+                        <span>
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                            Armas
+                        </span>
+
+                        <strong>{{ selectedNode().links.weapons }}</strong>
+                    </div>
+                </div>
+            </section>
+        </aside>
+        }
+
+        <main class="graph-stage">
+            @if (!detailPanelOpen()) {
+            <button type="button" class="graph-detail-toggle" (click)="toggleDetailPanel()">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round"></path>
+                </svg>
+                Detalle
+            </button>
+            }
+
+            <svg class="graph-canvas" viewBox="0 0 1100 680" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="blur"></feGaussianBlur>
+                        <feMerge>
+                            <feMergeNode in="blur"></feMergeNode>
+                            <feMergeNode in="SourceGraphic"></feMergeNode>
+                        </feMerge>
+                    </filter>
+
+                    <filter id="glow-lg" x="-80%" y="-80%" width="260%" height="260%">
+                        <feGaussianBlur stdDeviation="8" result="blur"></feGaussianBlur>
+                        <feMerge>
+                            <feMergeNode in="blur"></feMergeNode>
+                            <feMergeNode in="SourceGraphic"></feMergeNode>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <g [attr.transform]="graphTransform()">
+                    @for (link of visibleLinks(); track link.id) {
+                    <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
+                        [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
+                        [attr.opacity]="getLinkOpacity(link)" [attr.stroke-width]="getLinkStrokeWidth(link)"
+                        class="graph-edge"></line>
+                    }
+
+                    @for (node of visibleNodes(); track node.id) {
+                    <g class="graph-node" [class.graph-node--selected]="isSelected(node)"
+                        [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+                        [attr.opacity]="getNodeOpacity(node)" (click)="selectNode(node.id)"
+                        (dblclick)="consolidateNode(node.id)">
+                        @if (isSelected(node)) {
+                        <circle class="graph-node__pulse" [attr.r]="node.radius + 4" fill="none"
+                            [attr.stroke]="getNodeColor(node.type)"></circle>
+
+                        <circle [attr.r]="node.radius + 8" fill="none" stroke="white" stroke-width="1.5"
+                            stroke-dasharray="4 3" opacity="0.4"></circle>
+                        }
+
+                        <circle [attr.r]="node.radius + 6" [attr.fill]="getGlowColor(node.type)"
+                            class="graph-node__glow"></circle>
+
+                        <circle [attr.r]="node.radius" [attr.fill]="getNodeColor(node.type)"
+                            [attr.stroke]="isSelected(node) ? 'white' : 'rgba(255,255,255,0.32)'"
+                            [attr.stroke-width]="isSelected(node) ? 2 : 1"
+                            [attr.stroke-dasharray]="isSelected(node) ? null : '5 3'" class="graph-node__circle">
+                        </circle>
+
+                        @switch (node.type) {
+                        @case ('person') {
+                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2.2"
+                                stroke-linecap="round" stroke-linejoin="round"></path>
+                            <circle cx="12" cy="7" r="4" stroke="white" stroke-width="2.2"></circle>
+                        </svg>
+                        }
+                        @case ('vehicle') {
+                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path
+                                d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
+                                stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        }
+                        @case ('weapon') {
+                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="white" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        }
+                        }
+
+                        <text [attr.y]="node.radius + 14" text-anchor="middle"
+                            [attr.font-size]="isSelected(node) ? 10.5 : 9.5"
+                            [attr.font-weight]="isSelected(node) ? 700 : 500" class="graph-node__title">
+                            {{ node.title }}
+                        </text>
+
+                        <text [attr.y]="node.radius + 26" text-anchor="middle" font-size="8"
+                            class="graph-node__subtitle">
+                            {{ node.subtitle }}
+                        </text>
+                    </g>
+                    }
+                </g>
+            </svg>
+
+            <section class="graph-floating-card graph-floating-card--pending">
+                <span></span>
+
+                <div>
+                    <strong>{{ pendingProfilesLabel() }}</strong>
+                    <small>Doble clic en un nodo para consolidar</small>
                 </div>
             </section>
 
-            <app-graph-node-detail [node]="selectedNode()" />
-        </aside>
+            <section class="graph-floating-card graph-floating-card--legend">
+                <p>Leyenda</p>
 
-        <main class="graph-page__canvas">
-            <app-association-graph [nodes]="nodes()" [links]="links()" [selectedNodeId]="selectedNode()?.id"
-                (nodeSelected)="selectNode($event)" />
+                <div>
+                    <span class="legend-dot legend-dot--person"></span>
+                    Personas
+                </div>
+
+                <div>
+                    <span class="legend-dot legend-dot--vehicle"></span>
+                    Vehículos
+                </div>
+
+                <div>
+                    <span class="legend-dot legend-dot--weapon"></span>
+                    Armas
+                </div>
+            </section>
+
+            <section class="graph-zoom">
+                <button type="button" aria-label="Acercar" (click)="zoomIn()">
+                    +
+                </button>
+
+                <button type="button" aria-label="Restablecer zoom" (click)="resetZoom()">
+                    {{ zoom() * 100 | number:'1.0-0' }}%
+                </button>
+
+                <button type="button" aria-label="Alejar" (click)="zoomOut()">
+                    -
+                </button>
+            </section>
         </main>
     </div>
 </section>
