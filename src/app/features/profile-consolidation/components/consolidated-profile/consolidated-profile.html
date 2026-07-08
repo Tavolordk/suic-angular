@@ -101,11 +101,11 @@
 
     <footer class="consolidated-panel__footer">
         @if (!accepted) {
-        <button type="button" class="accept-button" (click)="acceptedRequested.emit()">
+        <button type="button" class="accept-button" (click)="requestAcceptance()">
             Aceptar
         </button>
         } @else {
-        <button type="button" class="accepted-button">
+        <button type="button" class="accepted-button" (click)="openConsolidatedModal()">
             <i class="fa-solid fa-check"></i>
             Aceptado
         </button>
@@ -116,4 +116,50 @@
         </a>
         }
     </footer>
+
+    <dialog #consolidatedDialog class="consolidated-dialog" aria-labelledby="consolidated-component-dialog-title"
+        (click)="onConsolidatedDialogClick($event)" (cancel)="closeConsolidatedModal()">
+        <article class="consolidated-dialog__card">
+            <button type="button" class="consolidated-dialog__close" aria-label="Cerrar modal"
+                (click)="closeConsolidatedModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="consolidated-dialog__icon">
+                <i class="fa-solid fa-check"></i>
+            </div>
+
+            <p class="consolidated-dialog__eyebrow">Proceso completado</p>
+            <h2 id="consolidated-component-dialog-title">PERFIL CONSOLIDADO</h2>
+
+            <p class="consolidated-dialog__message">
+                El <strong>Perfil Preconsolidado</strong> ahora es un <strong>Perfil Consolidado</strong>.
+                La información seleccionada quedó integrada correctamente.
+            </p>
+
+            <div class="consolidated-dialog__summary">
+                <article>
+                    <span>Datos integrados</span>
+                    <strong>{{ completedLabel }}</strong>
+                </article>
+
+                <article>
+                    <span>Campos seleccionados</span>
+                    <strong>{{ selectedFields.length }}</strong>
+                </article>
+            </div>
+
+            <footer class="consolidated-dialog__actions">
+                <button type="button" class="consolidated-dialog__secondary" (click)="closeConsolidatedModal()">
+                    Cerrar
+                </button>
+
+                <a [routerLink]="['/red', profileId]" class="consolidated-dialog__primary">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    Visualizar grafo
+                </a>
+            </footer>
+        </article>
+    </dialog>
+
 </section>

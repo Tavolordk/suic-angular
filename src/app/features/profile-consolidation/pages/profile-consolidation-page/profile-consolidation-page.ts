@@ -1,9 +1,11 @@
 import { DatePipe, isPlatformBrowser } from '@angular/common';
 import {
   Component,
+  ElementRef,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
+  ViewChild,
   computed,
   inject,
   signal
@@ -42,6 +44,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   private clockInterval?: ReturnType<typeof setInterval>;
+
+  @ViewChild('consolidatedDialog')
+  private readonly consolidatedDialog?: ElementRef<HTMLDialogElement>;
 
   readonly profileId: string = this.route.snapshot.paramMap.get('id') ?? '1';
 
@@ -157,6 +162,51 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   accept(): void {
     this.facade.acceptProfile();
+    this.openConsolidatedModal();
+  }
+
+  openConsolidatedModal(): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    const dialog = this.consolidatedDialog?.nativeElement;
+
+    if (!dialog) {
+      requestAnimationFrame(() => this.openConsolidatedModal());
+      return;
+    }
+
+    try {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+
+      dialog.focus();
+    } catch {
+      dialog.setAttribute('open', '');
+    }
+  }
+
+  closeConsolidatedModal(): void {
+    const dialog = this.consolidatedDialog?.nativeElement;
+
+    if (!dialog) {
+      return;
+    }
+
+    if (dialog.open && typeof dialog.close === 'function') {
+      dialog.close();
+      return;
+    }
+
+    dialog.removeAttribute('open');
+  }
+
+  onConsolidatedDialogClick(event: MouseEvent): void {
+    if (event.target === this.consolidatedDialog?.nativeElement) {
+      this.closeConsolidatedModal();
+    }
   }
 
   toggleProfile(): void {
@@ -173,6 +223,11 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set(null);
     this.authService.logout();
     this.router.navigateByUrl('/login');
+  }
+
+  goToGraph(): void {
+    this.closeConsolidatedModal();
+    this.router.navigateByUrl('/grafo');
   }
 
   goToResults(): void {
