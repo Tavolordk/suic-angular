@@ -320,6 +320,12 @@
   font-weight: 300;
 }
 
+.two-step-submit:disabled,
+.two-step-card__resend button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 @media (max-width: 480px) {
   .two-step-page__content {
     gap: 14px;

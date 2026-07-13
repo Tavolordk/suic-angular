@@ -8,8 +8,12 @@ import {
     Validators
 } from '@angular/forms';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
+
 import { AuthService } from '../../../../core/auth/auth.service';
-import { FigmaOrbitalBackgroundComponent } from '../../components/figma-orbital-background/figma-orbital-background.component';
+import {
+    FigmaOrbitalBackgroundComponent
+} from '../../components/figma-orbital-background/figma-orbital-background.component';
 
 @Component({
     selector: 'app-login-page',
@@ -28,27 +32,71 @@ export class LoginPage implements OnInit {
     private readonly authService = inject(AuthService);
 
     readonly currentYear = new Date().getFullYear();
-    readonly captchaCode = signal(this.createCaptcha());
+
+    readonly captchaCode = signal(
+        this.createCaptcha()
+    );
+
     readonly captchaMismatch = signal(false);
     readonly loginError = signal('');
     readonly submitted = signal(false);
+    readonly isSubmitting = signal(false);
 
     readonly form = this.fb.group(
         {
-            usuario: ['', [Validators.required, Validators.maxLength(80)]],
-            correo: ['', [Validators.maxLength(120), this.emailValidator]],
-            telefono: ['', [Validators.maxLength(10), this.phoneValidator]],
-            captcha: ['', [Validators.required, Validators.maxLength(6)]],
-            aceptaTerminos: [false, [Validators.requiredTrue]]
+            usuario: [
+                '',
+                [
+                    Validators.required,
+                    Validators.maxLength(80)
+                ]
+            ],
+
+            correo: [
+                '',
+                [
+                    Validators.maxLength(120),
+                    this.emailValidator
+                ]
+            ],
+
+            telefono: [
+                '',
+                [
+                    Validators.maxLength(10),
+                    this.phoneValidator
+                ]
+            ],
+
+            captcha: [
+                '',
+                [
+                    Validators.required,
+                    Validators.maxLength(6)
+                ]
+            ],
+
+            aceptaTerminos: [
+                false,
+                [
+                    Validators.requiredTrue
+                ]
+            ]
         },
         {
-            validators: [this.contactValidator]
+            validators: [
+                this.contactValidator
+            ]
         }
     );
 
     ngOnInit(): void {
-        if (this.authService.isAuthenticated()) {
-            this.router.navigateByUrl('/busqueda');
+        if (
+            this.authService.isAuthenticated()
+        ) {
+            this.router.navigateByUrl(
+                '/busqueda'
+            );
         }
     }
 
@@ -68,108 +116,238 @@ export class LoginPage implements OnInit {
         return this.form.get('captcha');
     }
 
-    get aceptaTerminos(): AbstractControl | null {
-        return this.form.get('aceptaTerminos');
+    get aceptaTerminos():
+        AbstractControl | null {
+        return this.form.get(
+            'aceptaTerminos'
+        );
     }
 
     refreshCaptcha(): void {
-        this.captchaCode.set(this.createCaptcha());
+        this.captchaCode.set(
+            this.createCaptcha()
+        );
+
         this.captchaMismatch.set(false);
-        this.form.patchValue({ captcha: '' });
+
+        this.form.patchValue({
+            captcha: ''
+        });
+
         this.captcha?.setErrors(null);
     }
 
     onPhoneInput(event: Event): void {
-        const input = event.target as HTMLInputElement;
-        const onlyDigits = input.value.replace(/\D/g, '').slice(0, 10);
+        const input =
+            event.target as HTMLInputElement;
+
+        const onlyDigits = input.value
+            .replace(/\D/g, '')
+            .slice(0, 10);
 
         input.value = onlyDigits;
-        this.form.patchValue({ telefono: onlyDigits }, { emitEvent: false });
+
+        this.form.patchValue(
+            {
+                telefono: onlyDigits
+            },
+            {
+                emitEvent: false
+            }
+        );
     }
 
     onCaptchaInput(event: Event): void {
-        const input = event.target as HTMLInputElement;
-        const normalized = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        const input =
+            event.target as HTMLInputElement;
+
+        const normalized = input.value
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, '')
+            .slice(0, 6);
 
         input.value = normalized;
-        this.form.patchValue({ captcha: normalized }, { emitEvent: false });
+
+        this.form.patchValue(
+            {
+                captcha: normalized
+            },
+            {
+                emitEvent: false
+            }
+        );
+
         this.captchaMismatch.set(false);
     }
 
     submit(): void {
+        if (this.isSubmitting()) {
+            return;
+        }
+
         this.submitted.set(true);
         this.loginError.set('');
         this.captchaMismatch.set(false);
+
         this.form.markAllAsTouched();
 
         if (this.form.invalid) {
             return;
         }
 
-        const value = this.form.getRawValue();
-        const typedCaptcha = value.captcha?.trim().toUpperCase() ?? '';
+        const value =
+            this.form.getRawValue();
 
-        if (typedCaptcha !== this.captchaCode()) {
+        const typedCaptcha =
+            value.captcha
+                ?.trim()
+                .toUpperCase() ?? '';
+
+        if (
+            typedCaptcha !==
+            this.captchaCode()
+        ) {
             this.captchaMismatch.set(true);
-            this.captcha?.setErrors({ captchaMismatch: true });
+
+            this.captcha?.setErrors({
+                captchaMismatch: true
+            });
+
             return;
         }
 
-        /*
-         * Flujo visual:
-         * 1. Captura credenciales.
-         * 2. Envía a autenticación de dos pasos.
-         *
-         * Cuando conectemos backend real, aquí debe llamarse el endpoint que envía
-         * el código SMS, y el login definitivo debe hacerse después de validar OTP.
-         */
-        this.authService.login({
-            usuario: value.usuario ?? '',
-            correo: value.correo ?? '',
-            telefono: value.telefono ?? ''
-        });
+        this.isSubmitting.set(true);
 
-        this.router.navigateByUrl('/autenticacion');
+        this.authService
+            .requestContactCode({
+                usuario:
+                    value.usuario ?? '',
+
+                correo:
+                    value.correo ?? '',
+
+                telefono:
+                    value.telefono ?? ''
+            })
+            .pipe(
+                finalize(() =>
+                    this.isSubmitting.set(false)
+                )
+            )
+            .subscribe({
+                next: () => {
+                    this.router.navigateByUrl(
+                        '/autenticacion'
+                    );
+                },
+
+                error: (error: unknown) => {
+                    this.loginError.set(
+                        this.getErrorMessage(
+                            error
+                        )
+                    );
+
+                    this.refreshCaptcha();
+                }
+            });
     }
 
-    shouldShowError(control: AbstractControl | null): boolean {
-        return Boolean(control && control.invalid && (control.touched || this.submitted()));
+    shouldShowError(
+        control: AbstractControl | null
+    ): boolean {
+        return Boolean(
+            control &&
+            control.invalid &&
+            (
+                control.touched ||
+                this.submitted()
+            )
+        );
     }
 
-    private contactValidator(control: AbstractControl): ValidationErrors | null {
-        const correo = String(control.get('correo')?.value ?? '').trim();
-        const telefono = String(control.get('telefono')?.value ?? '').trim();
+    private contactValidator(
+        control: AbstractControl
+    ): ValidationErrors | null {
+        const correo = String(
+            control.get('correo')?.value ??
+            ''
+        ).trim();
 
-        return correo || telefono ? null : { contactRequired: true };
+        const telefono = String(
+            control.get('telefono')?.value ??
+            ''
+        ).trim();
+
+        return correo || telefono
+            ? null
+            : {
+                contactRequired: true
+            };
     }
 
-    private emailValidator(control: AbstractControl): ValidationErrors | null {
-        const value = String(control.value ?? '').trim();
+    private emailValidator(
+        control: AbstractControl
+    ): ValidationErrors | null {
+        const value = String(
+            control.value ?? ''
+        ).trim();
 
         if (!value) {
             return null;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-        return emailRegex.test(value) ? null : { email: true };
+        const emailRegex =
+            /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+        return emailRegex.test(value)
+            ? null
+            : {
+                email: true
+            };
     }
 
-    private phoneValidator(control: AbstractControl): ValidationErrors | null {
-        const value = String(control.value ?? '').trim();
+    private phoneValidator(
+        control: AbstractControl
+    ): ValidationErrors | null {
+        const value = String(
+            control.value ?? ''
+        ).trim();
 
         if (!value) {
             return null;
         }
 
-        return /^\d{10}$/.test(value) ? null : { phone: true };
+        return /^\d{10}$/.test(value)
+            ? null
+            : {
+                phone: true
+            };
     }
 
     private createCaptcha(): string {
-        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        const alphabet =
+            'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
         return Array.from(
-            { length: 6 },
-            () => alphabet[Math.floor(Math.random() * alphabet.length)]
+            {
+                length: 6
+            },
+            () =>
+                alphabet[
+                Math.floor(
+                    Math.random() *
+                    alphabet.length
+                )
+                ]
         ).join('');
+    }
+
+    private getErrorMessage(
+        error: unknown
+    ): string {
+        return error instanceof Error
+            ? error.message
+            : 'No fue posible enviar el código. Intenta nuevamente.';
     }
 }

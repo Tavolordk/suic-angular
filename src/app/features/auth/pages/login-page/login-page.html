@@ -92,7 +92,9 @@
 
                 <div class="captcha">
                     <div class="captcha__header">
-                        <label>Verificación CAPTCHA</label>
+                        <label>
+                            Verificación CAPTCHA
+                        </label>
 
                         <button type="button" class="captcha__refresh" title="Actualizar CAPTCHA"
                             aria-label="Actualizar CAPTCHA" (click)="refreshCaptcha()">
@@ -109,6 +111,7 @@
                     <div class="captcha__box">
                         <svg class="captcha__lines" aria-hidden="true">
                             <line x1="0" y1="35%" x2="100%" y2="60%" stroke="#2D5771" stroke-width="1"></line>
+
                             <line x1="10%" y1="80%" x2="90%" y2="20%" stroke="#162836" stroke-width="0.8"></line>
                         </svg>
 
@@ -153,7 +156,9 @@
 
                     <p>
                         Acepto
-                        <span>términos y condiciones</span>
+                        <span>
+                            términos y condiciones
+                        </span>
                     </p>
                 </div>
 
@@ -165,8 +170,12 @@
                     {{ loginError() }}
                 </p>
 
-                <button type="submit" class="login-submit">
-                    Enviar código
+                <button type="submit" class="login-submit" [disabled]="isSubmitting()">
+                    {{
+                    isSubmitting()
+                    ? 'Enviando código...'
+                    : 'Enviar código'
+                    }}
                 </button>
             </form>
         </section>

@@ -399,6 +399,11 @@
   transform: scale(0.98);
 }
 
+.login-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .login-version {
   position: absolute;
   right: 20px;
@@ -410,31 +415,6 @@
   font-weight: 300;
 }
 
-@media (max-width: 480px) {
-  .login-page__content {
-    gap: 14px;
-    padding-inline: 14px;
-  }
-
-  .login-card {
-    max-width: 330px;
-    padding: 17px 18px 19px;
-  }
-
-  .login-header__text h1 {
-    font-size: 20px;
-  }
-
-  .login-header__text p {
-    font-size: 15px;
-  }
-
-  .login-version {
-    right: 12px;
-    bottom: 8px;
-    font-size: 10px;
-  }
-}
 .login-page,
 .login-page * {
   box-sizing: border-box;
@@ -472,4 +452,30 @@
 .captcha__input::placeholder {
   text-transform: none;
   letter-spacing: normal;
+}
+
+@media (max-width: 480px) {
+  .login-page__content {
+    gap: 14px;
+    padding-inline: 14px;
+  }
+
+  .login-card {
+    max-width: 330px;
+    padding: 17px 18px 19px;
+  }
+
+  .login-header__text h1 {
+    font-size: 20px;
+  }
+
+  .login-header__text p {
+    font-size: 15px;
+  }
+
+  .login-version {
+    right: 12px;
+    bottom: 8px;
+    font-size: 10px;
+  }
 }

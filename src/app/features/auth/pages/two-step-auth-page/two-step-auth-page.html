@@ -1,11 +1,14 @@
 <section class="two-step-page">
     <div class="two-step-page__background"></div>
+
     <app-figma-orbital-background class="two-step-page__canvas"></app-figma-orbital-background>
+
     <div class="two-step-page__vignette"></div>
 
     <main class="two-step-page__content">
         <div class="two-step-logo">
             <div class="two-step-logo__glow"></div>
+
             <img src="/login-seguridad-logo.png" alt="Logotipo institucional" class="two-step-logo__image" />
         </div>
 
@@ -17,6 +20,7 @@
         <section class="two-step-card" aria-label="Verificación en dos pasos">
             <div class="two-step-card__steps">
                 <span class="two-step-card__step"></span>
+
                 <span class="two-step-card__step two-step-card__step--active"></span>
             </div>
 
@@ -31,16 +35,20 @@
             <h2>Verificación en dos pasos</h2>
 
             <p class="two-step-card__description">
-                Código enviado por SMS · Ingresa los 6<br />
-                dígitos recibidos
+                Código enviado
+                {{ deliveryMethod() }}
+                {{ contactDestination() }}.
+                Ingresa los 6 dígitos recibidos.
             </p>
 
             <form class="two-step-form" [formGroup]="form" (ngSubmit)="verifyAndLogin()">
                 <div class="two-step-code" formArrayName="code">
-                    <input #codeInput *ngFor="let control of codeControls; let i = index" type="password"
-                        pattern="[0-9]*" inputmode="numeric" maxlength="1" autocomplete="one-time-code"
-                        [formControlName]="i" [class.two-step-code__input--invalid]="shouldShowCodeError()"
-                        class="two-step-code__input" (input)="onCodeInput($event, i)"
+                    <input #codeInput *ngFor="
+                            let control of codeControls;
+                            let i = index
+                        " type="password" pattern="[0-9]*" inputmode="numeric" maxlength="1"
+                        autocomplete="one-time-code" class="two-step-code__input" [formControlName]="i"
+                        [class.two-step-code__input--invalid]="shouldShowCodeError()" (input)="onCodeInput($event, i)"
                         (keydown)="onCodeKeydown($event, i)" (paste)="onPaste($event)" />
                 </div>
 
@@ -50,8 +58,13 @@
 
                 <p class="two-step-card__resend">
                     ¿No recibiste el código?
-                    <button type="button" (click)="resendCode()">
-                        Reenviar
+
+                    <button type="button" [disabled]="isResending()" (click)="resendCode()">
+                        {{
+                        isResending()
+                        ? 'Reenviando...'
+                        : 'Reenviar'
+                        }}
                     </button>
                 </p>
 
@@ -59,8 +72,12 @@
                     {{ resendMessage() }}
                 </p>
 
-                <button type="submit" class="two-step-submit">
-                    Verificar e ingresar
+                <button type="submit" class="two-step-submit" [disabled]="isVerifying()">
+                    {{
+                    isVerifying()
+                    ? 'Verificando...'
+                    : 'Verificar e ingresar'
+                    }}
                 </button>
 
                 <button type="button" class="two-step-back" (click)="backToLogin()">
