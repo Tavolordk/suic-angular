@@ -59,7 +59,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly currentTime = signal(new Date());
   readonly profileOpen = signal(false);
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
-  readonly displayName = this.authService.displayName;
+  readonly accountNumber = this.authService.accountNumber;
+  readonly primaryProfile = this.authService.primaryProfile;
 
   readonly completionPercent = computed(() => {
     const [selectedRaw, totalRaw] = this.completedLabel()

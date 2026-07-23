@@ -68,11 +68,21 @@ export class AuthService {
         )
     );
 
-    readonly displayName = computed(
+    readonly accountNumber = computed(
         () =>
-            this.sessionState()?.displayName ??
+            this.sessionState()?.usuario?.trim() ||
             'Usuario'
     );
+
+    readonly primaryProfile = computed(() => {
+        const profile = this.sessionState()
+            ?.perfiles
+            .find((item) => Boolean(item?.trim()));
+
+        return profile?.trim() || 'Sin perfil asignado';
+    });
+
+    readonly displayName = this.accountNumber;
 
     requestContactCode(
         payload: LoginPayload
@@ -253,6 +263,7 @@ export class AuthService {
 
                     const session: AuthSession = {
                         usuario:
+                            pendingAuthentication.cuenta.trim() ||
                             pendingAuthentication.usuario,
 
                         correo:
@@ -262,9 +273,8 @@ export class AuthService {
                             pendingAuthentication.telefono,
 
                         displayName:
+                            pendingAuthentication.cuenta.trim() ||
                             pendingAuthentication.usuario ||
-                            pendingAuthentication.correo ||
-                            pendingAuthentication.telefono ||
                             'Usuario',
 
                         accessToken:
@@ -660,6 +670,7 @@ export class AuthService {
             );
         }
     }
+
     private resolvePendingContactMethod(
         pendingAuthentication:
             PendingContactAuthentication
@@ -676,4 +687,4 @@ export class AuthService {
 
         return medioContacto.trim();
     }
-}                                                                                                               
+}

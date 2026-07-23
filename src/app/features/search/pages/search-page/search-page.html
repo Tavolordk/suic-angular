@@ -24,8 +24,8 @@
                 </div>
 
                 <div class="search-profile">
-                    <button type="button" class="search-profile__button" aria-label="Abrir menú de usuario"
-                        (click)="toggleProfile()">
+                    <button type="button" class="search-profile__button"
+                        [attr.aria-label]="'Abrir menú de usuario de ' + accountNumber()" (click)="toggleProfile()">
                         <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
                             <path
                                 d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
@@ -54,8 +54,8 @@
                             </div>
 
                             <div>
-                                <strong>Juan Pérez López</strong>
-                                <span>SSPC · Analista</span>
+                                <strong>{{ accountNumber() }}</strong>
+                                <span>{{ primaryProfile() }}</span>
                             </div>
                         </div>
 
@@ -73,7 +73,7 @@
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                 </svg>
-                                Rol: Analista de Seguridad
+                                Perfil: {{ primaryProfile() }}
                             </p>
                         </div>
 
@@ -121,6 +121,7 @@
                 </svg>
             </button>
         </aside>
+
         <div class="search-sidebar-overlay" *ngIf="activeSidebarPanel()" (click)="closeSidebarPanel()"></div>
 
         <section class="search-sidebar-panel" *ngIf="activeSidebarPanel()" (click)="$event.stopPropagation()">
@@ -175,6 +176,7 @@
                 </button>
             </div>
         </section>
+
         <main class="search-content" [class.search-content--panel-open]="activeSidebarPanel()">
             <section class="search-title-card">
                 <div>

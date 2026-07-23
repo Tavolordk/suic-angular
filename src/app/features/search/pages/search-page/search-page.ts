@@ -53,6 +53,7 @@ interface QuickSearchItem {
   type: SearchEntity;
   icon: QuickSearchIcon;
 }
+
 @Component({
   selector: 'app-search-page',
   standalone: true,
@@ -76,11 +77,15 @@ export class SearchPage implements OnInit, OnDestroy {
     { id: 2, label: 'Nissan Versa 2020', type: 'vehiculo', icon: 'vehicle' },
     { id: 3, label: 'Rifle calibre .223', type: 'armas', icon: 'weapon' }
   ];
+
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
+
+  readonly accountNumber = this.authService.accountNumber;
+  readonly primaryProfile = this.authService.primaryProfile;
 
   private clockInterval?: ReturnType<typeof setInterval>;
   private searchTimeout?: ReturnType<typeof setTimeout>;
@@ -418,18 +423,18 @@ export class SearchPage implements OnInit, OnDestroy {
         entity: 'personas',
         name: 'Iván Roberto Salinas Cruz',
         alias: 'El Chino',
-        curp: 'SACI900711HDFLVR06',
+        curp: 'SACI900711HDFRTY01',
         rfc: 'SACI900711MN5',
         tags: [
           { type: 'personas', count: 2 },
-          { type: 'armas', count: 2 }
+          { type: 'armas', count: 1 }
         ]
       },
       {
         entity: 'personas',
         name: 'Luis Alberto Pérez Molina',
         alias: 'El Güero',
-        curp: 'PEML830517HDFLRS03',
+        curp: 'PEML830517HDFRNR01',
         rfc: 'PEML830517PU7',
         tags: [
           { type: 'vehiculo', count: 1 },
@@ -542,6 +547,7 @@ export class SearchPage implements OnInit, OnDestroy {
       };
     });
   }
+
   closeSidebarPanel(): void {
     this.activeSidebarPanel.set(null);
   }
