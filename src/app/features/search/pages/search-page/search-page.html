@@ -155,19 +155,6 @@
                             src="https://bonus-gala-11863518.figma.site/_assets/v11/ff18e8075cb586c62294e1272a694991d94c9827.png"
                             alt="" class="search-sidebar-panel__curp-icon" />
 
-                        <svg *ngIf="getQuickSearchIcon(item) === 'vehicle'" viewBox="0 0 24 24" fill="none"
-                            aria-hidden="true">
-                            <path
-                                d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            </path>
-                        </svg>
-
-                        <svg *ngIf="getQuickSearchIcon(item) === 'weapon'" viewBox="0 0 24 24" fill="none"
-                            aria-hidden="true">
-                            <path d="M3 12h9m0 0l2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
                     </span>
 
                     <span class="search-sidebar-panel__text">
@@ -201,7 +188,9 @@
 
                     <button type="button" *ngFor="let entity of entityOptions"
                         [class.search-entities__button--active]="selectedEntity() === entity.key"
-                        class="search-entities__button" (click)="selectEntity(entity.key)">
+                        class="search-entities__button" [disabled]="entity.disabled"
+                        [title]="entity.disabled ? 'Sin contrato disponible para esta entidad' : entity.label"
+                        (click)="selectEntity(entity.key)">
                         {{ entity.label }}
                     </button>
                 </aside>
@@ -211,7 +200,7 @@
                         <div class="search-form__grid" *ngSwitchCase="'personas'">
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
@@ -220,10 +209,9 @@
                                 </span>
                                 <input type="text" formControlName="nombres" placeholder="Nombre (s)" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
@@ -232,10 +220,9 @@
                                 </span>
                                 <input type="text" formControlName="apellidoPaterno" placeholder="Apellido Paterno" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
@@ -244,10 +231,9 @@
                                 </span>
                                 <input type="text" formControlName="apellidoMaterno" placeholder="Apellido Materno" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
@@ -256,41 +242,38 @@
                                 </span>
                                 <input type="text" formControlName="alias" placeholder="Alias" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="curp" placeholder="CURP" />
+                                <input type="date" title="Fecha de nacimiento" aria-label="Fecha de nacimiento" formControlName="fechaNacimiento" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="rfc" placeholder="RFC" />
+                                <input type="text" formControlName="curp" placeholder="CURP" maxlength="18" autocomplete="off" />
                             </label>
-
                             <label class="search-field">
                                 <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
+                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
                                         <path
                                             d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
                                             stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="cuip" placeholder="CUIP" />
+                                <input type="text" formControlName="rfc" placeholder="RFC" maxlength="13" autocomplete="off" />
                             </label>
                         </div>
 
@@ -364,9 +347,14 @@
                 </div>
             </section>
 
+            <section class="search-feedback search-feedback--error" *ngIf="canShowError()" role="alert">
+                <strong>No fue posible completar la consulta</strong>
+                <p>{{ errorMessage() }}</p>
+            </section>
+
             <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
-                    <p>Sin búsquedas frecuentes</p>
+                    <p>Consulta por CURP, RFC, nombre o fecha de nacimiento</p>
                 </div>
 
                 <div class="search-empty-card">
@@ -374,11 +362,20 @@
                 </div>
             </section>
 
+            <section class="search-feedback" *ngIf="canShowNoResults()">
+                <strong>Sin coincidencias</strong>
+                <p>El servicio no devolvió perfiles para los criterios capturados.</p>
+            </section>
+
             <section class="search-results" *ngIf="canShowResults()">
                 <div class="search-results__toolbar">
                     <p>
                         <strong>{{ totalResults() }}</strong>
                         resultados encontrados
+                        <small *ngIf="executionStatus() || isPartialResult()">
+                            {{ executionStatus() || 'Completada' }}
+                            <span *ngIf="isPartialResult()">· respuesta parcial</span>
+                        </small>
                     </p>
 
                     <div class="search-results__actions">
@@ -438,8 +435,8 @@
 
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
-                        [style.animation-delay.ms]="i * 35" title="Doble clic para ver detalle"
-                        (dblclick)="openResultDetail(result)">
+                        [style.animation-delay.ms]="i * 35" title="Abrir detalle del perfil" tabindex="0"
+                        (click)="openResultDetail(result)" (keydown.enter)="openResultDetail(result)">
                         <div class="search-result-card__header">
                             <div class="search-result-card__tags">
                                 <div *ngFor="let tag of result.tags" class="search-result-tag"
@@ -528,6 +525,20 @@
                         </div>
                     </article>
                 </div>
+
+                <nav class="search-pagination" *ngIf="totalPages() > 1" aria-label="Paginación de resultados">
+                    <button type="button" (click)="previousPage()"
+                        [disabled]="!hasPreviousPage() || canShowSearching()">
+                        Anterior
+                    </button>
+
+                    <span>Página {{ currentPage() }} de {{ totalPages() }}</span>
+
+                    <button type="button" (click)="nextPage()"
+                        [disabled]="!hasNextPage() || canShowSearching()">
+                        Siguiente
+                    </button>
+                </nav>
             </section>
         </main>
     </div>

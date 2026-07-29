@@ -53,8 +53,8 @@
                             </span>
 
                             <div>
-                                <strong>{{ accountNumber() }}</strong>
-                                <small>{{ primaryProfile() }}</small>
+                                <strong>{{ displayName() }}</strong>
+                                <small>{{ primaryProfile() || 'SSPC · Analista' }}</small>
                             </div>
                         </div>
 
@@ -72,12 +72,12 @@
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                 </svg>
-                                Perfil: {{ primaryProfile() }}
+                                Rol: {{ primaryProfile() || 'Analista de Seguridad' }}
                             </p>
                         </div>
 
                         <button type="button" class="profile-user__logout" (click)="logout()">
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
                                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round"></path>
@@ -204,7 +204,7 @@
             <section class="profile-header-card">
                 <div>
                     <h1>Perfil Preconsolidado</h1>
-                    <p>Integra información de distintas fuentes para construir el perfil final</p>
+                    <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                 </div>
 
                 <div class="profile-header-card__actions">
@@ -213,14 +213,38 @@
                     </button>
 
                     <button type="button" class="profile-header-card__primary"
-                        [class.profile-header-card__primary--accepted]="accepted()" (click)="accept()">
+                        [class.profile-header-card__primary--accepted]="accepted()"
+                        [disabled]="isLoading() || selectedFields().length === 0" (click)="accept()">
                         <i class="fa-regular fa-floppy-disk"></i>
                         {{ accepted() ? 'Perfil guardado' : 'Guardar perfil' }}
                     </button>
                 </div>
             </section>
 
-            @if (selectedSource(); as source) {
+            @if (isLoading()) {
+            <section class="profile-header-card" aria-live="polite">
+                <div>
+                    <h2>Cargando perfil consolidado</h2>
+                    <p>Consultando las fuentes y evidencias del resultado seleccionado.</p>
+                </div>
+            </section>
+            } @else if (errorMessage()) {
+            <section class="profile-header-card" role="alert">
+                <div>
+                    <h2>No fue posible cargar el perfil</h2>
+                    <p>{{ errorMessage() }}</p>
+                </div>
+
+                <div class="profile-header-card__actions">
+                    <button type="button" class="profile-header-card__secondary" (click)="goToResults()">
+                        Regresar a resultados
+                    </button>
+                    <button type="button" class="profile-header-card__primary" (click)="loadProfile()">
+                        Reintentar
+                    </button>
+                </div>
+            </section>
+            } @else if (selectedSource(); as source) {
             <section class="profile-grid">
                 <article class="profile-card profile-card--sources">
                     <header class="profile-card__header">
@@ -228,27 +252,41 @@
                         <p>Selecciona una fuente para elegir sus campos</p>
                     </header>
 
-                    <div class="profile-sources">
-                        @for (item of sources(); track item.id) {
-                        <button type="button" class="source-card" [class.source-card--active]="source.id === item.id"
-                            (click)="selectSource(item.id)">
-                            <span class="source-card__avatar" [style.background]="item.color">
-                                {{ item.code }}
-                            </span>
+                    <div class="profile-sources profile-carousel__viewport">
+                        <div class="profile-carousel__page profile-carousel__page--sources">
+                            @for (item of visibleSources(); track item.id) {
+                            <button type="button" class="source-card" [class.source-card--active]="source.id === item.id"
+                                (click)="selectSource(item.id)">
+                                <span class="source-card__avatar" [style.background]="item.color">
+                                    {{ item.code }}
+                                </span>
 
-                            <span class="source-card__content">
-                                <strong>{{ item.title }}</strong>
-                                <small>{{ item.description }}</small>
-                            </span>
+                                <span class="source-card__content">
+                                    <strong>{{ item.title }}</strong>
+                                    <small>{{ item.description }}</small>
+                                </span>
 
-                            <span class="source-card__match">
-                                <strong>{{ item.percentage }}%</strong>
-                                <small>Coincidencia</small>
-                                <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : 'No incluido' }}</em>
-                            </span>
-                        </button>
-                        }
+                                <span class="source-card__match">
+                                    <strong>{{ item.fields.length }}</strong>
+                                    <small>{{ item.fields.length === 1 ? 'Campo' : 'Campos' }}</small>
+                                    <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : 'No incluido' }}</em>
+                                </span>
+                            </button>
+                            }
+                        </div>
                     </div>
+
+                    @if (sourcePageCount() > 1) {
+                    <nav class="profile-carousel__controls profile-carousel__controls--sources" aria-label="Páginas de fuentes">
+                        <button type="button" aria-label="Fuentes anteriores" (click)="previousSourcePage()">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span>{{ sourcePageLabel() }}</span>
+                        <button type="button" aria-label="Fuentes siguientes" (click)="nextSourcePage()">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </nav>
+                    }
                 </article>
 
                 <article class="profile-card profile-card--selection">
@@ -268,8 +306,8 @@
                         </div>
 
                         <div class="selection-source__match">
-                            <strong>{{ source.percentage }}%</strong>
-                            <small>Coincidencia</small>
+                            <strong>{{ source.recordCount }}</strong>
+                            <small>{{ source.recordCount === 1 ? 'Registro' : 'Registros' }}</small>
                         </div>
                     </section>
 
@@ -277,23 +315,39 @@
                         <span>{{ getSelectedSourceCount(source) }} de {{ source.fields.length }} campos</span>
 
                         <button type="button" (click)="selectAll()">
-                            Seleccionar todo
+                            {{ getSelectedSourceCount(source) === source.fields.length && source.fields.length > 0
+                                ? 'Quitar selección'
+                                : 'Seleccionar todo' }}
                         </button>
                     </section>
 
-                    <section class="selection-fields">
-                        @for (field of source.fields; track field.id) {
-                        <button type="button" class="field-row" [class.field-row--selected]="field.selected"
-                            (click)="toggleField(field.id)">
-                            <span class="field-row__checkbox" [class.field-row__checkbox--selected]="field.selected">
-                                @if (field.selected) {
-                                <i class="fa-solid fa-check"></i>
-                                }
-                            </span>
+                    <section class="selection-fields-carousel">
+                        <div class="selection-fields profile-carousel__page">
+                            @for (field of visibleSourceFields(); track field.id) {
+                            <button type="button" class="field-row" [class.field-row--selected]="field.selected"
+                                (click)="toggleField(field.id)">
+                                <span class="field-row__checkbox" [class.field-row__checkbox--selected]="field.selected">
+                                    @if (field.selected) {
+                                    <i class="fa-solid fa-check"></i>
+                                    }
+                                </span>
 
-                            <strong>{{ field.label }}</strong>
-                            <span>{{ field.value }}</span>
-                        </button>
+                                <strong>{{ field.label }}</strong>
+                                <span [title]="field.value">{{ field.value }}</span>
+                            </button>
+                            }
+                        </div>
+
+                        @if (sourceFieldPageCount() > 1) {
+                        <nav class="profile-carousel__controls" aria-label="Páginas de información de la fuente">
+                            <button type="button" aria-label="Información anterior" (click)="previousSourceFieldPage()">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span>{{ sourceFieldPageLabel() }}</span>
+                            <button type="button" aria-label="Información siguiente" (click)="nextSourceFieldPage()">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                        </nav>
                         }
                     </section>
 
@@ -312,7 +366,7 @@
 
                 <article class="profile-card profile-card--consolidated">
                     <header class="profile-card__header">
-                        <h2>3. Perfil preconsolidado</h2>
+                        <h2>3. Perfil consolidado</h2>
                         <p>Campos seleccionados de las fuentes</p>
                     </header>
 
@@ -327,21 +381,29 @@
                         </div>
                     </section>
 
+                    @if (photos().length > 0) {
                     <section class="profile-gallery">
-                        <button type="button" class="profile-gallery__arrow" aria-label="Foto anterior">
+                        <button type="button" class="profile-gallery__arrow" aria-label="Foto anterior"
+                            [disabled]="photoPageCount() <= 1" (click)="previousPhotoPage()">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
 
-                        <div class="profile-gallery__images">
-                            <img src="person-left.png" alt="Perfil izquierdo" />
-                            <img src="person-front.png" alt="Perfil frontal" />
-                            <img src="person-right.png" alt="Perfil derecho" />
+                        <div class="profile-gallery__images profile-carousel__page">
+                            @for (photo of visiblePhotos(); track photo.id) {
+                            <img [src]="photo.src" [alt]="photo.alt + ' · ' + photo.sourceTitle" />
+                            }
                         </div>
 
-                        <button type="button" class="profile-gallery__arrow" aria-label="Foto siguiente">
+                        <button type="button" class="profile-gallery__arrow" aria-label="Foto siguiente"
+                            [disabled]="photoPageCount() <= 1" (click)="nextPhotoPage()">
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
+
+                        @if (photoPageCount() > 1) {
+                        <span class="profile-gallery__page">{{ photoPageLabel() }}</span>
+                        }
                     </section>
+                    }
 
                     <section class="accordion-card accordion-card--open">
                         <button type="button" class="accordion-card__button">
@@ -359,18 +421,35 @@
                             Sin campos seleccionados
                         </div>
                         } @else {
-                        <div class="selected-fields">
-                            @for (field of selectedFields(); track field.sourceTitle + field.id) {
-                            <article class="selected-field">
-                                <div>
-                                    <span>{{ field.label }}</span>
-                                    <strong>{{ field.value }}</strong>
-                                </div>
+                        <div class="selected-fields-carousel">
+                            <div class="selected-fields profile-carousel__page">
+                                @for (field of visibleSelectedFields(); track field.sourceTitle + field.id) {
+                                <article class="selected-field">
+                                    <div>
+                                        <span>{{ field.label }}</span>
+                                        <strong [title]="field.value">{{ field.value }}</strong>
+                                    </div>
 
-                                <small [style.background]="field.sourceColor">
-                                    {{ field.sourceTitle }}
-                                </small>
-                            </article>
+                                    <small [style.background]="field.sourceColor">
+                                        {{ field.sourceTitle }}
+                                    </small>
+                                </article>
+                                }
+                            </div>
+
+                            @if (consolidatedFieldPageCount() > 1) {
+                            <nav class="profile-carousel__controls profile-carousel__controls--compact"
+                                aria-label="Páginas del perfil preconsolidado">
+                                <button type="button" aria-label="Campos anteriores"
+                                    (click)="previousConsolidatedFieldPage()">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </button>
+                                <span>{{ consolidatedFieldPageLabel() }}</span>
+                                <button type="button" aria-label="Campos siguientes"
+                                    (click)="nextConsolidatedFieldPage()">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </button>
+                            </nav>
                             }
                         </div>
                         }
@@ -380,7 +459,7 @@
                         <button type="button" class="accordion-card__button">
                             <span>
                                 <i class="fa-solid fa-paperclip"></i>
-                                Archivos relacionados 2
+                                Archivos relacionados {{ relatedFileCount() }}
                             </span>
 
                             <i class="fa-solid fa-chevron-down"></i>
@@ -391,7 +470,7 @@
                         <button type="button" class="accordion-card__button">
                             <span>
                                 <i class="fa-solid fa-border-all"></i>
-                                Objetos adicionales 1
+                                Objetos adicionales {{ additionalObjectCount() }}
                             </span>
 
                             <i class="fa-solid fa-chevron-down"></i>
@@ -399,18 +478,15 @@
                     </section>
 
                     <section class="links-card">
-                        <p>Se han encontrado <strong>4</strong> vínculos</p>
+                        <p>Se han encontrado <strong>{{ totalLinks() }}</strong> vínculos</p>
 
                         <div>
-                            <span class="links-card__vehicle">
-                                <i class="fa-solid fa-car-side"></i>
-                                Vehículos 1
+                            @for (link of links(); track link.id) {
+                            <span [class]="getLinkChipClass(link)">
+                                <i [class]="getLinkIconClass(link)"></i>
+                                {{ link.label }} {{ link.count }}
                             </span>
-
-                            <span class="links-card__weapon">
-                                <i class="fa-solid fa-gun"></i>
-                                Armas 3
-                            </span>
+                            }
                         </div>
                     </section>
 
@@ -421,12 +497,12 @@
                             Aceptar
                         </button>
                         } @else {
-                        <button type="button" class="accepted-button" (click)="openConsolidatedModal()">
+                        <button type="button" class="accepted-button">
                             <i class="fa-solid fa-check"></i>
                             Aceptado
                         </button>
 
-                        <a routerLink="/grafo" class="graph-button">
+                        <a routerLink="/grafo" [queryParams]="{ searchId: searchId, resultId: resultId }" class="graph-button">
                             <i class="fa-solid fa-share-nodes"></i>
                             Visualizar grafo
                         </a>
@@ -434,56 +510,14 @@
                     </footer>
                 </article>
             </section>
+            } @else {
+            <section class="profile-header-card">
+                <div>
+                    <h2>Sin fuentes disponibles</h2>
+                    <p>El detalle del resultado no contiene grupos de fuentes para mostrar.</p>
+                </div>
+            </section>
             }
         </main>
     </div>
-
-    <dialog #consolidatedDialog class="consolidated-dialog" aria-labelledby="consolidated-dialog-title"
-        (click)="onConsolidatedDialogClick($event)" (cancel)="closeConsolidatedModal()">
-        <article class="consolidated-dialog__card">
-            <button type="button" class="consolidated-dialog__close" aria-label="Cerrar modal"
-                (click)="closeConsolidatedModal()">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-            <div class="consolidated-dialog__icon">
-                <i class="fa-solid fa-check"></i>
-            </div>
-
-            <p class="consolidated-dialog__eyebrow">Proceso completado</p>
-            <h2 id="consolidated-dialog-title">PERFIL CONSOLIDADO</h2>
-
-            <p class="consolidated-dialog__message">
-                El <strong>Perfil Preconsolidado</strong> ahora es un <strong>Perfil Consolidado</strong>.
-                La información seleccionada quedó integrada correctamente.
-            </p>
-
-            <div class="consolidated-dialog__summary">
-                <article>
-                    <span>Datos integrados</span>
-                    <strong>{{ completedLabel() }}</strong>
-                </article>
-
-                <article>
-                    <span>Fuentes activas</span>
-                    <strong>{{ sources().length }}</strong>
-                </article>
-            </div>
-
-            <div class="consolidated-dialog__progress">
-                <span [style.width.%]="completionPercent()"></span>
-            </div>
-
-            <footer class="consolidated-dialog__actions">
-                <button type="button" class="consolidated-dialog__secondary" (click)="closeConsolidatedModal()">
-                    Cerrar
-                </button>
-
-                <button type="button" class="consolidated-dialog__primary" (click)="goToGraph()">
-                    <i class="fa-solid fa-share-nodes"></i>
-                    Visualizar grafo
-                </button>
-            </footer>
-        </article>
-    </dialog>
 </section>

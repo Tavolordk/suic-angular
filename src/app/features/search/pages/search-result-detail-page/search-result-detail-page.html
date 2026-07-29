@@ -1,0 +1,173 @@
+<section class="detail-shell">
+  <header class="detail-topbar">
+    <img src="/login-seguridad-logo.png" alt="Logo SSPC" />
+    <p>Sistema Plataforma México</p>
+    <div class="detail-user">
+      <span>{{ accountNumber() }}</span>
+      <small>{{ primaryProfile() }}</small>
+      <button type="button" (click)="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="detail-content">
+    <button type="button" class="detail-back" (click)="goBack()">
+      ← Regresar a resultados
+    </button>
+
+    <section class="detail-state" *ngIf="loading()">
+      <div class="detail-spinner" aria-hidden="true"></div>
+      <h1>Cargando perfil</h1>
+      <p>Consultando fuentes, evidencias y relaciones.</p>
+    </section>
+
+    <section class="detail-state detail-state--error" *ngIf="errorMessage() as error" role="alert">
+      <h1>No fue posible cargar el perfil</h1>
+      <p>{{ error }}</p>
+    </section>
+
+    <ng-container *ngIf="detail() as profile">
+      <section class="detail-hero">
+        <div>
+          <span class="detail-eyebrow">Perfil consolidado</span>
+          <h1>{{ profile.entityType || 'Entidad' }}</h1>
+          <p>
+            Resultado <code>{{ profile.resultId }}</code>
+          </p>
+        </div>
+
+        <div class="detail-badges">
+          <span>{{ profile.status || 'Sin estatus' }}</span>
+          <span>{{ profile.kind || 'Sin clasificación' }}</span>
+          <span class="detail-badge--warning" *ngIf="profile.hasConflicts">
+            Con conflictos
+          </span>
+        </div>
+      </section>
+
+      <section class="detail-summary">
+        <article>
+          <strong>{{ sourceGroups().length }}</strong>
+          <span>fuentes</span>
+        </article>
+        <article>
+          <strong>{{ sourceRecordCount() }}</strong>
+          <span>registros origen</span>
+        </article>
+        <article>
+          <strong>{{ relationshipCount() }}</strong>
+          <span>relaciones</span>
+        </article>
+        <article>
+          <strong>{{ profile.contractVersion || '—' }}</strong>
+          <span>versión de contrato</span>
+        </article>
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <h2>Información por fuente</h2>
+          <p>Identificadores y atributos agrupados por el sistema que aportó cada registro.</p>
+        </header>
+
+        <div class="detail-empty" *ngIf="sourceGroups().length === 0">
+          El perfil no contiene grupos de fuentes.
+        </div>
+
+        <article class="source-card" *ngFor="let source of sourceGroups()">
+          <div class="source-card__header">
+            <div>
+              <span>{{ source.sourceCode || 'SIN-CÓDIGO' }}</span>
+              <h3>{{ source.sourceName || 'Fuente sin nombre' }}</h3>
+            </div>
+            <strong>{{ source.records?.length || 0 }} registros</strong>
+          </div>
+
+          <div class="record-card" *ngFor="let record of source.records || []">
+            <p class="record-card__id">
+              Registro: <code>{{ record.sourceRecordId || 'Sin identificador' }}</code>
+            </p>
+
+            <div class="evidence-columns">
+              <section>
+                <h4>Identificadores</h4>
+                <div class="evidence-empty" *ngIf="!(record.identifiers?.length)">Sin identificadores</div>
+                <div class="evidence-row" *ngFor="let evidence of record.identifiers || []">
+                  <span>{{ evidenceLabel(evidence) }}</span>
+                  <strong>{{ evidenceValue(evidence) }}</strong>
+                  <small *ngIf="evidence.origins?.length">
+                    {{ evidence.origins?.length }} origen(es)
+                  </small>
+                </div>
+              </section>
+
+              <section>
+                <h4>Atributos</h4>
+                <div class="evidence-empty" *ngIf="!(record.attributes?.length)">Sin atributos</div>
+                <div class="evidence-row" *ngFor="let evidence of record.attributes || []">
+                  <span>{{ evidenceLabel(evidence) }}</span>
+                  <strong>{{ evidenceValue(evidence) }}</strong>
+                  <small *ngIf="evidence.origins?.length">
+                    {{ evidence.origins?.length }} origen(es)
+                  </small>
+                </div>
+              </section>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <h2>Relaciones encontradas</h2>
+          <p>Vínculos contextuales asociados al resultado seleccionado.</p>
+        </header>
+
+        <div class="detail-empty" *ngIf="linkGroups().length === 0">
+          El perfil no contiene relaciones.
+        </div>
+
+        <article class="link-group" *ngFor="let group of linkGroups()">
+          <div class="link-group__header">
+            <h3>{{ group.entityType || 'Entidad relacionada' }}</h3>
+            <span>{{ group.count }} relación(es)</span>
+          </div>
+
+          <div class="link-card" *ngFor="let link of group.items || []">
+            <div class="link-card__meta">
+              <strong>{{ link.relationshipCode || 'Relación sin código' }}</strong>
+              <span>{{ link.status || 'Sin estatus' }}</span>
+              <code>{{ link.linkId }}</code>
+            </div>
+
+            <div class="evidence-columns">
+              <section>
+                <h4>Identificadores</h4>
+                <div class="evidence-empty" *ngIf="!(link.identifiers?.length)">Sin identificadores</div>
+                <div class="evidence-row" *ngFor="let evidence of link.identifiers || []">
+                  <span>{{ evidenceLabel(evidence) }}</span>
+                  <strong>{{ evidenceValue(evidence) }}</strong>
+                </div>
+              </section>
+
+              <section>
+                <h4>Atributos</h4>
+                <div class="evidence-empty" *ngIf="!(link.attributes?.length)">Sin atributos</div>
+                <div class="evidence-row" *ngFor="let evidence of link.attributes || []">
+                  <span>{{ evidenceLabel(evidence) }}</span>
+                  <strong>{{ evidenceValue(evidence) }}</strong>
+                </div>
+              </section>
+            </div>
+
+            <p class="link-card__origins" *ngIf="link.origins?.length">
+              Respaldada por {{ link.origins?.length }} origen(es):
+              <span *ngFor="let origin of link.origins; let last = last">
+                {{ origin.sourceName || origin.sourceCode || 'Fuente' }}{{ last ? '' : ', ' }}
+              </span>
+            </p>
+          </div>
+        </article>
+      </section>
+    </ng-container>
+  </main>
+</section>

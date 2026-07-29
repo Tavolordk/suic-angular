@@ -1,4 +1,9 @@
-import { CommonModule, DatePipe, isPlatformBrowser } from '@angular/common';
+import {
+  CommonModule,
+  DatePipe,
+  isPlatformBrowser
+} from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   OnDestroy,
@@ -10,15 +15,30 @@ import {
 } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import {
+  SearchResultItemDto,
+  SearchResultsPageResponse
+} from '../../../../core/infrastructure/search-api/search-api.models';
+import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { SearchStateService } from '../../data-access/search-state.service';
+import { PersonSearchFormValue } from '../../domain/person-search.models';
+import {
+  buildPersonSearchRequest,
+  hasSearchTerms
+} from '../../domain/search-request.mapper';
 
 type SearchEntity = 'personas' | 'vehiculo' | 'armas';
 type PageSize = 10 | 18;
 type ResultTagType = 'personas' | 'vehiculo' | 'armas';
+type SidebarPanel = 'history' | 'bookmarks' | null;
+type QuickSearchIcon = 'person' | 'curp';
 
 interface EntityOption {
   key: SearchEntity;
   label: string;
+  disabled?: boolean;
 }
 
 interface ResultTag {
@@ -27,31 +47,26 @@ interface ResultTag {
 }
 
 interface SearchResult {
-  id: number;
-  entity: SearchEntity;
+  id: string;
+  entity: 'personas';
   name: string;
   alias?: string;
   curp?: string;
   rfc?: string;
-  serie?: string;
-  marca?: string;
-  modelo?: string;
-  placa?: string;
-  calibre?: string;
-  color?: string;
   tags: ResultTag[];
   saved: boolean;
+  status?: string;
+  kind?: string;
+  hasConflicts: boolean;
+  sources: string[];
 }
-
-type SidebarPanel = 'history' | 'bookmarks' | null;
-
-type QuickSearchIcon = 'person' | 'curp' | 'vehicle' | 'weapon';
 
 interface QuickSearchItem {
   id: number;
   label: string;
-  type: SearchEntity;
+  type: 'personas';
   icon: QuickSearchIcon;
+  values: Partial<PersonSearchFormValue>;
 }
 
 @Component({
@@ -62,71 +77,122 @@ interface QuickSearchItem {
   styleUrl: './search-page.scss'
 })
 export class SearchPage implements OnInit, OnDestroy {
-  readonly activeSidebarPanel = signal<SidebarPanel>(null);
-
-  readonly recentSearches: QuickSearchItem[] = [
-    { id: 1, label: 'Benito Juárez García', type: 'personas', icon: 'person' },
-    { id: 2, label: 'JDPS950728HDFABC', type: 'personas', icon: 'curp' },
-    { id: 3, label: 'Omar Hernández', type: 'personas', icon: 'person' },
-    { id: 4, label: 'Toyota Corolla 2020', type: 'vehiculo', icon: 'vehicle' },
-    { id: 5, label: 'Pistola Glock 9mm', type: 'armas', icon: 'weapon' }
-  ];
-
-  readonly savedSearches: QuickSearchItem[] = [
-    { id: 1, label: 'Ana Sofía García Hernández', type: 'personas', icon: 'person' },
-    { id: 2, label: 'Nissan Versa 2020', type: 'vehiculo', icon: 'vehicle' },
-    { id: 3, label: 'Rifle calibre .223', type: 'armas', icon: 'weapon' }
-  ];
-
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly searchApi = inject(SearchApiService);
+  private readonly searchState = inject(SearchStateService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private readonly restoredPage = this.searchState.page();
 
   readonly accountNumber = this.authService.accountNumber;
   readonly primaryProfile = this.authService.primaryProfile;
 
-  private clockInterval?: ReturnType<typeof setInterval>;
-  private searchTimeout?: ReturnType<typeof setTimeout>;
-
+  readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
   readonly selectedEntity = signal<SearchEntity>('personas');
   readonly profileOpen = signal(false);
-
   readonly isSearching = signal(false);
-  readonly hasSearched = signal(false);
-  readonly searchPanelExpanded = signal(true);
-
-  readonly pageSize = signal<PageSize>(10);
-  readonly pageIndex = signal(0);
+  readonly hasSearched = signal(Boolean(this.restoredPage));
+  readonly searchPanelExpanded = signal(!this.restoredPage);
+  readonly errorMessage = signal<string | null>(null);
+  readonly pageSize = signal<PageSize>(this.searchState.pageSize());
+  readonly searchId = signal<string | null>(this.restoredPage?.searchId ?? null);
+  readonly currentPage = signal(this.restoredPage?.pagination.page ?? 1);
+  readonly totalPages = signal(this.restoredPage?.pagination.totalPages ?? 0);
+  readonly hasPreviousPage = signal(
+    this.restoredPage?.pagination.hasPreviousPage ?? false
+  );
+  readonly hasNextPage = signal(
+    this.restoredPage?.pagination.hasNextPage ?? false
+  );
+  readonly totalResultsCount = signal(
+    this.restoredPage?.counts.totalItems ?? 0
+  );
+  readonly executionStatus = signal(
+    this.restoredPage?.execution.status?.trim() ?? ''
+  );
+  readonly isPartialResult = signal(
+    this.restoredPage?.execution.isPartial ?? false
+  );
 
   readonly entityOptions: EntityOption[] = [
-    {
-      key: 'personas',
-      label: 'Personas'
-    },
+    { key: 'personas', label: 'Personas' },
     {
       key: 'vehiculo',
-      label: 'Vehículo'
+      label: 'Vehículo',
+      disabled: true
     },
     {
       key: 'armas',
-      label: 'Armas'
+      label: 'Armas',
+      disabled: true
     }
   ];
 
-  readonly personForm = this.fb.group({
-    nombres: [''],
-    apellidoPaterno: [''],
-    apellidoMaterno: [''],
-    alias: [''],
-    curp: [''],
-    rfc: [''],
-    cuip: ['']
+  readonly recentSearches: QuickSearchItem[] = [
+    {
+      id: 1,
+      label: 'HEGM880202HMCRDG02',
+      type: 'personas',
+      icon: 'curp',
+      values: { curp: 'HEGM880202HMCRDG02' }
+    },
+    {
+      id: 2,
+      label: 'Miguel Angel Hernández',
+      type: 'personas',
+      icon: 'person',
+      values: {
+        nombres: 'MIGUEL ANGEL',
+        apellidoPaterno: 'HERNANDEZ'
+      }
+    }
+  ];
+
+  readonly savedSearches: QuickSearchItem[] = [
+    {
+      id: 1,
+      label: 'RFC HEMM7709295Z9',
+      type: 'personas',
+      icon: 'person',
+      values: {
+        nombres: 'MIGUEL ANGEL',
+        apellidoPaterno: 'HERNANDEZ',
+        rfc: 'HEMM7709295Z9'
+      }
+    },
+    {
+      id: 2,
+      label: 'Miguel Hernández · 1977-09-29',
+      type: 'personas',
+      icon: 'person',
+      values: {
+        nombres: 'MIGUEL ANGEL',
+        apellidoPaterno: 'HERNANDEZ',
+        fechaNacimiento: '1977-09-29'
+      }
+    }
+  ];
+
+  readonly personForm = this.fb.nonNullable.group({
+    nombres: [this.searchState.formValue()?.nombres ?? ''],
+    apellidoPaterno: [
+      this.searchState.formValue()?.apellidoPaterno ?? ''
+    ],
+    apellidoMaterno: [
+      this.searchState.formValue()?.apellidoMaterno ?? ''
+    ],
+    alias: [this.searchState.formValue()?.alias ?? ''],
+    fechaNacimiento: [
+      this.searchState.formValue()?.fechaNacimiento ?? ''
+    ],
+    curp: [this.searchState.formValue()?.curp ?? ''],
+    rfc: [this.searchState.formValue()?.rfc ?? '']
   });
 
-  readonly vehicleForm = this.fb.group({
+  readonly vehicleForm = this.fb.nonNullable.group({
     niv: [''],
     placa: [''],
     noMotor: [''],
@@ -135,7 +201,7 @@ export class SearchPage implements OnInit, OnDestroy {
     color: ['']
   });
 
-  readonly weaponForm = this.fb.group({
+  readonly weaponForm = this.fb.nonNullable.group({
     matricula: [''],
     marca: [''],
     modelo: [''],
@@ -144,17 +210,10 @@ export class SearchPage implements OnInit, OnDestroy {
     licencia: ['']
   });
 
-  private readonly personResults = signal<SearchResult[]>(
-    this.createMockResults('personas')
+  private readonly results = signal<SearchResult[]>(
+    this.mapResults(this.restoredPage?.items ?? [])
   );
-
-  private readonly vehicleResults = signal<SearchResult[]>(
-    this.createMockResults('vehiculo')
-  );
-
-  private readonly weaponResults = signal<SearchResult[]>(
-    this.createMockResults('armas')
-  );
+  private clockInterval?: ReturnType<typeof setInterval>;
 
   readonly activeForm = computed<FormGroup>(() => {
     switch (this.selectedEntity()) {
@@ -167,41 +226,30 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   });
 
-  readonly activeResults = computed<SearchResult[]>(() => {
-    if (!this.hasSearched()) {
-      return [];
-    }
+  readonly visibleResults = computed(() => this.results());
+  readonly totalResults = computed(() => this.totalResultsCount());
 
-    switch (this.selectedEntity()) {
-      case 'vehiculo':
-        return this.vehicleResults();
-      case 'armas':
-        return this.weaponResults();
-      default:
-        return this.personResults();
-    }
-  });
-
-  readonly totalResults = computed(() => this.activeResults().length);
-
-  readonly visibleResults = computed(() => {
-    const start = this.pageIndex() * this.pageSize();
-    const end = start + this.pageSize();
-
-    return this.activeResults().slice(start, end);
-  });
-
-  readonly canShowEmptyStates = computed(() => {
-    return !this.hasSearched() && !this.isSearching();
-  });
-
-  readonly canShowSearching = computed(() => {
-    return this.isSearching();
-  });
-
-  readonly canShowResults = computed(() => {
-    return this.hasSearched() && !this.isSearching();
-  });
+  readonly canShowEmptyStates = computed(
+    () => !this.hasSearched() && !this.isSearching() && !this.errorMessage()
+  );
+  readonly canShowSearching = computed(() => this.isSearching());
+  readonly canShowResults = computed(
+    () =>
+      this.hasSearched() &&
+      !this.isSearching() &&
+      !this.errorMessage() &&
+      this.results().length > 0
+  );
+  readonly canShowNoResults = computed(
+    () =>
+      this.hasSearched() &&
+      !this.isSearching() &&
+      !this.errorMessage() &&
+      this.results().length === 0
+  );
+  readonly canShowError = computed(
+    () => !this.isSearching() && Boolean(this.errorMessage())
+  );
 
   ngOnInit(): void {
     if (!this.isBrowser) {
@@ -217,22 +265,20 @@ export class SearchPage implements OnInit, OnDestroy {
     if (this.clockInterval) {
       clearInterval(this.clockInterval);
     }
-
-    if (this.searchTimeout) {
-      clearTimeout(this.searchTimeout);
-    }
   }
 
   selectEntity(entity: SearchEntity): void {
-    this.selectedEntity.set(entity);
-    this.pageIndex.set(0);
-    this.hasSearched.set(false);
-    this.isSearching.set(false);
-    this.searchPanelExpanded.set(true);
-
-    if (this.searchTimeout) {
-      clearTimeout(this.searchTimeout);
+    const option = this.entityOptions.find((item) => item.key === entity);
+    if (option?.disabled) {
+      this.errorMessage.set(
+        `El contrato recibido todavía no define la búsqueda de ${option.label.toLowerCase()}.`
+      );
+      return;
     }
+
+    this.selectedEntity.set(entity);
+    this.resetResultState();
+    this.searchPanelExpanded.set(true);
   }
 
   toggleSearchPanel(): void {
@@ -240,15 +286,12 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   clearSearch(): void {
-    this.activeForm().reset();
-    this.hasSearched.set(false);
-    this.isSearching.set(false);
+    this.personForm.reset(this.emptyPersonFormValue());
+    this.vehicleForm.reset();
+    this.weaponForm.reset();
+    this.searchState.clear();
+    this.resetResultState();
     this.searchPanelExpanded.set(true);
-    this.pageIndex.set(0);
-
-    if (this.searchTimeout) {
-      clearTimeout(this.searchTimeout);
-    }
   }
 
   search(): void {
@@ -256,25 +299,75 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
-    this.profileOpen.set(false);
-    this.hasSearched.set(false);
-    this.isSearching.set(true);
-    this.searchPanelExpanded.set(true);
-    this.pageIndex.set(0);
-
-    if (this.searchTimeout) {
-      clearTimeout(this.searchTimeout);
+    if (this.selectedEntity() !== 'personas') {
+      this.errorMessage.set(
+        'La integración disponible corresponde a entityType Person.'
+      );
+      return;
     }
 
-    this.searchTimeout = setTimeout(() => {
-      this.isSearching.set(false);
-      this.hasSearched.set(true);
-    }, 1800);
+    const formValue = this.personForm.getRawValue();
+    const request = buildPersonSearchRequest(formValue);
+
+    if (!hasSearchTerms(request)) {
+      this.errorMessage.set(
+        'Captura al menos un nombre, apellido, fecha de nacimiento o identificador.'
+      );
+      return;
+    }
+
+    this.profileOpen.set(false);
+    this.errorMessage.set(null);
+    this.hasSearched.set(false);
+    this.isSearching.set(true);
+    this.results.set([]);
+    this.totalResultsCount.set(0);
+    this.currentPage.set(1);
+
+    this.searchApi
+      .executeSearch(request, this.pageSize())
+      .pipe(finalize(() => this.isSearching.set(false)))
+      .subscribe({
+        next: (page) => {
+          this.applyPage(page);
+          this.hasSearched.set(true);
+          this.searchPanelExpanded.set(false);
+          this.searchState.saveSearch(
+            request,
+            page,
+            this.pageSize(),
+            formValue
+          );
+        },
+        error: (error: unknown) => {
+          this.hasSearched.set(false);
+          this.errorMessage.set(this.extractErrorMessage(error));
+        }
+      });
   }
 
   setPageSize(size: PageSize): void {
+    if (size === this.pageSize()) {
+      return;
+    }
+
     this.pageSize.set(size);
-    this.pageIndex.set(0);
+    const currentSearchId = this.searchId();
+    if (currentSearchId) {
+      this.loadPage(1);
+    }
+  }
+
+  previousPage(): void {
+    if (this.hasPreviousPage()) {
+      this.loadPage(this.currentPage() - 1);
+    }
+  }
+
+  nextPage(): void {
+    if (this.hasNextPage()) {
+      this.loadPage(this.currentPage() + 1);
+    }
   }
 
   toggleProfile(): void {
@@ -288,8 +381,9 @@ export class SearchPage implements OnInit, OnDestroy {
   logout(): void {
     this.closeProfile();
     this.activeSidebarPanel.set(null);
+    this.searchState.clear();
     this.authService.logout();
-    this.router.navigateByUrl('/login');
+    void this.router.navigateByUrl('/login');
   }
 
   goToMainSearch(): void {
@@ -307,39 +401,49 @@ export class SearchPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set('bookmarks');
   }
 
+  closeSidebarPanel(): void {
+    this.activeSidebarPanel.set(null);
+  }
+
+  runQuickSearch(item: QuickSearchItem): void {
+    this.selectedEntity.set('personas');
+    this.activeSidebarPanel.set(null);
+    this.profileOpen.set(false);
+    this.searchPanelExpanded.set(true);
+    this.personForm.reset(this.emptyPersonFormValue());
+    this.personForm.patchValue(item.values);
+    this.search();
+  }
+
+  getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {
+    return item.icon;
+  }
+
   toggleSave(result: SearchResult, event: MouseEvent): void {
     event.stopPropagation();
-
-    const updater = (items: SearchResult[]) =>
+    this.searchState.toggleSavedResult(result.id);
+    this.results.update((items) =>
       items.map((item) =>
-        item.id === result.id
-          ? {
-            ...item,
-            saved: !item.saved
-          }
-          : item
-      );
-
-    switch (result.entity) {
-      case 'vehiculo':
-        this.vehicleResults.update(updater);
-        break;
-      case 'armas':
-        this.weaponResults.update(updater);
-        break;
-      default:
-        this.personResults.update(updater);
-        break;
-    }
+        item.id === result.id ? { ...item, saved: !item.saved } : item
+      )
+    );
   }
 
   openResultDetail(result: SearchResult): void {
-    if (result.entity === 'personas') {
-      this.router.navigateByUrl('/perfil-consolidado');
+    const currentSearchId = this.searchId();
+    if (!currentSearchId) {
+      this.errorMessage.set(
+        'No se encontró el identificador de la búsqueda para abrir el perfil.'
+      );
       return;
     }
 
-    this.router.navigateByUrl('/detalle-persona');
+    void this.router.navigate(['/perfil-consolidado'], {
+      queryParams: {
+        searchId: currentSearchId,
+        resultId: result.id
+      }
+    });
   }
 
   getTagLabel(tag: ResultTag): string {
@@ -364,226 +468,170 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
-  private createMockResults(entity: SearchEntity): SearchResult[] {
-    const personBase: Omit<SearchResult, 'id' | 'saved'>[] = [
-      {
-        entity: 'personas',
-        name: 'Ana Sofía García Hernández',
-        alias: 'La Güera',
-        curp: 'AOGH880214MDFRNR05',
-        rfc: 'GAHA880214QW2',
-        tags: [
-          { type: 'vehiculo', count: 1 },
-          { type: 'personas', count: 2 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'Juan Carlos Mendoza Rivera',
-        alias: 'El Norteño',
-        curp: 'MERJ790812HDFNVR08',
-        rfc: 'MERJ790812PZ1',
-        tags: [
-          { type: 'personas', count: 3 },
-          { type: 'armas', count: 1 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'José Luis Martínez González',
-        alias: 'El Coronel',
-        curp: 'MAGL680423HDFRTY01',
-        rfc: 'MAGL680423MM2',
-        tags: [
-          { type: 'armas', count: 3 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'María Fernanda López Torres',
-        alias: 'La Licenciada',
-        curp: 'LOTF910302MDFPRS04',
-        rfc: 'LOTF910302KD8',
-        tags: [
-          { type: 'personas', count: 1 },
-          { type: 'vehiculo', count: 2 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'Carlos Eduardo Ramírez Soto',
-        alias: 'El Flaco',
-        curp: 'RASC850924HDFMTR07',
-        rfc: 'RASC850924TQ9',
-        tags: [
-          { type: 'vehiculo', count: 1 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'Iván Roberto Salinas Cruz',
-        alias: 'El Chino',
-        curp: 'SACI900711HDFRTY01',
-        rfc: 'SACI900711MN5',
-        tags: [
-          { type: 'personas', count: 2 },
-          { type: 'armas', count: 1 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'Luis Alberto Pérez Molina',
-        alias: 'El Güero',
-        curp: 'PEML830517HDFRNR01',
-        rfc: 'PEML830517PU7',
-        tags: [
-          { type: 'vehiculo', count: 1 },
-          { type: 'armas', count: 1 }
-        ]
-      },
-      {
-        entity: 'personas',
-        name: 'Daniela Castro Jiménez',
-        alias: 'Dany',
-        curp: 'CAJD950109MDFSTM09',
-        rfc: 'CAJD950109KA4',
-        tags: [
-          { type: 'personas', count: 4 }
-        ]
-      }
-    ];
-
-    const vehicleBase: Omit<SearchResult, 'id' | 'saved'>[] = [
-      {
-        entity: 'vehiculo',
-        name: 'Nissan Versa 2020',
-        serie: '3N1CN7AD2LL823450',
-        placa: 'ABC-123-D',
-        marca: 'Nissan',
-        modelo: 'Versa',
-        color: 'Blanco',
-        tags: [
-          { type: 'personas', count: 1 }
-        ]
-      },
-      {
-        entity: 'vehiculo',
-        name: 'Volkswagen Jetta 2019',
-        serie: '3VW2B7AJ9KM284112',
-        placa: 'XYZ-982-A',
-        marca: 'Volkswagen',
-        modelo: 'Jetta',
-        color: 'Gris',
-        tags: [
-          { type: 'personas', count: 2 },
-          { type: 'armas', count: 1 }
-        ]
-      },
-      {
-        entity: 'vehiculo',
-        name: 'Chevrolet Aveo 2021',
-        serie: 'LSGHD52H0MD103928',
-        placa: 'MNO-552-C',
-        marca: 'Chevrolet',
-        modelo: 'Aveo',
-        color: 'Negro',
-        tags: [
-          { type: 'vehiculo', count: 1 }
-        ]
-      }
-    ];
-
-    const weaponBase: Omit<SearchResult, 'id' | 'saved'>[] = [
-      {
-        entity: 'armas',
-        name: 'Arma corta 9mm',
-        serie: 'GXR-90213',
-        marca: 'Glock',
-        modelo: '17',
-        calibre: '9mm',
-        tags: [
-          { type: 'personas', count: 1 },
-          { type: 'vehiculo', count: 1 }
-        ]
-      },
-      {
-        entity: 'armas',
-        name: 'Rifle calibre .223',
-        serie: 'RFL-88210',
-        marca: 'Colt',
-        modelo: 'M4',
-        calibre: '.223',
-        tags: [
-          { type: 'personas', count: 2 }
-        ]
-      },
-      {
-        entity: 'armas',
-        name: 'Escopeta calibre 12',
-        serie: 'ESC-55310',
-        marca: 'Mossberg',
-        modelo: '500',
-        calibre: '12',
-        tags: [
-          { type: 'armas', count: 1 }
-        ]
-      }
-    ];
-
-    const base =
-      entity === 'vehiculo'
-        ? vehicleBase
-        : entity === 'armas'
-          ? weaponBase
-          : personBase;
-
-    return Array.from({ length: 68 }, (_, index) => {
-      const item = base[index % base.length];
-
-      return {
-        ...item,
-        id: index + 1,
-        saved: index % 7 === 0
-      };
-    });
-  }
-
-  closeSidebarPanel(): void {
-    this.activeSidebarPanel.set(null);
-  }
-
-  runQuickSearch(item: QuickSearchItem): void {
-    this.selectedEntity.set(item.type);
-    this.activeSidebarPanel.set(null);
-    this.profileOpen.set(false);
-    this.searchPanelExpanded.set(true);
-
-    this.personForm.reset();
-    this.vehicleForm.reset();
-    this.weaponForm.reset();
-
-    if (item.type === 'personas') {
-      this.personForm.patchValue({
-        nombres: item.label
-      });
+  private loadPage(pageNumber: number): void {
+    const currentSearchId = this.searchId();
+    if (!currentSearchId || this.isSearching()) {
+      return;
     }
 
-    if (item.type === 'vehiculo') {
-      this.vehicleForm.patchValue({
-        marca: item.label
-      });
-    }
+    this.errorMessage.set(null);
+    this.isSearching.set(true);
 
-    if (item.type === 'armas') {
-      this.weaponForm.patchValue({
-        marca: item.label
+    this.searchApi
+      .getResults(currentSearchId, pageNumber, this.pageSize())
+      .pipe(finalize(() => this.isSearching.set(false)))
+      .subscribe({
+        next: (page) => {
+          this.applyPage(page);
+          this.hasSearched.set(true);
+          this.searchState.updatePage(page, this.pageSize());
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(this.extractErrorMessage(error));
+        }
       });
-    }
-
-    this.search();
   }
 
-  getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {
-    return item.icon;
+  private applyPage(page: SearchResultsPageResponse): void {
+    this.searchId.set(page.searchId);
+    this.results.set(this.mapResults(page.items ?? []));
+    this.totalResultsCount.set(page.counts.totalItems);
+    this.currentPage.set(page.pagination.page);
+    this.totalPages.set(page.pagination.totalPages);
+    this.hasPreviousPage.set(page.pagination.hasPreviousPage);
+    this.hasNextPage.set(page.pagination.hasNextPage);
+    this.executionStatus.set(page.execution.status?.trim() ?? '');
+    this.isPartialResult.set(page.execution.isPartial);
+  }
+
+  private mapResults(items: SearchResultItemDto[]): SearchResult[] {
+    const savedIds = this.searchState.savedResultIds();
+
+    return items.map((item) => ({
+      id: item.resultId,
+      entity: 'personas',
+      name: item.card?.name?.value?.trim() || 'Sin nombre disponible',
+      alias: item.card?.alias?.value?.trim() || undefined,
+      curp: item.card?.curp?.value?.trim() || undefined,
+      rfc: item.card?.rfc?.value?.trim() || undefined,
+      tags: this.mapTags(item),
+      saved: savedIds.has(item.resultId),
+      status: item.status?.trim() || undefined,
+      kind: item.kind?.trim() || undefined,
+      hasConflicts: item.hasConflicts,
+      sources: item.sources?.filter(Boolean) ?? []
+    }));
+  }
+
+  private mapTags(item: SearchResultItemDto): ResultTag[] {
+    const totals = new Map<ResultTagType, number>();
+
+    for (const link of item.links ?? []) {
+      const type = this.resolveTagType(link.entityType);
+      totals.set(type, (totals.get(type) ?? 0) + Math.max(link.count, 0));
+    }
+
+    return Array.from(totals, ([type, count]) => ({ type, count }));
+  }
+
+  private resolveTagType(entityType?: string | null): ResultTagType {
+    const normalized = entityType?.trim().toLowerCase() ?? '';
+    if (normalized.includes('vehicle') || normalized.includes('veh')) {
+      return 'vehiculo';
+    }
+    if (
+      normalized.includes('weapon') ||
+      normalized.includes('firearm') ||
+      normalized.includes('arma')
+    ) {
+      return 'armas';
+    }
+    return 'personas';
+  }
+
+  private resetResultState(): void {
+    this.hasSearched.set(false);
+    this.isSearching.set(false);
+    this.errorMessage.set(null);
+    this.searchId.set(null);
+    this.results.set([]);
+    this.totalResultsCount.set(0);
+    this.currentPage.set(1);
+    this.totalPages.set(0);
+    this.hasPreviousPage.set(false);
+    this.hasNextPage.set(false);
+    this.executionStatus.set('');
+    this.isPartialResult.set(false);
+  }
+
+
+  private emptyPersonFormValue(): PersonSearchFormValue {
+    return {
+      nombres: '',
+      apellidoPaterno: '',
+      apellidoMaterno: '',
+      alias: '',
+      fechaNacimiento: '',
+      curp: '',
+      rfc: ''
+    };
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage = this.readApiErrorMessage(error.error);
+      if (apiMessage) {
+        return apiMessage;
+      }
+
+      if (error.status === 0) {
+        return 'No fue posible conectar con el servicio de búsquedas.';
+      }
+
+      if (error.status === 401 || error.status === 403) {
+        return 'Tu sesión no tiene autorización para consultar búsquedas.';
+      }
+
+      return `El servicio de búsquedas respondió con código ${error.status}.`;
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+
+    return 'Ocurrió un error inesperado al consultar la búsqueda.';
+  }
+
+  private readApiErrorMessage(response: unknown): string | null {
+    if (typeof response === 'string' && response.trim()) {
+      return response.trim();
+    }
+
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+
+    const candidate = response as {
+      message?: unknown;
+      title?: unknown;
+      errors?: unknown;
+    };
+
+    if (typeof candidate.message === 'string' && candidate.message.trim()) {
+      return candidate.message.trim();
+    }
+
+    if (typeof candidate.title === 'string' && candidate.title.trim()) {
+      return candidate.title.trim();
+    }
+
+    if (Array.isArray(candidate.errors)) {
+      const message = candidate.errors.find(
+        (item): item is string => typeof item === 'string' && Boolean(item.trim())
+      );
+      return message?.trim() ?? null;
+    }
+
+    return null;
   }
 }

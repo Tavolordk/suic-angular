@@ -1,0 +1,254 @@
+/*
+ * Complemento del perfil consolidado.
+ * Mantiene el SCSS original y elimina el scroll interno mediante páginas de carrusel.
+ */
+
+.profile-carousel__viewport,
+.selection-fields-carousel,
+.selected-fields-carousel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.profile-carousel__page {
+  min-width: 0;
+  animation: profile-carousel-enter 180ms ease-out;
+}
+
+.profile-carousel__controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 3px 0 1px;
+}
+
+.profile-carousel__controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 1px solid rgba(34, 53, 68, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: rgba(34, 53, 68, 0.86);
+  box-shadow: 0 2px 7px rgba(34, 53, 68, 0.1);
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.profile-carousel__controls button:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.profile-carousel__controls button:active {
+  transform: translateY(0);
+}
+
+.profile-carousel__controls button:disabled {
+  opacity: 0.42;
+  cursor: default;
+  transform: none;
+}
+
+.profile-carousel__controls button i {
+  font-size: 11px;
+}
+
+.profile-carousel__controls > span {
+  min-width: 48px;
+  color: rgba(34, 53, 68, 0.72);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-carousel__controls--sources {
+  padding: 6px 12px 10px;
+}
+
+.profile-carousel__controls--compact {
+  min-height: 26px;
+  padding: 4px 0 0;
+}
+
+.profile-carousel__controls--compact button {
+  width: 25px;
+  height: 25px;
+}
+
+/* Fuentes: máximo cinco tarjetas por página, sin barra vertical. */
+.profile-card--sources {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.profile-card--sources .profile-sources {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden !important;
+}
+
+.profile-carousel__page--sources {
+  display: grid;
+  grid-auto-rows: minmax(60px, 1fr);
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.profile-carousel__page--sources .source-card {
+  min-height: 0;
+}
+
+/* Selección: cinco campos por página. */
+.profile-card--selection {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.selection-fields-carousel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 12px;
+}
+
+.selection-fields-carousel .selection-fields {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden !important;
+}
+
+.selection-fields-carousel .field-row {
+  min-height: 0;
+  height: 100%;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.selection-fields-carousel .field-row > strong,
+.selection-fields-carousel .field-row > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Preconsolidado: tres campos por página para conservar visibles vínculos y acciones. */
+.profile-card--consolidated {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.selected-fields-carousel {
+  padding: 0 10px 8px;
+}
+
+.selected-fields-carousel .selected-fields {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 0;
+  max-height: 154px;
+  overflow: hidden !important;
+}
+
+.selected-fields-carousel .selected-field {
+  min-height: 0;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.selected-fields-carousel .selected-field div {
+  min-width: 0;
+}
+
+.selected-fields-carousel .selected-field strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El carrusel de fotografías ahora sí recorre todas las evidencias. */
+.profile-gallery {
+  position: relative;
+}
+
+.profile-gallery__arrow:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.profile-gallery__page {
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(34, 53, 68, 0.68);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes profile-carousel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* En escritorio las tarjetas no generan scroll interno. En pantallas pequeñas
+ * se conserva el scroll general de la página para no cortar contenido. */
+@media (min-width: 1101px) {
+  .profile-card--sources .profile-sources,
+  .profile-card--selection .selection-fields,
+  .profile-card--consolidated .selected-fields {
+    scrollbar-width: none;
+  }
+
+  .profile-card--sources .profile-sources::-webkit-scrollbar,
+  .profile-card--selection .selection-fields::-webkit-scrollbar,
+  .profile-card--consolidated .selected-fields::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .profile-carousel__page--sources {
+    grid-auto-rows: minmax(64px, auto);
+  }
+
+  .selection-fields-carousel .selection-fields {
+    grid-template-rows: repeat(5, minmax(48px, auto));
+  }
+
+  .selected-fields-carousel .selected-fields {
+    grid-template-rows: repeat(3, minmax(48px, auto));
+    max-height: none;
+  }
+}
