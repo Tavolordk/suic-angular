@@ -134,6 +134,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
         .map((field) => ({
           ...field,
           sourceId: source.id,
+          sourceCode: source.code,
           sourceTitle: source.title,
           sourceColor: source.color
         }))

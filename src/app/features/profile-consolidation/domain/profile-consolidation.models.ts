@@ -22,6 +22,7 @@ export interface ProfileSourceViewModel {
 
 export interface SelectedProfileFieldViewModel extends ProfileFieldViewModel {
   sourceId: string;
+  sourceCode: string;
   sourceTitle: string;
   sourceColor: string;
 }

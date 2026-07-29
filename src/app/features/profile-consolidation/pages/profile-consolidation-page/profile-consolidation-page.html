@@ -430,8 +430,11 @@
                                         <strong [title]="field.value">{{ field.value }}</strong>
                                     </div>
 
-                                    <small [style.background]="field.sourceColor">
-                                        {{ field.sourceTitle }}
+                                    <small
+                                        class="selected-field__source-avatar"
+                                        [style.background]="field.sourceColor"
+                                        [title]="field.sourceTitle">
+                                        {{ field.sourceCode }}
                                     </small>
                                 </article>
                                 }
