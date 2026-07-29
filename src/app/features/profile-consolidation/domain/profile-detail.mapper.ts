@@ -2,13 +2,17 @@ import {
   SearchResultDetailResponse,
   SearchResultEvidenceDto,
   SearchResultLinkGroupDto,
+  SearchResultLinkItemDto,
   SearchResultSourceGroupDto
 } from '../../../core/infrastructure/search-api/search-api.models';
 import {
   ProfileDetailViewModel,
   ProfileFieldViewModel,
+  ProfileLinkFieldViewModel,
   ProfileLinkGroupViewModel,
+  ProfileLinkItemViewModel,
   ProfileLinkKind,
+  ProfileLinkSourceViewModel,
   ProfilePhotoViewModel,
   ProfileSourceViewModel
 } from './profile-consolidation.models';
@@ -76,6 +80,8 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   SERIE: 'Serie',
   CALIBRE: 'Calibre',
   TIPODEARMA: 'Tipo de arma',
+  TIPOARMA: 'Tipo de arma',
+  NUMEROLICENCIA: 'Número de licencia',
   LICENCIA: 'Licencia',
   ESTATUS: 'Estatus',
   STATUS: 'Estatus',
@@ -129,7 +135,11 @@ export function mapSearchResultDetail(
     .map(mapSourceGroup)
     .filter((source) => source.fields.length > 0);
   const evidence = collectEvidence(sourceGroups);
-  const links = (detail.linkGroups ?? []).map(mapLinkGroup);
+  // Los vínculos del perfil se obtienen exclusivamente de linkGroups.
+  // No se infieren desde sourceGroups, contadores de tarjetas ni datos simulados.
+  const links = (detail.linkGroups ?? [])
+    .map(mapLinkGroup)
+    .filter((group) => group.count > 0 || group.items.length > 0);
   const photos = mapPhotos(evidence, sourceGroups);
   const profileName = resolveProfileName(evidence);
   const identifier = findFirstValue(evidence, IDENTIFIER_CODES);
@@ -399,15 +409,136 @@ function mapLinkGroup(
 ): ProfileLinkGroupViewModel {
   const entityType = group.entityType?.trim() || 'Relacionado';
   const kind = resolveLinkKind(entityType);
-  const count = Math.max(group.count ?? group.items?.length ?? 0, 0);
+  const items = (group.items ?? [])
+    .map((item, itemIndex) => mapLinkItem(item, index, itemIndex))
+    .filter((item) => item.fields.length > 0 || item.sources.length > 0);
+
+  // El número mostrado en el chip sale de linkGroups[].count.
+  // Solo se usa items.length como respaldo si el contrato no trae un conteo válido.
+  const declaredCount =
+    Number.isFinite(group.count) && group.count >= 0 ? group.count : items.length;
+  const count = declaredCount > 0 ? declaredCount : items.length;
 
   return {
     id: `${normalizeCode(entityType).toLowerCase() || 'related'}-${index}`,
     entityType,
     label: resolveLinkLabel(entityType, count),
     count,
-    kind
+    kind,
+    items
   };
+}
+
+function mapLinkItem(
+  item: SearchResultLinkItemDto,
+  groupIndex: number,
+  itemIndex: number
+): ProfileLinkItemViewModel {
+  const fields: ProfileLinkFieldViewModel[] = [];
+  const evidence = [
+    ...(item.identifiers ?? []),
+    ...(item.attributes ?? [])
+  ];
+
+  evidence.forEach((entry, evidenceIndex) => {
+    const rawCode = entry.code?.trim() || 'dato';
+    const rawValue = entry.value?.trim() || '';
+
+    if (!rawValue || shouldHideField(rawCode, rawValue)) {
+      return;
+    }
+
+    fields.push({
+      id: `link-${groupIndex}-${itemIndex}-field-${evidenceIndex}`,
+      label: resolveFieldLabel(rawCode),
+      value: formatEvidenceValue(normalizeCode(rawCode), rawValue)
+    });
+  });
+
+  const status = item.status?.trim();
+  if (status) {
+    fields.push({
+      id: `link-${groupIndex}-${itemIndex}-status`,
+      label: 'Estatus',
+      value: translateLinkStatus(status)
+    });
+  }
+
+  const relationship = item.relationshipCode?.trim();
+  if (relationship && !isTechnicalIdValue(relationship)) {
+    fields.push({
+      id: `link-${groupIndex}-${itemIndex}-relationship`,
+      label: 'Relación',
+      value: humanizeCode(relationship)
+    });
+  }
+
+  return {
+    id: `link-${groupIndex}-${itemIndex}`,
+    fields: deduplicateLinkFields(fields),
+    sources: mapLinkSources(item, groupIndex, itemIndex)
+  };
+}
+
+function mapLinkSources(
+  item: SearchResultLinkItemDto,
+  groupIndex: number,
+  itemIndex: number
+): ProfileLinkSourceViewModel[] {
+  const seen = new Set<string>();
+  const evidence = [
+    ...(item.identifiers ?? []),
+    ...(item.attributes ?? [])
+  ];
+
+  // El backend puede colocar el origen en linkGroups[].items[].origins
+  // o dentro de identifiers/attributes[].origins. Se leen ambas ubicaciones.
+  const origins = [
+    ...(item.origins ?? []),
+    ...evidence.flatMap((entry) => entry.origins ?? [])
+  ];
+
+  return origins.flatMap((origin, originIndex) => {
+    const label = origin.sourceCode?.trim() || origin.sourceName?.trim() || '';
+    const normalized = normalizeCode(label);
+
+    if (!label || seen.has(normalized)) {
+      return [];
+    }
+
+    seen.add(normalized);
+    return [{
+      id: `link-${groupIndex}-${itemIndex}-source-${originIndex}`,
+      label,
+      color: colorForLabel(label)
+    }];
+  });
+}
+
+function deduplicateLinkFields(
+  fields: ProfileLinkFieldViewModel[]
+): ProfileLinkFieldViewModel[] {
+  const seen = new Set<string>();
+
+  return fields.filter((field) => {
+    const key = `${normalizeCode(field.label)}|${field.value}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function colorForLabel(label: string): string {
+  const normalized = normalizeCode(label);
+  let hash = 0;
+
+  for (const character of normalized) {
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  }
+
+  return SOURCE_COLORS[hash % SOURCE_COLORS.length];
 }
 
 function mapPhotos(
@@ -575,6 +706,22 @@ function isRenderableImage(value: string): boolean {
     /^\/\S+\.(png|jpe?g|webp|gif)(?:\?.*)?$/i.test(value)
   );
 }
+
+function translateLinkStatus(value: string): string {
+  const normalized = normalizeCode(value);
+
+  switch (normalized) {
+    case 'INDEPENDENT':
+      return 'Independiente';
+    case 'ACTIVE':
+      return 'Activo';
+    case 'INACTIVE':
+      return 'Inactivo';
+    default:
+      return humanizeCode(value);
+  }
+}
+
 
 function resolveLinkKind(entityType: string): ProfileLinkKind {
   const normalized = normalizeCode(entityType);

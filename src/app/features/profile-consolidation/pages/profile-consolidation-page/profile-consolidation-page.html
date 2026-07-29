@@ -477,18 +477,78 @@
                         </button>
                     </section>
 
-                    <section class="links-card">
+                    @if (links().length > 0) {
+                    <section class="links-card" [class.links-card--expanded]="activeLinkGroup() !== null">
                         <p>Se han encontrado <strong>{{ totalLinks() }}</strong> vínculos</p>
 
-                        <div>
+                        <div class="links-card__chips" role="tablist" aria-label="Tipos de vínculos encontrados">
                             @for (link of links(); track link.id) {
-                            <span [class]="getLinkChipClass(link)">
+                            <button type="button" [class]="getLinkChipClass(link)"
+                                [class.links-card__chip--active]="activeLinkGroupId() === link.id"
+                                [attr.aria-selected]="activeLinkGroupId() === link.id"
+                                [attr.aria-expanded]="activeLinkGroupId() === link.id"
+                                [title]="'Ver información de ' + link.label.toLowerCase()"
+                                (click)="selectLinkGroup(link.id)">
                                 <i [class]="getLinkIconClass(link)"></i>
-                                {{ link.label }} {{ link.count }}
-                            </span>
+                                <span>{{ link.label }}</span>
+                                <strong>{{ link.count }}</strong>
+                            </button>
                             }
                         </div>
+
+                        @if (activeLinkGroup(); as activeLink) {
+                        <div class="link-details" role="tabpanel">
+                            @if (activeLink.items.length === 0) {
+                            <p class="link-details__empty">
+                                El servicio reportó {{ activeLink.count }}
+                                {{ activeLink.count === 1 ? 'vínculo' : 'vínculos' }},
+                                pero no devolvió información visible.
+                            </p>
+                            } @else {
+                            <div class="link-details__cards profile-carousel__page">
+                                @for (item of visibleLinkItems(); track item.id) {
+                                <article [class]="getLinkDetailCardClass(activeLink)">
+                                    <div class="link-detail-card__fields">
+                                        @for (field of item.fields; track field.id) {
+                                        <div class="link-detail-card__field">
+                                            <span>{{ field.label }}:</span>
+                                            <strong [title]="field.value">{{ field.value }}</strong>
+                                        </div>
+                                        }
+                                    </div>
+
+                                    @if (item.sources.length > 0) {
+                                    <footer class="link-detail-card__sources">
+                                        @for (sourceBadge of item.sources; track sourceBadge.id) {
+                                        <span [style.background]="sourceBadge.color">
+                                            {{ sourceBadge.label }}
+                                        </span>
+                                        }
+                                    </footer>
+                                    }
+                                </article>
+                                }
+                            </div>
+
+                            @if (linkItemPageCount() > 1) {
+                            <nav class="profile-carousel__controls profile-carousel__controls--compact"
+                                aria-label="Páginas de vínculos">
+                                <button type="button" aria-label="Vínculos anteriores"
+                                    (click)="previousLinkItemPage()">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </button>
+                                <span>{{ linkItemPageLabel() }}</span>
+                                <button type="button" aria-label="Vínculos siguientes"
+                                    (click)="nextLinkItemPage()">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </button>
+                            </nav>
+                            }
+                            }
+                        </div>
+                        }
                     </section>
+                    }
 
                     <footer class="consolidated-footer">
                         @if (!accepted()) {

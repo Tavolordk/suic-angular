@@ -16,6 +16,7 @@ import { SearchApiService } from '../../../../core/infrastructure/search-api/sea
 import {
   ProfileFieldViewModel,
   ProfileLinkGroupViewModel,
+  ProfileLinkItemViewModel,
   ProfilePhotoViewModel,
   ProfileSourceViewModel,
   SelectedProfileFieldViewModel
@@ -36,6 +37,7 @@ const SOURCES_PER_PAGE = 5;
 const FIELDS_PER_PAGE = 5;
 const CONSOLIDATED_FIELDS_PER_PAGE = 3;
 const PHOTOS_PER_PAGE = 3;
+const LINK_ITEMS_PER_PAGE = 2;
 
 @Component({
   selector: 'app-profile-consolidation-page',
@@ -69,6 +71,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly selectedSourceId = signal('');
   readonly sources = signal<ProfileSourceViewModel[]>([]);
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
+  readonly activeLinkGroupId = signal<string | null>(null);
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
   readonly profileName = signal('Perfil sin nombre disponible');
   readonly profileSubtitle = signal('Perfil de persona');
@@ -81,6 +84,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly sourceFieldPageIndex = signal(0);
   readonly consolidatedFieldPageIndex = signal(0);
   readonly photoPageIndex = signal(0);
+  readonly linkItemPageIndex = signal(0);
 
   readonly accountNumber = this.authService.accountNumber;
   readonly primaryProfile = this.authService.primaryProfile;
@@ -153,6 +157,32 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   readonly totalLinks = computed(() =>
     this.links().reduce((total, link) => total + link.count, 0)
+  );
+
+  readonly activeLinkGroup = computed<ProfileLinkGroupViewModel | null>(() => {
+    const activeId = this.activeLinkGroupId();
+    if (!activeId) {
+      return null;
+    }
+
+    return this.links().find((link) => link.id === activeId) ?? null;
+  });
+
+  readonly linkItemPages = computed(() =>
+    chunkItems(this.activeLinkGroup()?.items ?? [], LINK_ITEMS_PER_PAGE)
+  );
+  readonly linkItemPageCount = computed(() => this.linkItemPages().length);
+  readonly normalizedLinkItemPageIndex = computed(() =>
+    normalizePageIndex(this.linkItemPageIndex(), this.linkItemPageCount())
+  );
+  readonly visibleLinkItems = computed<ProfileLinkItemViewModel[]>(() =>
+    pageAt(this.linkItemPages(), this.normalizedLinkItemPageIndex())
+  );
+  readonly linkItemPageLabel = computed(() =>
+    createPageLabel(
+      this.normalizedLinkItemPageIndex(),
+      this.linkItemPageCount()
+    )
   );
 
   readonly sourcePages = computed(() =>
@@ -279,6 +309,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           this.sources.set(viewModel.sources);
           this.selectedSourceId.set(viewModel.sources[0]?.id ?? '');
           this.links.set(viewModel.links);
+          this.activeLinkGroupId.set(null);
           this.photos.set(viewModel.photos);
           this.profileName.set(viewModel.profileName);
           this.profileSubtitle.set(viewModel.profileSubtitle);
@@ -372,6 +403,38 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       movePageIndex(
         this.normalizedPhotoPageIndex(),
         this.photoPageCount(),
+        1
+      )
+    );
+  }
+
+  selectLinkGroup(linkId: string): void {
+    const exists = this.links().some((link) => link.id === linkId);
+    if (!exists) {
+      return;
+    }
+
+    this.activeLinkGroupId.update((current) =>
+      current === linkId ? null : linkId
+    );
+    this.linkItemPageIndex.set(0);
+  }
+
+  previousLinkItemPage(): void {
+    this.linkItemPageIndex.set(
+      movePageIndex(
+        this.normalizedLinkItemPageIndex(),
+        this.linkItemPageCount(),
+        -1
+      )
+    );
+  }
+
+  nextLinkItemPage(): void {
+    this.linkItemPageIndex.set(
+      movePageIndex(
+        this.normalizedLinkItemPageIndex(),
+        this.linkItemPageCount(),
         1
       )
     );
@@ -479,9 +542,11 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   getLinkChipClass(link: ProfileLinkGroupViewModel): string {
-    return link.kind === 'weapon'
-      ? 'links-card__weapon'
-      : 'links-card__vehicle';
+    return `links-card__chip links-card__chip--${link.kind}`;
+  }
+
+  getLinkDetailCardClass(link: ProfileLinkGroupViewModel): string {
+    return `link-detail-card link-detail-card--${link.kind}`;
   }
 
   getLinkIconClass(link: ProfileLinkGroupViewModel): string {
@@ -518,12 +583,14 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.sourceFieldPageIndex.set(0);
     this.consolidatedFieldPageIndex.set(0);
     this.photoPageIndex.set(0);
+    this.linkItemPageIndex.set(0);
   }
 
   private clearProfileData(): void {
     this.sources.set([]);
     this.selectedSourceId.set('');
     this.links.set([]);
+    this.activeLinkGroupId.set(null);
     this.photos.set([]);
     this.relatedFileCount.set(0);
     this.additionalObjectCount.set(0);

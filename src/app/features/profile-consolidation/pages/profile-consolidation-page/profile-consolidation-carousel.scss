@@ -252,3 +252,262 @@
     max-height: none;
   }
 }
+
+/* Las tres columnas siempre comparten la altura de la columna más alta. */
+.profile-grid {
+  align-items: stretch;
+  grid-auto-rows: auto;
+}
+
+.profile-grid > .profile-card {
+  align-self: stretch;
+  height: 100%;
+}
+
+/* Vínculos interactivos */
+.links-card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 14px 14px;
+  padding: 14px;
+  border: 1px solid rgba(202, 213, 226, 0.72);
+  border-radius: 16px;
+  background: rgba(202, 213, 226, 0.22);
+  box-shadow: 0 3px 10px rgba(34, 53, 68, 0.07);
+  transition: padding 180ms ease, background 180ms ease;
+}
+
+.links-card > p {
+  margin: 0;
+  color: rgba(34, 53, 68, 0.86);
+  font-size: 12px;
+  text-align: center;
+}
+
+.links-card__chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.links-card__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: rgba(34, 53, 68, 0.68);
+  box-shadow: 0 2px 6px rgba(34, 53, 68, 0.08);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, color 150ms ease,
+    background 150ms ease;
+}
+
+.links-card__chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(34, 53, 68, 0.14);
+}
+
+.links-card__chip i {
+  font-size: 12px;
+}
+
+.links-card__chip strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.links-card__chip--vehicle {
+  background: rgba(252, 176, 37, 0.22);
+  color: #8b5b00;
+}
+
+.links-card__chip--person {
+  background: rgba(39, 90, 26, 0.16);
+  color: #275a1a;
+}
+
+.links-card__chip--weapon {
+  background: rgba(90, 26, 86, 0.16);
+  color: #5a1a56;
+}
+
+.links-card__chip--other {
+  background: rgba(22, 59, 92, 0.14);
+  color: #163b5c;
+}
+
+.links-card__chip--vehicle.links-card__chip--active {
+  background: rgba(252, 176, 37, 0.92);
+  color: #ffffff;
+}
+
+.links-card__chip--person.links-card__chip--active {
+  background: rgba(74, 124, 66, 0.94);
+  color: #ffffff;
+}
+
+.links-card__chip--weapon.links-card__chip--active {
+  background: rgba(90, 26, 86, 0.92);
+  color: #ffffff;
+}
+
+.links-card__chip--other.links-card__chip--active {
+  background: rgba(22, 59, 92, 0.9);
+  color: #ffffff;
+}
+
+.link-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  animation: profile-link-details-enter 180ms ease-out;
+}
+
+.link-details__cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.link-details__empty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.58);
+  color: rgba(34, 53, 68, 0.64);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.link-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border-radius: 14px;
+  box-shadow: 0 3px 8px rgba(34, 53, 68, 0.08);
+}
+
+.link-detail-card--vehicle {
+  background: rgba(252, 176, 37, 0.36);
+}
+
+.link-detail-card--person {
+  background: rgba(93, 137, 82, 0.42);
+}
+
+.link-detail-card--weapon {
+  background: rgba(90, 26, 86, 0.22);
+}
+
+.link-detail-card--other {
+  background: rgba(22, 59, 92, 0.16);
+}
+
+.link-detail-card__fields {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  gap: 7px 12px;
+}
+
+.link-detail-card__field {
+  display: contents;
+}
+
+.link-detail-card__field span {
+  color: rgba(34, 53, 68, 0.68);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.link-detail-card__field strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(34, 53, 68, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-detail-card__sources {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid rgba(34, 53, 68, 0.12);
+}
+
+.link-detail-card__sources span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+@keyframes profile-link-details-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 1101px) {
+  .profile-grid {
+    min-height: 0;
+  }
+
+  .profile-card {
+    min-height: 720px;
+  }
+
+  /* El contenido expandido de la tercera tarjeta define la altura de la fila.
+   * Las otras dos columnas se estiran automáticamente a esa misma altura. */
+  .profile-card--consolidated {
+    height: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .links-card__chip {
+    min-height: 34px;
+    padding: 0 12px;
+  }
+
+  .link-detail-card__fields {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .link-detail-card__field {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

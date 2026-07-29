@@ -34,6 +34,13 @@ type PageSize = 10 | 18;
 type ResultTagType = 'personas' | 'vehiculo' | 'armas';
 type SidebarPanel = 'history' | 'bookmarks' | null;
 type QuickSearchIcon = 'person' | 'curp';
+type UppercasePersonField =
+  | 'nombres'
+  | 'apellidoPaterno'
+  | 'apellidoMaterno'
+  | 'alias'
+  | 'curp'
+  | 'rfc';
 
 interface EntityOption {
   key: SearchEntity;
@@ -306,7 +313,7 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
-    const formValue = this.personForm.getRawValue();
+    const formValue = this.normalizePersonForm();
     const request = buildPersonSearchRequest(formValue);
 
     if (!hasSearchTerms(request)) {
@@ -417,6 +424,36 @@ export class SearchPage implements OnInit, OnDestroy {
 
   getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {
     return item.icon;
+  }
+
+  uppercasePersonField(
+    event: Event,
+    field: UppercasePersonField
+  ): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const uppercaseValue = input.value.toLocaleUpperCase('es-MX');
+    const selectionStart = input.selectionStart;
+    const selectionEnd = input.selectionEnd;
+
+    if (input.value !== uppercaseValue) {
+      input.value = uppercaseValue;
+    }
+
+    if (this.personForm.controls[field].value !== uppercaseValue) {
+      this.personForm.controls[field].setValue(uppercaseValue, {
+        emitEvent: false
+      });
+    }
+
+    if (selectionStart !== null && selectionEnd !== null) {
+      queueMicrotask(() => {
+        input.setSelectionRange(selectionStart, selectionEnd);
+      });
+    }
   }
 
   toggleSave(result: SearchResult, event: MouseEvent): void {
@@ -565,6 +602,22 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
 
+  private normalizePersonForm(): PersonSearchFormValue {
+    const current = this.personForm.getRawValue();
+    const normalized: PersonSearchFormValue = {
+      ...current,
+      nombres: normalizeUppercaseSearchText(current.nombres),
+      apellidoPaterno: normalizeUppercaseSearchText(current.apellidoPaterno),
+      apellidoMaterno: normalizeUppercaseSearchText(current.apellidoMaterno),
+      alias: normalizeUppercaseSearchText(current.alias),
+      curp: normalizeUppercaseSearchText(current.curp),
+      rfc: normalizeUppercaseSearchText(current.rfc)
+    };
+
+    this.personForm.patchValue(normalized, { emitEvent: false });
+    return normalized;
+  }
+
   private emptyPersonFormValue(): PersonSearchFormValue {
     return {
       nombres: '',
@@ -634,4 +687,8 @@ export class SearchPage implements OnInit, OnDestroy {
 
     return null;
   }
+}
+
+function normalizeUppercaseSearchText(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleUpperCase('es-MX');
 }

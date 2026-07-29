@@ -127,13 +127,123 @@ const createDetail = (): SearchResultDetailResponse => ({
   linkGroups: [
     {
       entityType: 'Vehicle',
-      count: 2,
-      items: []
+      count: 1,
+      items: [
+        {
+          linkId: '33333333-3333-3333-3333-333333333333',
+          status: 'ACTIVE',
+          relationshipCode: 'OWNER',
+          identifiers: [
+            { evidenceId: 'link-vehicle-id', code: 'vehicleId', value: '98765' },
+            { evidenceId: 'link-vehicle-niv', code: 'vehicle.identifiers.NIV', value: '4JKL5678901' }
+          ],
+          attributes: [
+            { evidenceId: 'link-vehicle-plate', code: 'vehicle.placa', value: 'GDL234' },
+            { evidenceId: 'link-vehicle-date', code: 'vehicle.fechaRegistro', value: '2025-01-01' },
+            { evidenceId: 'link-vehicle-model', code: 'vehicle.modelo', value: 'CIVIC' }
+          ],
+          origins: [
+            {
+              sourceLinkId: '44444444-4444-4444-4444-444444444444',
+              sourceCode: 'REPUVE',
+              sourceRecordId: 'REPUVE-01'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      entityType: 'Person',
+      count: 1,
+      items: [
+        {
+          linkId: '55555555-5555-5555-5555-555555555555',
+          identifiers: [
+            { evidenceId: 'link-person-id', code: 'personId', value: '123' },
+            { evidenceId: 'link-person-curp', code: 'CURP', value: 'JLMG680423HDFRTY' }
+          ],
+          attributes: [
+            { evidenceId: 'link-person-name', code: 'person.name', value: 'JOSE GARCIA FLORES' },
+            { evidenceId: 'link-person-birth', code: 'person.fechaNacimiento', value: '1968-04-23' }
+          ],
+          origins: [
+            {
+              sourceLinkId: '66666666-6666-6666-6666-666666666666',
+              sourceCode: 'RNPSP'
+            }
+          ]
+        }
+      ]
     },
     {
       entityType: 'Weapon',
       count: 1,
-      items: []
+      items: [
+        {
+          linkId: '75571f55-4d6a-4c7f-be49-99434df61c62',
+          status: 'Independent',
+          relationshipCode: 'PORTADOR',
+          identifiers: [],
+          attributes: [
+            {
+              evidenceId: '7bf6808b-b0bf-d17c-30d9-446635555ecc',
+              code: 'idArma',
+              value: '3006',
+              origins: [
+                {
+                  sourceCode: 'RNPSP',
+                  sourceName: 'Registro Nacional de Personal de Seguridad Publica',
+                  sourceRecordId: '196528'
+                }
+              ]
+            },
+            {
+              evidenceId: '23cc36aa-befd-bae0-eaad-8ddb014911f4',
+              code: 'numeroLicencia',
+              value: '41',
+              origins: [
+                {
+                  sourceCode: 'RNPSP',
+                  sourceName: 'Registro Nacional de Personal de Seguridad Publica',
+                  sourceRecordId: '196528'
+                }
+              ]
+            },
+            {
+              evidenceId: '5a8eb8be-7aa6-453b-7b48-999313f28764',
+              code: 'tipoArmaId',
+              value: '2',
+              origins: [
+                {
+                  sourceCode: 'RNPSP',
+                  sourceName: 'Registro Nacional de Personal de Seguridad Publica',
+                  sourceRecordId: '196528'
+                }
+              ]
+            },
+            {
+              evidenceId: 'eefda0aa-b774-7b90-c724-9c2fc1536889',
+              code: 'tipoArma',
+              value: 'REVOLVER',
+              origins: [
+                {
+                  sourceCode: 'RNPSP',
+                  sourceName: 'Registro Nacional de Personal de Seguridad Publica',
+                  sourceRecordId: '196528'
+                }
+              ]
+            }
+          ],
+          origins: [
+            {
+              sourceLinkId: '9ad8e69a-62ab-4ff2-a055-4defbffeb8ab',
+              sourceCode: 'RNPSP',
+              sourceName: 'Registro Nacional de Personal de Seguridad Publica',
+              sourceRecordId: '196528'
+            }
+          ]
+        }
+      ]
     }
   ]
 });
@@ -241,8 +351,71 @@ describe('mapSearchResultDetail', () => {
     const result = mapSearchResultDetail(createDetail());
 
     expect(result.links).toEqual([
-      expect.objectContaining({ label: 'Vehículos', count: 2, kind: 'vehicle' }),
+      expect.objectContaining({ label: 'Vehículo', count: 1, kind: 'vehicle' }),
+      expect.objectContaining({ label: 'Persona', count: 1, kind: 'person' }),
       expect.objectContaining({ label: 'Arma', count: 1, kind: 'weapon' })
     ]);
   });
+
+  it('mapea la información visible de los vínculos sin exponer IDs técnicos', () => {
+    const result = mapSearchResultDetail(createDetail());
+    const vehicle = result.links[0];
+    const person = result.links[1];
+
+    expect(vehicle.items[0].fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'NIV/VIN', value: '4JKL5678901' }),
+        expect.objectContaining({ label: 'Placa', value: 'GDL234' }),
+        expect.objectContaining({ label: 'Modelo', value: 'CIVIC' })
+      ])
+    );
+    expect(vehicle.items[0].fields.some((field) => field.label.includes('Id'))).toBe(false);
+    expect(vehicle.items[0].fields.some((field) => field.value === '98765')).toBe(false);
+    expect(vehicle.items[0].fields.some((field) => field.label.includes('Fecha registro'))).toBe(false);
+    expect(vehicle.items[0].sources).toEqual([
+      expect.objectContaining({ label: 'REPUVE' })
+    ]);
+
+    expect(person.items[0].fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Nombre', value: 'JOSE GARCIA FLORES' }),
+        expect.objectContaining({ label: 'Fecha de nacimiento', value: '23/04/1968' }),
+        expect.objectContaining({ label: 'CURP', value: 'JLMG680423HDFRTY' })
+      ])
+    );
+    expect(person.items[0].fields.some((field) => field.value === '123')).toBe(false);
+  });
+
+  it('obtiene el detalle de armas desde linkGroups y oculta sus IDs técnicos', () => {
+    const result = mapSearchResultDetail(createDetail());
+    const weapon = result.links.find((link) => link.entityType === 'Weapon');
+
+    expect(weapon).toEqual(
+      expect.objectContaining({
+        label: 'Arma',
+        count: 1,
+        kind: 'weapon'
+      })
+    );
+
+    expect(weapon?.items[0].fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Número de licencia', value: '41' }),
+        expect.objectContaining({ label: 'Tipo de arma', value: 'REVOLVER' }),
+        expect.objectContaining({ label: 'Estatus', value: 'Independiente' }),
+        expect.objectContaining({ label: 'Relación', value: 'Portador' })
+      ])
+    );
+
+    expect(
+      weapon?.items[0].fields.some((field) =>
+        ['3006', '2'].includes(field.value)
+      )
+    ).toBe(false);
+
+    expect(weapon?.items[0].sources).toEqual([
+      expect.objectContaining({ label: 'RNPSP' })
+    ]);
+  });
+
 });

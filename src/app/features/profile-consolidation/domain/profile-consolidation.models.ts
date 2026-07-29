@@ -26,12 +26,31 @@ export interface SelectedProfileFieldViewModel extends ProfileFieldViewModel {
   sourceColor: string;
 }
 
+export interface ProfileLinkFieldViewModel {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface ProfileLinkSourceViewModel {
+  id: string;
+  label: string;
+  color: string;
+}
+
+export interface ProfileLinkItemViewModel {
+  id: string;
+  fields: ProfileLinkFieldViewModel[];
+  sources: ProfileLinkSourceViewModel[];
+}
+
 export interface ProfileLinkGroupViewModel {
   id: string;
   entityType: string;
   label: string;
   count: number;
   kind: ProfileLinkKind;
+  items: ProfileLinkItemViewModel[];
 }
 
 export interface ProfilePhotoViewModel {

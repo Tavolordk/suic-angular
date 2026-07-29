@@ -207,7 +207,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="nombres" placeholder="Nombre (s)" />
+                                <input type="text" formControlName="nombres" placeholder="Nombre (s)" (input)="uppercasePersonField($event, 'nombres')" />
                             </label>
                             <label class="search-field">
                                 <span class="search-field__icon">
@@ -218,7 +218,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="apellidoPaterno" placeholder="Apellido Paterno" />
+                                <input type="text" formControlName="apellidoPaterno" placeholder="Apellido Paterno" (input)="uppercasePersonField($event, 'apellidoPaterno')" />
                             </label>
                             <label class="search-field">
                                 <span class="search-field__icon">
@@ -229,7 +229,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="apellidoMaterno" placeholder="Apellido Materno" />
+                                <input type="text" formControlName="apellidoMaterno" placeholder="Apellido Materno" (input)="uppercasePersonField($event, 'apellidoMaterno')" />
                             </label>
                             <label class="search-field">
                                 <span class="search-field__icon">
@@ -240,7 +240,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="alias" placeholder="Alias" />
+                                <input type="text" formControlName="alias" placeholder="Alias" (input)="uppercasePersonField($event, 'alias')" />
                             </label>
                             <label class="search-field">
                                 <span class="search-field__icon">
@@ -262,7 +262,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="curp" placeholder="CURP" maxlength="18" autocomplete="off" />
+                                <input type="text" formControlName="curp" placeholder="CURP" (input)="uppercasePersonField($event, 'curp')" maxlength="18" autocomplete="off" />
                             </label>
                             <label class="search-field">
                                 <span class="search-field__icon">
@@ -273,7 +273,7 @@
                                             stroke-width="2.5"></path>
                                     </svg>
                                 </span>
-                                <input type="text" formControlName="rfc" placeholder="RFC" maxlength="13" autocomplete="off" />
+                                <input type="text" formControlName="rfc" placeholder="RFC" (input)="uppercasePersonField($event, 'rfc')" maxlength="13" autocomplete="off" />
                             </label>
                         </div>
 
