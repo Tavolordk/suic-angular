@@ -90,7 +90,7 @@ export class TwoStepAuthPage implements OnInit {
 
             return medioContacto.includes('@')
                 ? 'por correo a'
-                : 'por SMS al';
+                : 'por telegram al';
         });
 
     readonly form = this.fb.group({
