@@ -1,6 +1,8 @@
 :host {
   display: block;
   min-height: 100vh;
+  /* dvh evita que la barra del navegador movil recorte la parte baja. */
+  min-height: 100dvh;
 }
 
 .profile-shell,
@@ -9,9 +11,19 @@
 }
 
 .profile-shell {
+  /* Aire entre las tarjetas y los bordes del tablero. */
+  --profile-top-gap: 24px;
+  --profile-side-gap: 24px;
+  --profile-bottom-gap: 40px;
+  /* Separacion entre las propias tarjetas. */
+  --profile-card-gap: 20px;
+
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
   background: radial-gradient(rgb(209, 220, 217) 0%, rgb(153, 168, 190) 100%);
@@ -137,7 +149,9 @@
   color: #ffffff;
   box-shadow: 0 3px 10px rgba(22, 40, 54, 0.24);
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .profile-user__button:hover {
@@ -159,8 +173,9 @@
   position: relative;
   display: flex;
   flex: 1 1 auto;
+  /* La altura la resuelve el flex del shell: si la topbar crece (moviles)
+   * el area de contenido se ajusta sola, sin restar 75px a mano. */
   min-height: 0;
-  height: calc(100vh - 75px);
 }
 
 .profile-sidebar {
@@ -188,7 +203,9 @@
   background: transparent;
   color: #1e1e1e;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .profile-sidebar__button:hover {
@@ -210,14 +227,28 @@
   object-fit: contain;
 }
 
+/* El scroll vive aqui, como siempre: la barra queda pegada al borde derecho.
+ * El respiro con las tarjetas lo dan el padding y el espaciador final. */
 .profile-content {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--profile-card-gap);
   min-width: 0;
-  padding: 16px;
+  min-height: 0;
+  padding: var(--profile-top-gap) var(--profile-side-gap) 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: var(--profile-bottom-gap);
+}
+
+/* Ultimo item de flex: es la forma fiable de reservar el hueco inferior
+ * dentro de un contenedor con overflow. */
+.profile-content::after {
+  content: '';
+  display: block;
+  flex: 0 0 auto;
+  height: calc(var(--profile-bottom-gap) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Se conserva esta sección porque ya tiene el diseño del proyecto */
@@ -249,7 +280,10 @@
   font-size: 18px;
   font-weight: 800;
   cursor: pointer;
-  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .profile-toolbar__back {
@@ -306,9 +340,11 @@
 
 .profile-grid {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: minmax(250px, 0.78fr) minmax(360px, 1.1fr) minmax(420px, 1.25fr);
-  gap: 16px;
-  min-height: calc(100vh - 75px - 140px);
+  gap: var(--profile-card-gap);
+  min-height: 0;
+  align-items: stretch;
 }
 
 .profile-card {
@@ -372,7 +408,10 @@
   color: #000000;
   text-align: left;
   cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .profile-source:hover {
@@ -569,7 +608,10 @@
   color: #000000;
   text-align: left;
   cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .profile-field:hover {
@@ -695,7 +737,9 @@
   height: 100%;
   border-radius: 999px;
   background: rgba(34, 53, 68, 0.78);
-  transition: width 0.25s ease, background 0.25s ease;
+  transition:
+    width 0.25s ease,
+    background 0.25s ease;
 }
 
 .profile-consolidated {
@@ -991,7 +1035,10 @@
   font-size: 14px;
   font-weight: 900;
   cursor: pointer;
-  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .profile-accept__button:hover:not(:disabled) {
@@ -1041,181 +1088,12 @@
   background: rgba(34, 53, 68, 0.24);
 }
 
-/* Responsive */
-
-@media (max-width: 1320px) {
-  .profile-grid {
-    grid-template-columns: minmax(230px, 0.8fr) minmax(340px, 1fr) minmax(380px, 1.12fr);
-  }
-
-  .profile-entry {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .profile-topbar__title {
-    position: static;
-    transform: none;
-    font-size: 20px;
-  }
-
-  .profile-topbar__logo {
-    width: 220px;
-    flex-basis: 220px;
-  }
-
-  .profile-clock {
-    display: none;
-  }
-
-  .profile-toolbar {
-    grid-template-columns: 170px 1fr 190px;
-  }
-
-  .profile-toolbar__back {
-    width: 150px;
-  }
-
-  .profile-toolbar__save {
-    width: 180px;
-  }
-
-  .profile-grid {
-    grid-template-columns: 1fr;
-    min-height: 0;
-  }
-
-  .profile-card {
-    min-height: 360px;
-  }
-
-  .profile-card--consolidated {
-    min-height: 560px;
-  }
-}
-
-@media (max-width: 800px) {
-  .profile-topbar {
-    height: auto;
-    flex-basis: auto;
-  }
-
-  .profile-topbar__content {
-    height: auto;
-    min-height: 75px;
-    gap: 12px;
-    padding: 10px 14px;
-  }
-
-  .profile-topbar__logo {
-    width: 170px;
-    height: 48px;
-    flex-basis: 170px;
-  }
-
-  .profile-topbar__title {
-    display: none;
-  }
-
-  .profile-main {
-    height: calc(100vh - 75px);
-  }
-
-  .profile-toolbar {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    justify-items: start;
-    padding: 16px 18px;
-  }
-
-  .profile-toolbar__center {
-    order: -1;
-    justify-self: start;
-    text-align: left;
-  }
-
-  .profile-toolbar__center h1 {
-    font-size: 26px;
-  }
-
-  .profile-toolbar__center p {
-    font-size: 14px;
-  }
-
-  .profile-toolbar__save {
-    justify-self: start;
-  }
-
-  .profile-selection__source {
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
-  .profile-selection__confidence {
-    grid-column: 2;
-    align-items: flex-start;
-  }
-
-  .profile-field {
-    grid-template-columns: 24px 1fr;
-  }
-
-  .profile-field__value {
-    grid-column: 2;
-  }
-
-  .profile-photos__strip {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-photo img {
-    height: 160px;
-  }
-}
-
-@media (max-width: 520px) {
-  .profile-sidebar {
-    width: 48px;
-    flex-basis: 48px;
-  }
-
-  .profile-content {
-    padding: 12px;
-  }
-
-  .profile-toolbar__back,
-  .profile-toolbar__save {
-    width: 100%;
-  }
-
-  .profile-card__header {
-    padding: 14px 16px 12px;
-  }
-
-  .profile-card__header p {
-    font-size: 16px;
-  }
-
-  .profile-source {
-    grid-template-columns: 38px 1fr;
-  }
-
-  .profile-source__meta {
-    grid-column: 2;
-    align-items: flex-start;
-  }
-
-  .profile-selection,
-  .profile-sources,
-  .profile-consolidated {
-    padding: 12px;
-  }
-
-  .profile-accept {
-    padding: 0 12px 12px;
-  }
-}
+/* Responsive
+ * Las reglas responsive viven ahora en profile-consolidation-responsive.scss,
+ * que se carga al final para poder sobrescribir tambien al carrusel.
+ * El bloque que estaba aqui apuntaba a clases del maquetado anterior
+ * (.profile-toolbar, .profile-source, .profile-field, .profile-photos,
+ * .profile-accept, .profile-entry) que ya no existen en el template. */
 
 /* ========================================================================== */
 /* Compatibilidad del diseño Figma con la plantilla dinámica actual           */
@@ -1264,6 +1142,7 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .profile-header-card__secondary,
@@ -1280,7 +1159,10 @@
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
-  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
 }
 
 .profile-header-card__secondary {
@@ -1298,12 +1180,13 @@
   background: rgba(39, 90, 26, 0.92);
 }
 
-.profile-header-card__secondary:hover,
+.profile-header-card__secondary:hover:not(:disabled),
 .profile-header-card__primary:hover:not(:disabled) {
   opacity: 0.92;
   transform: translateY(-1px);
 }
 
+.profile-header-card__secondary:disabled,
 .profile-header-card__primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1347,8 +1230,11 @@
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease,
-    box-shadow 0.18s ease, transform 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .source-card:hover {
@@ -1522,7 +1408,9 @@
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease,
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
     box-shadow 0.16s ease;
 }
 
@@ -1872,4 +1760,12 @@
   .profile-header-card__primary {
     flex: 1 1 0;
   }
+}
+
+/* Las etiquetas funcionales se presentan en mayúsculas para mantener consistencia. */
+.field-row > strong,
+.selected-field span,
+.link-detail-card__field span {
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
 }

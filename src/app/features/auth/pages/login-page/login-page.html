@@ -48,46 +48,58 @@
                 </div>
 
                 <div class="login-field">
-                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(correo)">
-                        <span class="login-field__icon" aria-hidden="true">
-                            <svg viewBox="0 0 20 16" fill="none">
-                                <path
-                                    d="M18 0H2C0.9 0 0.01 0.9 0.01 2L0 14C0 15.1 0.9 16 2 16H18C19.1 16 20 15.1 20 14V2C20 0.9 19.1 0 18 0ZM18 4L10 9L2 4V2L10 7L18 2V4Z"
-                                    fill="currentColor" />
-                            </svg>
-                        </span>
-
-                        <input type="email" formControlName="correo" placeholder="Correo" autocomplete="off"
-                            maxlength="120" />
-                    </div>
-
-                    <small class="login-error" *ngIf="shouldShowError(correo)">
-                        Ingresa un correo válido.
-                    </small>
-                </div>
-
-                <div class="login-field">
-                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(telefono)">
+                    <div class="login-field__control"
+                        [class.login-field__control--invalid]="shouldShowError(contacto)">
                         <span class="login-field__icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none">
-                                <path
-                                    d="M17 1.01L7 1C5.9 1 5 1.9 5 3V21C5 22.1 5.9 23 7 23H17C18.1 23 19 22.1 19 21V3C19 1.9 18.1 1.01 17 1.01ZM17 19H7V5H17V19Z"
-                                    fill="currentColor" />
+                                <path d="M4 4H20V16H7L4 19V4Z" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M7 8H17M7 12H13" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
                             </svg>
                         </span>
 
-                        <input type="tel" formControlName="telefono" placeholder="Teléfono" autocomplete="off"
-                            maxlength="10" inputmode="numeric" (input)="onPhoneInput($event)" />
+                        <input type="text" formControlName="contacto" placeholder="Correo o teléfono"
+                            autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="text"
+                            maxlength="120" aria-describedby="contacto-ayuda contacto-error"
+                            [attr.aria-invalid]="shouldShowError(contacto)" (input)="onContactInput($event)" />
                     </div>
 
-                    <small class="login-error" *ngIf="shouldShowError(telefono)">
-                        El teléfono debe tener 10 dígitos.
+                    <small id="contacto-ayuda" class="login-field__hint">
+                        <ng-container *ngIf="contactIsPhone(); else contactoEjemplo">
+                            {{ contacto?.value?.length || 0 }} de {{ contactPhoneLength }} dígitos
+                        </ng-container>
+
+                        <ng-template #contactoEjemplo>
+                            Ejemplo: usuario&#64;dominio.com o 5512345678
+                        </ng-template>
                     </small>
 
-                    <small class="login-error"
-                        *ngIf="form.errors?.['contactRequired'] && (submitted() || correo?.touched || telefono?.touched)">
-                        Ingresa correo o teléfono.
-                    </small>
+                    <div id="contacto-error" class="login-field__messages" *ngIf="shouldShowError(contacto)">
+                        <small class="login-error" *ngIf="contacto?.errors?.['required']">
+                            Ingresa un correo electrónico o un teléfono.
+                        </small>
+
+                        <small class="login-error" *ngIf="contacto?.errors?.['maxlength']">
+                            El dato no puede superar los 120 caracteres.
+                        </small>
+
+                        <small class="login-error" *ngIf="contacto?.errors?.['phoneLength']">
+                            El teléfono debe tener exactamente 10 dígitos.
+                        </small>
+
+                        <small class="login-error" *ngIf="contacto?.errors?.['phoneFormat']">
+                            Captura únicamente 10 dígitos. No se permiten +52, espacios, guiones ni paréntesis.
+                        </small>
+
+                        <small class="login-error" *ngIf="contacto?.errors?.['emailFormat']">
+                            El formato del correo electrónico no es válido.
+                        </small>
+
+                        <small class="login-error" *ngIf="contacto?.errors?.['contactMethod']">
+                            Ingresa un correo electrónico válido o un teléfono de 10 dígitos.
+                        </small>
+                    </div>
                 </div>
 
                 <div class="captcha">
@@ -96,32 +108,51 @@
                             Verificación CAPTCHA
                         </label>
 
-                        <button type="button" class="captcha__refresh" title="Actualizar CAPTCHA"
-                            aria-label="Actualizar CAPTCHA" (click)="refreshCaptcha()">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 2v6h-6"></path>
-                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                <path d="M3 22v-6h6"></path>
-                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                            </svg>
-                        </button>
+                        <div class="captcha__meta">
+                            <span class="captcha__countdown"
+                                [class.captcha__countdown--warning]="captcha.remainingSeconds() <= 15"
+                                aria-live="polite">
+                                <ng-container *ngIf="captcha.loading(); else captchaCountdown">
+                                    Actualizando...
+                                </ng-container>
+
+                                <ng-template #captchaCountdown>
+                                    <ng-container *ngIf="captcha.challenge(); else captchaMissing">
+                                        Caduca en {{ captcha.expirationLabel() }}
+                                    </ng-container>
+                                </ng-template>
+
+                                <ng-template #captchaMissing>Sin captcha</ng-template>
+                            </span>
+
+                            <button type="button" class="captcha__refresh" title="Actualizar CAPTCHA"
+                                aria-label="Actualizar CAPTCHA" [disabled]="isBusy" (click)="refreshCaptcha()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                                    [class.captcha__refresh-icon--spinning]="captcha.loading()">
+                                    <path d="M21 2v6h-6"></path>
+                                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                                    <path d="M3 22v-6h6"></path>
+                                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="captcha__box">
-                        <svg class="captcha__lines" aria-hidden="true">
-                            <line x1="0" y1="35%" x2="100%" y2="60%" stroke="#2D5771" stroke-width="1"></line>
+                        <img *ngIf="captcha.imageDataUrl() as captchaImage; else captchaPlaceholder"
+                            class="captcha__image" [src]="captchaImage" alt="Imagen del captcha de seguridad"
+                            draggable="false" />
 
-                            <line x1="10%" y1="80%" x2="90%" y2="20%" stroke="#162836" stroke-width="0.8"></line>
-                        </svg>
-
-                        <span class="captcha__code">
-                            {{ captchaCode() }}
-                        </span>
+                        <ng-template #captchaPlaceholder>
+                            <span class="captcha__code">
+                                {{ captcha.loading() ? 'Generando captcha...' : 'No se pudo cargar el captcha' }}
+                            </span>
+                        </ng-template>
                     </div>
 
                     <div class="login-field__control"
-                        [class.login-field__control--invalid]="shouldShowError(captcha) || captchaMismatch()">
+                        [class.login-field__control--invalid]="shouldShowError(captchaControl)">
                         <span class="login-field__icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
@@ -130,15 +161,16 @@
                         </span>
 
                         <input type="text" formControlName="captcha" placeholder="Escribe el código" autocomplete="off"
-                            maxlength="6" class="captcha__input" (input)="onCaptchaInput($event)" />
+                            [attr.maxlength]="captchaLength" class="captcha__input" [readOnly]="isBusy"
+                            (input)="onCaptchaInput($event)" />
                     </div>
 
-                    <small class="login-error" *ngIf="shouldShowError(captcha) && !captchaMismatch()">
-                        El código CAPTCHA es obligatorio.
+                    <small class="login-error" *ngIf="shouldShowError(captchaControl)">
+                        Captura los {{ captchaLength }} caracteres alfanuméricos del CAPTCHA.
                     </small>
 
-                    <small class="login-error" *ngIf="captchaMismatch()">
-                        CAPTCHA incorrecto.
+                    <small class="login-error" *ngIf="captcha.error()">
+                        {{ captcha.error() }}
                     </small>
                 </div>
 
@@ -170,10 +202,11 @@
                     {{ loginError() }}
                 </p>
 
-                <button type="submit" class="login-submit" [disabled]="isSubmitting()">
+                <button type="submit" class="login-submit"
+                    [disabled]="isBusy || form.invalid || !captcha.challenge() || captcha.isExpired()">
                     {{
-                    isSubmitting()
-                    ? 'Enviando código...'
+                    isBusy
+                    ? 'Validando...'
                     : 'Enviar código'
                     }}
                 </button>

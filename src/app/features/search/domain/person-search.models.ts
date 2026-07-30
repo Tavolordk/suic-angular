@@ -6,4 +6,5 @@ export interface PersonSearchFormValue {
   fechaNacimiento: string;
   curp: string;
   rfc: string;
+  contacto: string;
 }

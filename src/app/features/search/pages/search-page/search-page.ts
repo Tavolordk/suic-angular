@@ -13,7 +13,14 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -98,11 +105,15 @@ export class SearchPage implements OnInit, OnDestroy {
 
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
+  readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
   readonly selectedEntity = signal<SearchEntity>('personas');
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
+  readonly searchAttempted = signal(false);
   readonly hasSearched = signal(Boolean(this.restoredPage));
-  readonly searchPanelExpanded = signal(!this.restoredPage);
+  readonly searchPanelExpanded = signal(
+    !this.restoredPage || (this.restoredPage.items?.length ?? 0) === 0
+  );
   readonly errorMessage = signal<string | null>(null);
   readonly pageSize = signal<PageSize>(this.searchState.pageSize());
   readonly searchId = signal<string | null>(this.restoredPage?.searchId ?? null);
@@ -118,7 +129,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.restoredPage?.counts.totalItems ?? 0
   );
   readonly executionStatus = signal(
-    this.restoredPage?.execution.status?.trim() ?? ''
+    translateExecutionStatus(this.restoredPage?.execution.status)
   );
   readonly isPartialResult = signal(
     this.restoredPage?.execution.isPartial ?? false
@@ -196,7 +207,11 @@ export class SearchPage implements OnInit, OnDestroy {
       this.searchState.formValue()?.fechaNacimiento ?? ''
     ],
     curp: [this.searchState.formValue()?.curp ?? ''],
-    rfc: [this.searchState.formValue()?.rfc ?? '']
+    rfc: [this.searchState.formValue()?.rfc ?? ''],
+    contacto: [
+      this.searchState.formValue()?.contacto ?? '',
+      [Validators.maxLength(120), contactValidator]
+    ]
   });
 
   readonly vehicleForm = this.fb.nonNullable.group({
@@ -297,6 +312,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.vehicleForm.reset();
     this.weaponForm.reset();
     this.searchState.clear();
+    this.searchAttempted.set(false);
     this.resetResultState();
     this.searchPanelExpanded.set(true);
   }
@@ -308,8 +324,18 @@ export class SearchPage implements OnInit, OnDestroy {
 
     if (this.selectedEntity() !== 'personas') {
       this.errorMessage.set(
-        'La integración disponible corresponde a entityType Person.'
+        'La integración disponible corresponde al tipo de entidad Persona.'
       );
+      this.searchPanelExpanded.set(true);
+      return;
+    }
+
+    this.searchAttempted.set(true);
+    this.errorMessage.set(null);
+    this.personForm.markAllAsTouched();
+
+    if (this.personForm.invalid) {
+      this.searchPanelExpanded.set(true);
       return;
     }
 
@@ -318,8 +344,9 @@ export class SearchPage implements OnInit, OnDestroy {
 
     if (!hasSearchTerms(request)) {
       this.errorMessage.set(
-        'Captura al menos un nombre, apellido, fecha de nacimiento o identificador.'
+        'Captura al menos un nombre, apellido, fecha de nacimiento, celular, correo o identificador.'
       );
+      this.searchPanelExpanded.set(true);
       return;
     }
 
@@ -338,7 +365,7 @@ export class SearchPage implements OnInit, OnDestroy {
         next: (page) => {
           this.applyPage(page);
           this.hasSearched.set(true);
-          this.searchPanelExpanded.set(false);
+          this.searchPanelExpanded.set((page.items?.length ?? 0) === 0);
           this.searchState.saveSearch(
             request,
             page,
@@ -348,6 +375,7 @@ export class SearchPage implements OnInit, OnDestroy {
         },
         error: (error: unknown) => {
           this.hasSearched.set(false);
+          this.searchPanelExpanded.set(true);
           this.errorMessage.set(this.extractErrorMessage(error));
         }
       });
@@ -419,6 +447,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.searchPanelExpanded.set(true);
     this.personForm.reset(this.emptyPersonFormValue());
     this.personForm.patchValue(item.values);
+    this.searchAttempted.set(false);
     this.search();
   }
 
@@ -454,6 +483,11 @@ export class SearchPage implements OnInit, OnDestroy {
         input.setSelectionRange(selectionStart, selectionEnd);
       });
     }
+  }
+
+  shouldShowContactError(): boolean {
+    const control = this.personForm.controls.contacto;
+    return control.invalid && (control.touched || this.searchAttempted());
   }
 
   toggleSave(result: SearchResult, event: MouseEvent): void {
@@ -537,7 +571,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.totalPages.set(page.pagination.totalPages);
     this.hasPreviousPage.set(page.pagination.hasPreviousPage);
     this.hasNextPage.set(page.pagination.hasNextPage);
-    this.executionStatus.set(page.execution.status?.trim() ?? '');
+    this.executionStatus.set(translateExecutionStatus(page.execution.status));
     this.isPartialResult.set(page.execution.isPartial);
   }
 
@@ -611,7 +645,8 @@ export class SearchPage implements OnInit, OnDestroy {
       apellidoMaterno: normalizeUppercaseSearchText(current.apellidoMaterno),
       alias: normalizeUppercaseSearchText(current.alias),
       curp: normalizeUppercaseSearchText(current.curp),
-      rfc: normalizeUppercaseSearchText(current.rfc)
+      rfc: normalizeUppercaseSearchText(current.rfc),
+      contacto: normalizeContactValue(current.contacto)
     };
 
     this.personForm.patchValue(normalized, { emitEvent: false });
@@ -626,7 +661,8 @@ export class SearchPage implements OnInit, OnDestroy {
       alias: '',
       fechaNacimiento: '',
       curp: '',
-      rfc: ''
+      rfc: '',
+      contacto: ''
     };
   }
 
@@ -691,4 +727,89 @@ export class SearchPage implements OnInit, OnDestroy {
 
 function normalizeUppercaseSearchText(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleUpperCase('es-MX');
+}
+
+function contactValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (!value) {
+    return null;
+  }
+
+  if (isValidEmail(value) || normalizeMexicanCellphone(value) !== null) {
+    return null;
+  }
+
+  return { contactFormat: true };
+}
+
+function normalizeContactValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (isValidEmail(trimmed)) {
+    return trimmed.toLocaleLowerCase('es-MX');
+  }
+
+  return normalizeMexicanCellphone(trimmed) ?? trimmed;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+}
+
+function normalizeMexicanCellphone(value: string): string | null {
+  return /^\d{10}$/.test(value) ? value : null;
+}
+
+function formatSpanishDate(date: Date): string {
+  const weekdays = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const months = [
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic'
+  ];
+
+  return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function translateExecutionStatus(value?: string | null): string {
+  const normalized = value?.trim().toLocaleUpperCase('es-MX') ?? '';
+
+  switch (normalized) {
+    case 'COMPLETED':
+    case 'COMPLETE':
+    case 'SUCCESS':
+    case 'SUCCEEDED':
+      return 'Completada';
+    case 'PROCESSING':
+    case 'IN_PROGRESS':
+    case 'INPROGRESS':
+    case 'RUNNING':
+      return 'En proceso';
+    case 'PARTIAL':
+    case 'PARTIALLY_COMPLETED':
+      return 'Parcial';
+    case 'PENDING':
+    case 'QUEUED':
+      return 'Pendiente';
+    case 'FAILED':
+    case 'ERROR':
+      return 'Fallida';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Cancelada';
+    default:
+      return value?.trim() ?? '';
+  }
 }

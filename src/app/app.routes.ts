@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { publicGuard } from './core/auth/public.guard';
+import { twoFactorGuard } from './core/auth/two-factor.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
+    canActivate: [publicGuard],
     loadComponent: () =>
       import('./features/auth/pages/login-page/login-page').then(
         (m) => m.LoginPage
@@ -11,6 +14,7 @@ export const routes: Routes = [
   },
   {
     path: 'autenticacion',
+    canActivate: [twoFactorGuard],
     loadComponent: () =>
       import('./features/auth/pages/two-step-auth-page/two-step-auth-page').then(
         (m) => m.TwoStepAuthPage

@@ -19,7 +19,7 @@
 
                     <div class="search-clock__text">
                         <span>{{ currentTime() | date: 'HH:mm:ss' }}</span>
-                        <small>{{ currentTime() | date: 'EEE, d MMM y' }}</small>
+                        <small>{{ currentDateLabel() }}</small>
                     </div>
                 </div>
 
@@ -199,123 +199,159 @@
                     <ng-container [ngSwitch]="selectedEntity()">
                         <div class="search-form__grid" *ngSwitchCase="'personas'">
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">NOMBRE(S)</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="nombres" placeholder="Ej. MIGUEL ÁNGEL"
+                                        (input)="uppercasePersonField($event, 'nombres')" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="nombres" placeholder="Nombre (s)" (input)="uppercasePersonField($event, 'nombres')" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">APELLIDO PATERNO</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="apellidoPaterno" placeholder="Ej. HERNÁNDEZ"
+                                        (input)="uppercasePersonField($event, 'apellidoPaterno')" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="apellidoPaterno" placeholder="Apellido Paterno" (input)="uppercasePersonField($event, 'apellidoPaterno')" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">APELLIDO MATERNO</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="apellidoMaterno" placeholder="Ej. LÓPEZ"
+                                        (input)="uppercasePersonField($event, 'apellidoMaterno')" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="apellidoMaterno" placeholder="Apellido Materno" (input)="uppercasePersonField($event, 'apellidoMaterno')" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">ALIAS</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="alias" placeholder="Ej. EL HALCÓN"
+                                        (input)="uppercasePersonField($event, 'alias')" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="alias" placeholder="Alias" (input)="uppercasePersonField($event, 'alias')" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">FECHA DE NACIMIENTO</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="date" title="Ej. 29/09/1977" aria-label="Fecha de nacimiento. Ejemplo: 29 de septiembre de 1977"
+                                        formControlName="fechaNacimiento" placeholder="Ej. 29/09/1977" />
                                 </span>
-                                <input type="date" title="Fecha de nacimiento" aria-label="Fecha de nacimiento" formControlName="fechaNacimiento" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">CURP</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="curp" placeholder="Ej. HEMM770929HMNRRG09"
+                                        (input)="uppercasePersonField($event, 'curp')" maxlength="18" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="curp" placeholder="CURP" (input)="uppercasePersonField($event, 'curp')" maxlength="18" autocomplete="off" />
                             </label>
+
                             <label class="search-field">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                <span class="search-field__label">RFC</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="rfc" placeholder="Ej. HEMM7709295Z9"
+                                        (input)="uppercasePersonField($event, 'rfc')" maxlength="13" autocomplete="off" />
                                 </span>
-                                <input type="text" formControlName="rfc" placeholder="RFC" (input)="uppercasePersonField($event, 'rfc')" maxlength="13" autocomplete="off" />
+                            </label>
+
+
+                            <label class="search-field"
+                                [class.search-field--invalid]="shouldShowContactError()">
+                                <span class="search-field__label">CELULAR O CORREO ELECTRÓNICO</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M4 4h16v16H4zM4 6l8 6 8-6" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" formControlName="contacto"
+                                        placeholder="Ej. 5512345678 o nombre@dominio.com" maxlength="120"
+                                        autocomplete="off"
+                                        [attr.aria-describedby]="shouldShowContactError() ? 'contacto-formato-error' : null"
+                                        [attr.aria-invalid]="shouldShowContactError()" />
+                                </span>
+                                <small id="contacto-formato-error" class="search-field__error"
+                                    *ngIf="shouldShowContactError()">
+                                    Ingresa un correo electrónico válido o un celular de exactamente 10 dígitos, sin lada internacional.
+                                </small>
                             </label>
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'vehiculo'">
                             <label class="search-field" *ngFor="let field of [
-                { control: 'niv', label: 'NIV/VIN' },
-                { control: 'placa', label: 'Placa' },
-                { control: 'noMotor', label: 'No. motor' },
-                { control: 'marca', label: 'Marca' },
-                { control: 'modelo', label: 'Modelo' },
-                { control: 'color', label: 'Color' }
-              ]">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                { control: 'niv', label: 'NIV', placeholder: 'Ej. 1HGCM82633A004352' },
+                                { control: 'placa', label: 'PLACA', placeholder: 'Ej. ABC-123-A' },
+                                { control: 'noMotor', label: 'NÚMERO DE MOTOR', placeholder: 'Ej. MOTOR123456' },
+                                { control: 'marca', label: 'MARCA', placeholder: 'Ej. HONDA' },
+                                { control: 'modelo', label: 'MODELO', placeholder: 'Ej. CIVIC 2024' },
+                                { control: 'color', label: 'COLOR', placeholder: 'Ej. BLANCO' }
+                            ]">
+                                <span class="search-field__label">{{ field.label }}</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder" />
                                 </span>
-                                <input type="text" [formControlName]="field.control" [placeholder]="field.label" />
                             </label>
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'armas'">
                             <label class="search-field" *ngFor="let field of [
-                { control: 'matricula', label: 'Matrícula' },
-                { control: 'marca', label: 'Marca' },
-                { control: 'modelo', label: 'Modelo' },
-                { control: 'calibre', label: 'Calibre' },
-                { control: 'tipoArma', label: 'Tipo de arma' },
-                { control: 'licencia', label: 'Número licencia' }
-              ]">
-                                <span class="search-field__icon">
-                                    <svg fill="none" viewBox="0 0 20.5 20.5">
-                                        <path
-                                            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
-                                            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                            stroke-width="2.5"></path>
-                                    </svg>
+                                { control: 'matricula', label: 'MATRÍCULA', placeholder: 'Ej. MAT-458921' },
+                                { control: 'marca', label: 'MARCA', placeholder: 'Ej. GLOCK' },
+                                { control: 'modelo', label: 'MODELO', placeholder: 'Ej. 17' },
+                                { control: 'calibre', label: 'CALIBRE', placeholder: 'Ej. 9 MM' },
+                                { control: 'tipoArma', label: 'TIPO DE ARMA', placeholder: 'Ej. PISTOLA' },
+                                { control: 'licencia', label: 'NÚMERO DE LICENCIA', placeholder: 'Ej. 206' }
+                            ]">
+                                <span class="search-field__label">{{ field.label }}</span>
+                                <span class="search-field__control">
+                                    <span class="search-field__icon">
+                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder" />
                                 </span>
-                                <input type="text" [formControlName]="field.control" [placeholder]="field.label" />
                             </label>
                         </div>
                     </ng-container>
@@ -354,7 +390,7 @@
 
             <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
-                    <p>Consulta por CURP, RFC, nombre o fecha de nacimiento</p>
+                    <p>Consulta por CURP, RFC, nombre, fecha de nacimiento, celular o correo</p>
                 </div>
 
                 <div class="search-empty-card">

@@ -23,6 +23,11 @@ export interface LoginPayload {
     telefono: string;
 }
 
+/** Credenciales de la pantalla de login, incluyendo la respuesta del CAPTCHA. */
+export interface LoginRequest extends LoginPayload {
+    captcha: string;
+}
+
 export interface PendingContactAuthentication {
     usuario: string;
     correo: string;
@@ -35,4 +40,5 @@ export interface PendingContactAuthentication {
     profileVersion: number;
     perfiles: string[];
     idCodigo: string | null;
+    issuedAt: string;
 }

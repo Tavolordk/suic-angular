@@ -1,16 +1,24 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
 import {
     AbstractControl,
     FormBuilder,
     ReactiveFormsModule,
-    ValidationErrors,
     Validators
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+
+import {
+    CONTACT_PHONE_LENGTH,
+    contactMethodValidator,
+    isValidNationalPhone
+} from './contact-method.validator';
 
 import { AuthService } from '../../../../core/auth/auth.service';
+import {
+    CAPTCHA_LENGTH,
+    CaptchaFacade
+} from '../../../../core/captcha/application/captcha.facade';
 import {
     FigmaOrbitalBackgroundComponent
 } from '../../components/figma-orbital-background/figma-orbital-background.component';
@@ -26,168 +34,166 @@ import {
     templateUrl: './login-page.html',
     styleUrl: './login-page.scss'
 })
-export class LoginPage implements OnInit {
+export class LoginPage implements OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
     private readonly authService = inject(AuthService);
 
+    protected readonly captcha = inject(CaptchaFacade);
+
     readonly currentYear = new Date().getFullYear();
+    readonly captchaLength = CAPTCHA_LENGTH;
+    readonly contactPhoneLength = CONTACT_PHONE_LENGTH;
 
-    readonly captchaCode = signal(
-        this.createCaptcha()
-    );
+    /** El campo se esta usando como telefono (solo digitos), no como correo. */
+    readonly contactIsPhone = signal(false);
 
-    readonly captchaMismatch = signal(false);
     readonly loginError = signal('');
     readonly submitted = signal(false);
     readonly isSubmitting = signal(false);
 
-    readonly form = this.fb.group(
-        {
-            usuario: [
+    readonly form = this.fb.group({
+        usuario: ['', [Validators.required, Validators.maxLength(80)]],
+
+        contacto: [
+            '',
+            [
+                Validators.required,
+                Validators.maxLength(120),
+                contactMethodValidator
+            ]
+        ],
+
+        captcha: [
                 '',
                 [
                     Validators.required,
-                    Validators.maxLength(80)
+                    Validators.pattern(new RegExp(`^[A-Z0-9]{${CAPTCHA_LENGTH}}$`))
                 ]
             ],
 
-            correo: [
-                '',
-                [
-                    Validators.maxLength(120),
-                    this.emailValidator
-                ]
-            ],
+        aceptaTerminos: [false, [Validators.requiredTrue]]
+    });
 
-            telefono: [
-                '',
-                [
-                    Validators.maxLength(10),
-                    this.phoneValidator
-                ]
-            ],
+    constructor() {
+        let previousChallengeId: string | null = null;
 
-            captcha: [
-                '',
-                [
-                    Validators.required,
-                    Validators.maxLength(6)
-                ]
-            ],
+        // Cada vez que el backend emite un captcha nuevo (manual o por caducidad)
+        // se limpia la respuesta anterior para no enviar un código ya inválido.
+        effect(() => {
+            const currentChallengeId = this.captcha.challenge()?.id ?? null;
 
-            aceptaTerminos: [
-                false,
-                [
-                    Validators.requiredTrue
-                ]
-            ]
-        },
-        {
-            validators: [
-                this.contactValidator
-            ]
-        }
-    );
+            if (
+                previousChallengeId &&
+                currentChallengeId &&
+                previousChallengeId !== currentChallengeId
+            ) {
+                this.form.controls.captcha.setValue('', { emitEvent: false });
+            }
 
-    ngOnInit(): void {
-        if (
-            this.authService.isAuthenticated()
-        ) {
-            this.router.navigateByUrl(
-                '/busqueda'
-            );
-        }
+            previousChallengeId = currentChallengeId;
+        });
+
+        this.captcha.load();
+    }
+
+    ngOnDestroy(): void {
+        this.captcha.deactivate();
     }
 
     get usuario(): AbstractControl | null {
         return this.form.get('usuario');
     }
 
-    get correo(): AbstractControl | null {
-        return this.form.get('correo');
+    get contacto(): AbstractControl | null {
+        return this.form.get('contacto');
     }
 
-    get telefono(): AbstractControl | null {
-        return this.form.get('telefono');
-    }
-
-    get captcha(): AbstractControl | null {
+    get captchaControl(): AbstractControl | null {
         return this.form.get('captcha');
     }
 
-    get aceptaTerminos():
-        AbstractControl | null {
-        return this.form.get(
-            'aceptaTerminos'
-        );
+    get aceptaTerminos(): AbstractControl | null {
+        return this.form.get('aceptaTerminos');
+    }
+
+    protected get isBusy(): boolean {
+        return this.isSubmitting() || this.captcha.loading() || this.captcha.verifying();
     }
 
     refreshCaptcha(): void {
-        this.captchaCode.set(
-            this.createCaptcha()
-        );
+        if (this.isBusy) {
+            return;
+        }
 
-        this.captchaMismatch.set(false);
-
-        this.form.patchValue({
-            captcha: ''
-        });
-
-        this.captcha?.setErrors(null);
+        this.loginError.set('');
+        this.authService.clearError();
+        this.form.patchValue({ captcha: '' }, { emitEvent: false });
+        this.captcha.refresh();
     }
 
-    onPhoneInput(event: Event): void {
-        const input =
-            event.target as HTMLInputElement;
+    /**
+     * El campo acepta correo o telefono. Mientras el valor sea unicamente
+     * numerico se asume telefono nacional y se corta de forma dura en 10
+     * digitos: el validador por si solo marca el error pero no impide seguir
+     * escribiendo ni pegar 15 digitos de golpe.
+     *
+     * El corte se levanta en cuanto aparece un caracter no numerico, de modo
+     * que un correo como 5512345678@dominio.com se sigue pudiendo capturar.
+     */
+    onContactInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const raw = input.value;
+        const trimmed = raw.trim();
+        const isPhone = /^\d+$/.test(trimmed);
 
-        const onlyDigits = input.value
-            .replace(/\D/g, '')
-            .slice(0, 10);
+        this.contactIsPhone.set(isPhone);
 
-        input.value = onlyDigits;
+        const normalized = isPhone
+            ? trimmed.slice(0, CONTACT_PHONE_LENGTH)
+            : raw;
 
-        this.form.patchValue(
-            {
-                telefono: onlyDigits
-            },
-            {
+        if (normalized !== raw) {
+            const caret = Math.min(
+                input.selectionStart ?? normalized.length,
+                normalized.length
+            );
+
+            input.value = normalized;
+            input.setSelectionRange(caret, caret);
+        }
+
+        // Se sincroniza siempre para que el control no conserve el valor largo
+        // que el ControlValueAccessor pudo haber escrito antes de este handler.
+        if (this.form.controls.contacto.value !== normalized) {
+            this.form.controls.contacto.setValue(normalized, {
                 emitEvent: false
-            }
-        );
+            });
+        }
+
+        this.loginError.set('');
+        this.authService.clearError();
     }
 
     onCaptchaInput(event: Event): void {
-        const input =
-            event.target as HTMLInputElement;
-
+        const input = event.target as HTMLInputElement;
         const normalized = input.value
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, '')
-            .slice(0, 6);
+            .slice(0, CAPTCHA_LENGTH);
 
         input.value = normalized;
-
-        this.form.patchValue(
-            {
-                captcha: normalized
-            },
-            {
-                emitEvent: false
-            }
-        );
-
-        this.captchaMismatch.set(false);
+        this.form.patchValue({ captcha: normalized }, { emitEvent: false });
+        this.loginError.set('');
     }
 
     submit(): void {
-        if (this.isSubmitting()) {
+        if (this.isBusy) {
             return;
         }
 
         this.submitted.set(true);
         this.loginError.set('');
-        this.captchaMismatch.set(false);
 
         this.form.markAllAsTouched();
 
@@ -195,157 +201,50 @@ export class LoginPage implements OnInit {
             return;
         }
 
-        const value =
-            this.form.getRawValue();
-
-        const typedCaptcha =
-            value.captcha
-                ?.trim()
-                .toUpperCase() ?? '';
-
-        if (
-            typedCaptcha !==
-            this.captchaCode()
-        ) {
-            this.captchaMismatch.set(true);
-
-            this.captcha?.setErrors({
-                captchaMismatch: true
-            });
-
+        if (!this.captcha.challenge() || this.captcha.isExpired()) {
+            this.loginError.set('Genera y resuelve un CAPTCHA vigente para continuar.');
+            this.captcha.refresh();
             return;
         }
 
+        const value = this.form.getRawValue();
+
         this.isSubmitting.set(true);
 
+        // El servicio valida primero el CAPTCHA contra el backend y solo entonces
+        // solicita el código de un solo uso.
+        const contacto = String(value.contacto ?? '').trim();
+        const esTelefono = isValidNationalPhone(contacto);
+
         this.authService
-            .requestContactCode({
-                usuario:
-                    value.usuario ?? '',
-
-                correo:
-                    value.correo ?? '',
-
-                telefono:
-                    value.telefono ?? ''
+            .login({
+                usuario: value.usuario ?? '',
+                correo: esTelefono ? '' : contacto.toLowerCase(),
+                telefono: esTelefono ? contacto : '',
+                captcha: value.captcha ?? ''
             })
-            .pipe(
-                finalize(() =>
-                    this.isSubmitting.set(false)
-                )
-            )
             .subscribe({
                 next: () => {
-                    this.router.navigateByUrl(
-                        '/autenticacion'
-                    );
+                    this.isSubmitting.set(false);
+                    this.router.navigateByUrl('/autenticacion');
                 },
 
                 error: (error: unknown) => {
-                    this.loginError.set(
-                        this.getErrorMessage(
-                            error
-                        )
-                    );
-
-                    this.refreshCaptcha();
+                    this.isSubmitting.set(false);
+                    this.loginError.set(this.getErrorMessage(error));
                 }
             });
     }
 
-    shouldShowError(
-        control: AbstractControl | null
-    ): boolean {
+    shouldShowError(control: AbstractControl | null): boolean {
         return Boolean(
             control &&
             control.invalid &&
-            (
-                control.touched ||
-                this.submitted()
-            )
+            (control.dirty || control.touched || this.submitted())
         );
     }
 
-    private contactValidator(
-        control: AbstractControl
-    ): ValidationErrors | null {
-        const correo = String(
-            control.get('correo')?.value ??
-            ''
-        ).trim();
-
-        const telefono = String(
-            control.get('telefono')?.value ??
-            ''
-        ).trim();
-
-        return correo || telefono
-            ? null
-            : {
-                contactRequired: true
-            };
-    }
-
-    private emailValidator(
-        control: AbstractControl
-    ): ValidationErrors | null {
-        const value = String(
-            control.value ?? ''
-        ).trim();
-
-        if (!value) {
-            return null;
-        }
-
-        const emailRegex =
-            /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-        return emailRegex.test(value)
-            ? null
-            : {
-                email: true
-            };
-    }
-
-    private phoneValidator(
-        control: AbstractControl
-    ): ValidationErrors | null {
-        const value = String(
-            control.value ?? ''
-        ).trim();
-
-        if (!value) {
-            return null;
-        }
-
-        return /^\d{10}$/.test(value)
-            ? null
-            : {
-                phone: true
-            };
-    }
-
-    private createCaptcha(): string {
-        const alphabet =
-            'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-        return Array.from(
-            {
-                length: 6
-            },
-            () =>
-                alphabet[
-                Math.floor(
-                    Math.random() *
-                    alphabet.length
-                )
-                ]
-        ).join('');
-    }
-
-    private getErrorMessage(
-        error: unknown
-    ): string {
+    private getErrorMessage(error: unknown): string {
         return error instanceof Error
             ? error.message
             : 'No fue posible enviar el código. Intenta nuevamente.';

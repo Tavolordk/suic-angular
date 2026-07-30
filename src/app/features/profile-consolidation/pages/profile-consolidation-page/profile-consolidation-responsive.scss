@@ -1,0 +1,592 @@
+/*
+ * Perfil consolidado — adaptacion responsive.
+ *
+ * Esta hoja se carga en ultimo lugar (despues de -page.scss y -carousel.scss)
+ * para poder sobrescribir las reglas del carrusel sin pelear con !important.
+ *
+ * Todos los selectores apuntan a clases que existen hoy en el template:
+ * .profile-header-card, .source-card, .field-row, .selection-source,
+ * .selection-info, .profile-gallery, .selected-field, .links-card,
+ * .link-detail-card, .consolidated-footer, .profile-side-panel.
+ */
+
+/* ========================================================================== */
+/* Piezas que no tenian estilo: panel lateral y menu de usuario               */
+/* ========================================================================== */
+
+.profile-user {
+  position: relative;
+}
+
+.profile-user__dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 260px;
+  max-width: calc(100vw - 28px);
+  padding: 14px;
+  border: 2px solid #ffffff;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(22, 40, 54, 0.22);
+  backdrop-filter: blur(10px);
+}
+
+.profile-user__summary {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-user__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(34, 53, 68, 0.88);
+  color: #ffffff;
+}
+
+.profile-user__avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-user__summary strong,
+.profile-user__summary small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-user__summary strong {
+  color: #223544;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.profile-user__summary small {
+  margin-top: 2px;
+  color: rgba(34, 53, 68, 0.58);
+  font-size: 10px;
+}
+
+.profile-user__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(202, 213, 226, 0.7);
+}
+
+.profile-user__meta p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: rgba(34, 53, 68, 0.76);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.profile-user__meta svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: rgba(34, 53, 68, 0.5);
+}
+
+.profile-user__logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(155, 42, 42, 0.1);
+  color: #9b2a2a;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.profile-user__logout:hover {
+  background: rgba(155, 42, 42, 0.18);
+}
+
+.profile-user__logout svg {
+  width: 15px;
+  height: 15px;
+}
+
+.profile-side-panel {
+  display: flex;
+  flex: 0 0 272px;
+  flex-direction: column;
+  gap: 12px;
+  width: 272px;
+  min-height: 0;
+  padding: 14px 12px;
+  border-right: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.profile-side-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.profile-side-panel > header strong {
+  display: block;
+  color: #223544;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.profile-side-panel > header span {
+  display: block;
+  margin-top: 2px;
+  color: rgba(34, 53, 68, 0.55);
+  font-size: 11px;
+}
+
+.profile-side-panel > header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(34, 53, 68, 0.08);
+  color: #223544;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.profile-side-panel > header button:hover {
+  background: rgba(34, 53, 68, 0.16);
+}
+
+.profile-side-panel__list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+  overflow-y: auto;
+  /* Mismo criterio que el tablero: el respiro va como padding del scroller. */
+  padding-bottom: var(--profile-bottom-gap);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 53, 68, 0.28) transparent;
+}
+
+.profile-quick-search {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1.5px solid rgba(202, 213, 226, 0.62);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #223544;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease,
+    transform 0.16s ease;
+}
+
+.profile-quick-search:hover {
+  border-color: rgba(34, 53, 68, 0.32);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.profile-quick-search__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(153, 168, 190, 0.24);
+  color: rgba(34, 53, 68, 0.8);
+  font-size: 13px;
+}
+
+.profile-quick-search > span:last-child {
+  min-width: 0;
+}
+
+.profile-quick-search strong,
+.profile-quick-search small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-quick-search strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.profile-quick-search small {
+  margin-top: 2px;
+  color: rgba(34, 53, 68, 0.52);
+  font-size: 10px;
+}
+
+/* ========================================================================== */
+/* <= 1320px — tres columnas mas apretadas                                    */
+/* ========================================================================== */
+
+@media (max-width: 1320px) {
+  .profile-grid {
+    grid-template-columns:
+      minmax(230px, 0.8fr)
+      minmax(330px, 1fr)
+      minmax(370px, 1.12fr);
+  }
+
+  .profile-header-card h1 {
+    font-size: 24px;
+  }
+
+  .source-card__match em {
+    display: none;
+  }
+}
+
+/* ========================================================================== */
+/* <= 1100px — una sola columna                                               */
+/* ========================================================================== */
+
+@media (max-width: 1100px) {
+  .profile-topbar__title {
+    position: static;
+    transform: none;
+    font-size: 20px;
+  }
+
+  .profile-topbar__logo {
+    width: 220px;
+    flex-basis: 220px;
+  }
+
+  .profile-clock {
+    display: none;
+  }
+
+  .profile-side-panel {
+    flex-basis: 240px;
+    width: 240px;
+  }
+
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* En una columna las tarjetas dejan de competir por altura: crecen segun
+   * su contenido y el scroll lo lleva .profile-content. */
+  .profile-grid > .profile-card {
+    height: auto;
+    min-height: 0;
+  }
+
+  .selection-fields-carousel .selection-fields,
+  .selected-fields-carousel .selected-fields {
+    grid-template-rows: none;
+    grid-auto-rows: minmax(48px, auto);
+    max-height: none;
+  }
+
+  .selection-fields-carousel .field-row,
+  .selected-fields-carousel .selected-field {
+    height: auto;
+  }
+}
+
+/* ========================================================================== */
+/* <= 900px — cabecera y filas en dos niveles                                 */
+/* ========================================================================== */
+
+@media (max-width: 900px) {
+  .profile-header-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .profile-header-card__actions {
+    width: 100%;
+  }
+
+  .profile-header-card__secondary,
+  .profile-header-card__primary {
+    flex: 1 1 140px;
+  }
+
+  /* La columna del contador estorba: pasa a segunda linea, en horizontal. */
+  .source-card,
+  .selection-source {
+    grid-template-columns: 40px minmax(0, 1fr);
+    row-gap: 6px;
+  }
+
+  .source-card__match,
+  .selection-source__match {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .source-card__match em {
+    display: inline-flex;
+    margin-top: 0;
+  }
+
+  /* Etiqueta arriba y valor abajo: se acabaron los valores recortados. */
+  .field-row {
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: start;
+    gap: 3px 10px;
+    padding: 10px 12px;
+  }
+
+  .field-row__checkbox {
+    grid-row: span 2;
+  }
+
+  .selection-fields-carousel .field-row > strong,
+  .selection-fields-carousel .field-row > span:last-child,
+  .field-row > strong,
+  .field-row > span:last-child {
+    grid-column: 2;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-gallery__images,
+  .profile-gallery__page {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ========================================================================== */
+/* <= 800px — el panel lateral pasa a ser una capa sobre el contenido         */
+/* ========================================================================== */
+
+@media (max-width: 800px) {
+  .profile-topbar {
+    height: auto;
+    flex-basis: auto;
+  }
+
+  .profile-topbar__content {
+    height: auto;
+    min-height: 66px;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .profile-topbar__logo {
+    width: 170px;
+    height: 46px;
+    flex-basis: 170px;
+  }
+
+  .profile-topbar__title {
+    display: none;
+  }
+
+  /* Deja de robar ancho al tablero y se superpone. */
+  .profile-side-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 56px;
+    z-index: 30;
+    width: min(300px, calc(100vw - 56px));
+    flex-basis: auto;
+    box-shadow: 12px 0 28px rgba(22, 40, 54, 0.2);
+  }
+
+  .selection-source {
+    margin: 10px 12px 0;
+  }
+
+  .selection-info,
+  .accordion-card,
+  .profile-gallery,
+  .links-card {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .link-detail-card__fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .link-detail-card__field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .link-detail-card__field strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ========================================================================== */
+/* <= 560px — telefono                                                        */
+/* ========================================================================== */
+
+@media (max-width: 560px) {
+  .profile-shell {
+    --profile-top-gap: 12px;
+    --profile-side-gap: 12px;
+    --profile-bottom-gap: 20px;
+  }
+
+  .profile-sidebar {
+    width: 48px;
+    flex: 0 0 48px;
+  }
+
+  .profile-side-panel {
+    left: 48px;
+    width: calc(100vw - 48px);
+  }
+
+  .profile-content__scroll {
+    gap: 12px;
+    padding-right: 3px;
+  }
+
+  .profile-header-card {
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+
+  .profile-header-card h1 {
+    font-size: 21px;
+  }
+
+  .profile-header-card__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .profile-header-card__secondary,
+  .profile-header-card__primary {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .profile-card {
+    border-radius: 16px;
+  }
+
+  .profile-card__header {
+    padding: 14px 14px 12px;
+  }
+
+  .selection-counter {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .selection-counter button {
+    width: 100%;
+  }
+
+  .profile-gallery {
+    padding: 10px 26px;
+  }
+
+  .profile-gallery__images,
+  .profile-gallery__page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-gallery__images img,
+  .profile-gallery__page img {
+    height: 168px;
+  }
+
+  .links-card__chips {
+    justify-content: stretch;
+  }
+
+  .links-card__chip {
+    flex: 1 1 130px;
+  }
+
+  .consolidated-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .accepted-button,
+  .graph-button {
+    width: 100%;
+  }
+
+  /* Objetivos tactiles: minimo comodo para el pulgar. */
+  .profile-carousel__controls button,
+  .profile-carousel__controls--compact button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-gallery__arrow {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* ========================================================================== */
+/* Preferencias del sistema                                                   */
+/* ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-carousel__page,
+  .link-details {
+    animation: none;
+  }
+
+  .source-card,
+  .field-row,
+  .links-card__chip,
+  .profile-quick-search {
+    transition: none;
+  }
+}

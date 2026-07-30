@@ -9,7 +9,8 @@ const emptyForm = (): PersonSearchFormValue => ({
   alias: '',
   fechaNacimiento: '',
   curp: '',
-  rfc: ''
+  rfc: '',
+  contacto: ''
 });
 
 describe('buildPersonSearchRequest', () => {
@@ -89,4 +90,27 @@ describe('buildPersonSearchRequest', () => {
       { field: 'fechaNacimiento', value: '1977-09-29' }
     ]);
   });
+
+  it('agrega un correo válido como criterio de búsqueda', () => {
+    const request = buildPersonSearchRequest({
+      ...emptyForm(),
+      contacto: 'Persona.Prueba@Dominio.com'
+    });
+
+    expect(request.criteria).toEqual([
+      { field: 'correo', value: 'persona.prueba@dominio.com' }
+    ]);
+  });
+
+  it('agrega un celular de 10 dígitos como criterio de búsqueda', () => {
+    const request = buildPersonSearchRequest({
+      ...emptyForm(),
+      contacto: '5512345678'
+    });
+
+    expect(request.criteria).toEqual([
+      { field: 'celular', value: '5512345678' }
+    ]);
+  });
+
 });

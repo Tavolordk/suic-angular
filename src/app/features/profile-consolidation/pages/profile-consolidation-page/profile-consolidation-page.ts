@@ -13,6 +13,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
 import {
   ProfileFieldViewModel,
   ProfileLinkGroupViewModel,
@@ -46,7 +47,9 @@ const LINK_ITEMS_PER_PAGE = 2;
   templateUrl: './profile-consolidation-page.html',
   styleUrls: [
     './profile-consolidation-page.scss',
-    './profile-consolidation-carousel.scss'
+    './profile-consolidation-carousel.scss',
+    // Va al final a proposito: necesita sobrescribir reglas del carrusel.
+    './profile-consolidation-responsive.scss'
   ]
 })
 export class ProfileConsolidationPage implements OnInit, OnDestroy {
@@ -54,6 +57,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
+  private readonly pdfExport = inject(SimplePdfExportService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
@@ -63,6 +67,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.route.snapshot.queryParamMap.get('resultId')?.trim() ?? '';
 
   readonly currentTime = signal(new Date());
+  readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
   readonly profileOpen = signal(false);
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly isLoading = signal(false);
@@ -90,6 +95,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly primaryProfile = this.authService.primaryProfile;
   readonly displayName = computed(
     () => this.accountNumber()?.trim() || 'Usuario'
+  );
+  readonly canExportPdf = computed(
+    () => !this.isLoading() && !this.errorMessage() && this.sources().length > 0
   );
 
   readonly recentSearches: QuickSearchItem[] = [
@@ -287,7 +295,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     if (!this.searchId || !this.resultId) {
       this.clearProfileData();
       this.errorMessage.set(
-        'No se recibieron searchId y resultId para consultar el perfil consolidado.'
+        'No se recibieron los identificadores de búsqueda y resultado para consultar el perfil consolidado.'
       );
       return;
     }
@@ -494,6 +502,69 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
     this.consolidatedFieldPageIndex.set(0);
     this.accepted.set(false);
+  }
+
+  exportProfilePdf(): void {
+    if (!this.isBrowser || !this.canExportPdf()) {
+      return;
+    }
+
+    const selectedSource = this.selectedSource();
+    const sourceLines = this.sources().flatMap((source, index) => [
+      `${index + 1}. ${source.title} - ${source.description}`,
+      `Campos disponibles: ${source.fields.length}. Campos incluidos: ${this.getSelectedSourceCount(source)}.`
+    ]);
+
+    const selectionLines = selectedSource
+      ? selectedSource.fields.map((field) =>
+          `${field.label.toLocaleUpperCase('es-MX')}: ${field.value}${field.selected ? ' [SELECCIONADO]' : ''}`
+        )
+      : ['No hay una fuente seleccionada.'];
+
+    const consolidatedLines = this.selectedFields().length
+      ? this.selectedFields().map((field) =>
+          `${field.label.toLocaleUpperCase('es-MX')}: ${field.value} (FUENTE: ${field.sourceTitle})`
+        )
+      : ['No hay campos seleccionados para el perfil consolidado.'];
+
+    const linkLines = this.links().flatMap((link) => {
+      const header = `${link.label.toLocaleUpperCase('es-MX')}: ${link.count}`;
+      const details = link.items.flatMap((item, index) => [
+        `${link.label} ${index + 1}`,
+        ...item.fields.map((field) =>
+          `${field.label.toLocaleUpperCase('es-MX')}: ${field.value}`
+        ),
+        ...(item.sources.length
+          ? [`FUENTES: ${item.sources.map((source) => source.label).join(', ')}`]
+          : [])
+      ]);
+      return [header, ...details];
+    });
+
+    this.pdfExport.exportCards(
+      createPdfFileName(this.profileName()),
+      'Perfil preconsolidado',
+      `${this.profileName()} - ${this.profileSubtitle()}`,
+      [
+        {
+          title: '1. FUENTES DETECTADAS',
+          subtitle: 'Fuentes disponibles para conformar el perfil.',
+          lines: sourceLines
+        },
+        {
+          title: '2. SELECCIÓN DE DATOS',
+          subtitle: selectedSource
+            ? `${selectedSource.title} - ${selectedSource.description}`
+            : 'Sin fuente seleccionada.',
+          lines: selectionLines
+        },
+        {
+          title: '3. PERFIL CONSOLIDADO',
+          subtitle: `${this.completedLabel()} campos completados.`,
+          lines: [...consolidatedLines, ...linkLines]
+        }
+      ]
+    );
   }
 
   accept(): void {
@@ -705,4 +776,36 @@ function movePageIndex(
 
 function createPageLabel(index: number, pageCount: number): string {
   return pageCount > 0 ? `${index + 1} de ${pageCount}` : '0 de 0';
+}
+
+
+function formatSpanishDate(date: Date): string {
+  const weekdays = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const months = [
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic'
+  ];
+
+  return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function createPdfFileName(profileName: string): string {
+  const normalized = profileName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return `perfil-preconsolidado-${normalized || 'resultado'}.pdf`;
 }

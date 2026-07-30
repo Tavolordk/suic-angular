@@ -67,8 +67,8 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   CELULAR: 'Celular',
   CORREO: 'Correo electrónico',
   EMAIL: 'Correo electrónico',
-  NIV: 'NIV/VIN',
-  VIN: 'NIV/VIN',
+  NIV: 'NIV',
+  VIN: 'NIV',
   PLACA: 'Placa',
   NUMEROMOTOR: 'Número de motor',
   NOMOTOR: 'Número de motor',
@@ -86,7 +86,34 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   ESTATUS: 'Estatus',
   STATUS: 'Estatus',
   EXPEDIENTE: 'Expediente',
-  FOLIO: 'Folio'
+  FOLIO: 'Folio',
+  FIRSTNAME: 'Nombre',
+  MIDDLENAME: 'Segundo nombre',
+  SURNAME: 'Apellido',
+  MOTHERSLASTNAME: 'Apellido materno',
+  ADDRESS: 'Dirección',
+  STREET: 'Calle',
+  EXTERIORNUMBER: 'Número exterior',
+  INTERIORNUMBER: 'Número interior',
+  CITY: 'Municipio',
+  COUNTRY: 'País',
+  ZIPCODE: 'Código postal',
+  POSTALCODE: 'Código postal',
+  PHONE: 'Teléfono',
+  PHONENUMBER: 'Teléfono',
+  MOBILE: 'Celular',
+  MOBILENUMBER: 'Celular',
+  EMAILADDRESS: 'Correo electrónico',
+  LICENSENUMBER: 'Número de licencia',
+  WEAPONTYPE: 'Tipo de arma',
+  SERIALNUMBER: 'Número de serie',
+  REGISTRATIONNUMBER: 'Número de registro',
+  MAKE: 'Marca',
+  YEAR: 'Año',
+  GENDER: 'Sexo',
+  NATIONALITY: 'Nacionalidad',
+  MARITALSTATUS: 'Estado civil',
+  BIRTHPLACE: 'Lugar de nacimiento'
 };
 
 const NAME_CODES = ['NOMBRECOMPLETO', 'FULLNAME', 'NAME'];
@@ -143,8 +170,8 @@ export function mapSearchResultDetail(
   const photos = mapPhotos(evidence, sourceGroups);
   const profileName = resolveProfileName(evidence);
   const identifier = findFirstValue(evidence, IDENTIFIER_CODES);
-  const entityLabel = humanizeEntityType(detail.entityType || detail.kind || 'Person');
-  const status = detail.status?.trim() || '';
+  const entityLabel = humanizeEntityType(detail.entityType || 'Person');
+  const status = translateGeneralStatus(detail.status?.trim() || '');
   const subtitleParts = [identifier, entityLabel, status].filter(Boolean);
   const relatedFileCount = sources.reduce(
     (total, source) => total + source.fields.filter((field) => field.isFile).length,
@@ -469,7 +496,7 @@ function mapLinkItem(
     fields.push({
       id: `link-${groupIndex}-${itemIndex}-relationship`,
       label: 'Relación',
-      value: humanizeCode(relationship)
+      value: translateRelationship(relationship)
     });
   }
 
@@ -671,6 +698,16 @@ function humanizeEntityType(value: string): string {
   if (normalized === 'person' || normalized === 'persona') {
     return 'Perfil de persona';
   }
+  if (normalized === 'vehicle' || normalized === 'vehiculo') {
+    return 'Perfil de vehículo';
+  }
+  if (
+    normalized === 'weapon' ||
+    normalized === 'firearm' ||
+    normalized === 'arma'
+  ) {
+    return 'Perfil de arma';
+  }
   return humanizeCode(value);
 }
 
@@ -717,11 +754,82 @@ function translateLinkStatus(value: string): string {
       return 'Activo';
     case 'INACTIVE':
       return 'Inactivo';
+    case 'COMPLETED':
+    case 'COMPLETE':
+      return 'Completado';
+    case 'PENDING':
+      return 'Pendiente';
+    case 'FAILED':
+      return 'Fallido';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Cancelado';
     default:
       return humanizeCode(value);
   }
 }
 
+
+function translateGeneralStatus(value: string): string {
+  const normalized = normalizeCode(value);
+
+  switch (normalized) {
+    case 'COMPLETED':
+    case 'COMPLETE':
+    case 'SUCCESS':
+    case 'SUCCEEDED':
+      return 'Completado';
+    case 'ENRICHED':
+      return 'Enriquecido';
+    case 'PROCESSING':
+    case 'INPROGRESS':
+    case 'RUNNING':
+      return 'En proceso';
+    case 'PENDING':
+    case 'QUEUED':
+      return 'Pendiente';
+    case 'PARTIAL':
+      return 'Parcial';
+    case 'FAILED':
+    case 'ERROR':
+      return 'Fallido';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Cancelado';
+    case 'ACTIVE':
+      return 'Activo';
+    case 'INACTIVE':
+      return 'Inactivo';
+    default:
+      return humanizeCode(value);
+  }
+}
+
+function translateRelationship(value: string): string {
+  const normalized = normalizeCode(value);
+
+  switch (normalized) {
+    case 'OWNER':
+      return 'Propietario';
+    case 'DRIVER':
+      return 'Conductor';
+    case 'PASSENGER':
+      return 'Pasajero';
+    case 'HOLDER':
+    case 'BEARER':
+    case 'CARRIER':
+    case 'PORTADOR':
+      return 'Portador';
+    case 'SPOUSE':
+      return 'Cónyuge';
+    case 'RELATIVE':
+      return 'Familiar';
+    case 'RELATED':
+      return 'Relacionado';
+    default:
+      return humanizeCode(value);
+  }
+}
 
 function resolveLinkKind(entityType: string): ProfileLinkKind {
   const normalized = normalizeCode(entityType);

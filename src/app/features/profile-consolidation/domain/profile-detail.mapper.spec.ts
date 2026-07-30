@@ -261,7 +261,7 @@ describe('mapSearchResultDetail', () => {
       expect.arrayContaining([
         expect.objectContaining({ label: 'CURP', value: 'HEGM880202HMCRDG02' }),
         expect.objectContaining({ label: 'RFC', value: 'HEMM7709295Z9' }),
-        expect.objectContaining({ label: 'NIV/VIN', value: '1HGCM82633A004352' }),
+        expect.objectContaining({ label: 'NIV', value: '1HGCM82633A004352' }),
         expect.objectContaining({ label: 'Nombre', value: 'MIGUEL ANGEL' }),
         expect.objectContaining({
           label: 'Apellido paterno',
@@ -364,7 +364,7 @@ describe('mapSearchResultDetail', () => {
 
     expect(vehicle.items[0].fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'NIV/VIN', value: '4JKL5678901' }),
+        expect.objectContaining({ label: 'NIV', value: '4JKL5678901' }),
         expect.objectContaining({ label: 'Placa', value: 'GDL234' }),
         expect.objectContaining({ label: 'Modelo', value: 'CIVIC' })
       ])

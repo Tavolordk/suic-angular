@@ -1,1 +1,39 @@
 <router-outlet />
+
+@if (auth.sessionPromptVisible()) {
+<section class="suic-session-prompt" role="dialog" aria-modal="true"
+  aria-labelledby="suic-session-prompt-title">
+  <div class="suic-session-prompt__dialog">
+    <button type="button" class="suic-session-prompt__close"
+      aria-label="Cerrar aviso y continuar con la sesión"
+      [disabled]="auth.sessionPromptLoading()" (click)="onDismissSessionPrompt()">
+      &times;
+    </button>
+
+    <div class="suic-session-prompt__header">
+      <span class="suic-session-prompt__icon" aria-hidden="true">&#9201;</span>
+
+      <div>
+        <h2 id="suic-session-prompt-title">Tu sesión se cerrará por inactividad</h2>
+        <p>
+          Detectamos cinco minutos sin actividad. Cierra este aviso para continuar; al
+          hacerlo renovaremos tu token.
+        </p>
+      </div>
+    </div>
+
+    <div class="suic-session-prompt__countdown">
+      <span>Cierre automático en</span>
+      <strong>{{ auth.sessionPromptCountdownLabel() }}</strong>
+    </div>
+
+    @if (auth.sessionPromptLoading()) {
+    <p class="suic-session-prompt__status">Renovando sesión...</p>
+    }
+
+    @if (auth.sessionPromptError()) {
+    <p class="suic-session-prompt__error">{{ auth.sessionPromptError() }}</p>
+    }
+  </div>
+</section>
+}

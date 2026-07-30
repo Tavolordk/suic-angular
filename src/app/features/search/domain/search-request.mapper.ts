@@ -32,6 +32,14 @@ export function buildPersonSearchRequest(
     criteria.push({ field: 'fechaNacimiento', value: fechaNacimiento });
   }
 
+  const contacto = normalizeContact(formValue.contacto);
+  if (contacto) {
+    criteria.push({
+      field: contacto.includes('@') ? 'correo' : 'celular',
+      value: contacto
+    });
+  }
+
   const identifiers = IDENTIFIERS.flatMap(({ formField, code }) => {
     const value = normalizeText(formValue[formField]);
     return value ? [{ code, value }] : [];
@@ -54,4 +62,16 @@ export function hasSearchTerms(request: SearchRequest): boolean {
 
 function normalizeText(value: string): string {
   return value?.trim().replace(/\s+/g, ' ').toUpperCase() ?? '';
+}
+
+
+function normalizeContact(value: string): string {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed.includes('@')
+    ? trimmed.toLocaleLowerCase('es-MX')
+    : trimmed;
 }
