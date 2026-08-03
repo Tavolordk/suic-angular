@@ -213,8 +213,8 @@
                             Regresar a resultados
                         </button>
 
-                        <button type="button" class="profile-header-card__secondary"
-                            [disabled]="!canExportPdf()" (click)="exportProfilePdf()">
+                        <button type="button" class="profile-header-card__secondary" [disabled]="!canExportPdf()"
+                            (click)="exportProfilePdf()">
                             <i class="fa-regular fa-file-pdf"></i>
                             Exportar PDF
                         </button>
@@ -262,8 +262,8 @@
                         <div class="profile-sources profile-carousel__viewport">
                             <div class="profile-carousel__page profile-carousel__page--sources">
                                 @for (item of visibleSources(); track item.id) {
-                                <button type="button" class="source-card" [class.source-card--active]="source.id === item.id"
-                                    (click)="selectSource(item.id)">
+                                <button type="button" class="source-card"
+                                    [class.source-card--active]="source.id === item.id" (click)="selectSource(item.id)">
                                     <span class="source-card__avatar" [style.background]="item.color">
                                         {{ item.code }}
                                     </span>
@@ -284,7 +284,8 @@
                         </div>
 
                         @if (sourcePageCount() > 1) {
-                        <nav class="profile-carousel__controls profile-carousel__controls--sources" aria-label="Páginas de fuentes">
+                        <nav class="profile-carousel__controls profile-carousel__controls--sources"
+                            aria-label="Páginas de fuentes">
                             <button type="button" aria-label="Fuentes anteriores" (click)="previousSourcePage()">
                                 <i class="fa-solid fa-chevron-left"></i>
                             </button>
@@ -323,8 +324,8 @@
 
                             <button type="button" (click)="selectAll()">
                                 {{ getSelectedSourceCount(source) === source.fields.length && source.fields.length > 0
-                                    ? 'Quitar selección'
-                                    : 'Seleccionar todo' }}
+                                ? 'Quitar selección'
+                                : 'Seleccionar todo' }}
                             </button>
                         </section>
 
@@ -333,7 +334,8 @@
                                 @for (field of visibleSourceFields(); track field.id) {
                                 <button type="button" class="field-row" [class.field-row--selected]="field.selected"
                                     (click)="toggleField(field.id)">
-                                    <span class="field-row__checkbox" [class.field-row__checkbox--selected]="field.selected">
+                                    <span class="field-row__checkbox"
+                                        [class.field-row__checkbox--selected]="field.selected">
                                         @if (field.selected) {
                                         <i class="fa-solid fa-check"></i>
                                         }
@@ -347,11 +349,13 @@
 
                             @if (sourceFieldPageCount() > 1) {
                             <nav class="profile-carousel__controls" aria-label="Páginas de información de la fuente">
-                                <button type="button" aria-label="Información anterior" (click)="previousSourceFieldPage()">
+                                <button type="button" aria-label="Información anterior"
+                                    (click)="previousSourceFieldPage()">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </button>
                                 <span>{{ sourceFieldPageLabel() }}</span>
-                                <button type="button" aria-label="Información siguiente" (click)="nextSourceFieldPage()">
+                                <button type="button" aria-label="Información siguiente"
+                                    (click)="nextSourceFieldPage()">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </button>
                             </nav>
@@ -437,10 +441,8 @@
                                             <strong [title]="field.value">{{ field.value }}</strong>
                                         </div>
 
-                                        <small
-                                            class="selected-field__source-avatar"
-                                            [style.background]="field.sourceColor"
-                                            [title]="field.sourceTitle">
+                                        <small class="selected-field__source-avatar"
+                                            [style.background]="field.sourceColor" [title]="field.sourceTitle">
                                             {{ field.sourceCode }}
                                         </small>
                                     </article>
@@ -548,8 +550,7 @@
                                         <i class="fa-solid fa-chevron-left"></i>
                                     </button>
                                     <span>{{ linkItemPageLabel() }}</span>
-                                    <button type="button" aria-label="Vínculos siguientes"
-                                        (click)="nextLinkItemPage()">
+                                    <button type="button" aria-label="Vínculos siguientes" (click)="nextLinkItemPage()">
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                 </nav>
@@ -572,7 +573,8 @@
                                 Aceptado
                             </button>
 
-                            <a routerLink="/grafo" [queryParams]="{ searchId: searchId, resultId: resultId }" class="graph-button">
+                            <a routerLink="/grafo" [queryParams]="{ searchId: searchId, resultId: resultId }"
+                                class="graph-button">
                                 <i class="fa-solid fa-share-nodes"></i>
                                 Visualizar grafo
                             </a>
@@ -588,6 +590,10 @@
                     </div>
                 </section>
                 }
+
+                <!-- Espacio real al final del contenido.
+                     No depende de padding, ::after ni de la altura de las tarjetas. -->
+                <div class="profile-content__bottom-space" aria-hidden="true"></div>
             </div>
         </main>
     </div>

@@ -14,7 +14,7 @@
   /* Aire entre las tarjetas y los bordes del tablero. */
   --profile-top-gap: 24px;
   --profile-side-gap: 24px;
-  --profile-bottom-gap: 40px;
+  --profile-bottom-gap: 56px;
   /* Separacion entre las propias tarjetas. */
   --profile-card-gap: 20px;
 
@@ -233,22 +233,33 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--profile-card-gap);
   min-width: 0;
   min-height: 0;
+  /* El espacio inferior ya no depende del padding del contenedor con scroll. */
   padding: var(--profile-top-gap) var(--profile-side-gap) 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-bottom: var(--profile-bottom-gap);
 }
 
-/* Ultimo item de flex: es la forma fiable de reservar el hueco inferior
- * dentro de un contenedor con overflow. */
-.profile-content::after {
-  content: '';
+.profile-content__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* Espaciador real colocado dentro de profile-content__scroll. */
+.profile-content__bottom-space {
   display: block;
-  flex: 0 0 auto;
-  height: calc(var(--profile-bottom-gap) + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  height: var(--profile-bottom-gap);
+  min-height: var(--profile-bottom-gap);
+  flex: 0 0 var(--profile-bottom-gap);
+  pointer-events: none;
 }
 
 /* Se conserva esta sección porque ya tiene el diseño del proyecto */
@@ -1768,4 +1779,158 @@
 .link-detail-card__field span {
   letter-spacing: 0.025em;
   text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Separación inferior y comportamiento responsive definitivo
+   ========================================================================== */
+
+/*
+ * Escritorio:
+ * las tarjetas pueden conservar la misma altura visual, pero el elemento
+ * .profile-content__bottom-space garantiza que nunca terminen pegadas al
+ * borde inferior al llegar al final del scroll.
+ */
+@media (min-width: 1201px) {
+  .profile-grid {
+    flex: 0 0 auto;
+  }
+}
+
+/*
+ * Responsive:
+ * se conserva una ventana de 100dvh y el scroll vive en .profile-content.
+ * Las tarjetas mantienen altura automática, pero el contenido puede
+ * desplazarse hasta alcanzar el espaciador inferior real.
+ */
+@media (max-width: 1200px) {
+  :host {
+    display: block;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .profile-shell {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  /*
+   * Se asigna una altura explícita al área situada debajo de la barra superior.
+   * Así .profile-content tiene un límite real contra el que puede desbordarse.
+   */
+  .profile-main {
+    display: flex;
+    flex: 0 0 calc(100vh - 75px);
+    flex: 0 0 calc(100dvh - 75px);
+    width: 100%;
+    height: calc(100vh - 75px);
+    height: calc(100dvh - 75px);
+    min-height: 0;
+    max-height: calc(100vh - 75px);
+    max-height: calc(100dvh - 75px);
+    overflow: hidden;
+  }
+
+  .profile-sidebar {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .profile-content {
+    position: relative;
+    flex: 1 1 0;
+    width: auto;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    padding: 20px 20px 0;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .profile-content__scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+    min-height: max-content !important;
+    height: max-content !important;
+    overflow: visible;
+  }
+
+  .profile-grid {
+    display: grid;
+    flex: 0 0 auto !important;
+    grid-template-columns: 1fr !important;
+    grid-auto-rows: auto !important;
+    align-items: start !important;
+    width: 100%;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .profile-grid > .profile-card,
+  .profile-card--sources,
+  .profile-card--selection,
+  .profile-card--consolidated {
+    align-self: start !important;
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .profile-card .profile-sources,
+  .profile-card .selection-fields-carousel,
+  .profile-card .selected-fields-carousel {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .profile-card .profile-sources {
+    overflow-y: visible !important;
+  }
+
+  .consolidated-footer {
+    margin-top: 12px;
+  }
+
+  .profile-content__bottom-space {
+    display: block;
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 40px;
+  }
+}
+
+@media (max-width: 900px) {
+  .profile-content {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .profile-content__bottom-space {
+    height: 32px;
+    min-height: 32px;
+    flex-basis: 32px;
+  }
 }
