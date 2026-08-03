@@ -112,6 +112,18 @@
                 <img src="https://bonus-gala-11863518.figma.site/_assets/v11/aa191e0b980b8721759117f656f5337f51d248ff.png"
                     alt="Guardados" />
             </button>
+
+            <button type="button" class="profile-sidebar__button"
+                title="Líneas de investigación" aria-label="Abrir líneas de investigación"
+                (click)="goToInvestigationLines()">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="5.5" cy="12" r="2.5" stroke="currentColor" stroke-width="2"></circle>
+                    <circle cx="18.5" cy="6" r="2.5" stroke="currentColor" stroke-width="2"></circle>
+                    <circle cx="18.5" cy="18" r="2.5" stroke="currentColor" stroke-width="2"></circle>
+                    <path d="M8 11l8-4M8 13l8 4" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round"></path>
+                </svg>
+            </button>
         </aside>
 
         @if (activeSidebarPanel() === 'history') {

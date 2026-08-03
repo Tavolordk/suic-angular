@@ -59,6 +59,12 @@ export const routes: Routes = [
       import('./features/person-detail/pages/person-detail-page/person-detail-page').then(
         (m) => m.PersonDetailPage
       )
+  }, {
+    path: 'lineas-investigacion',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/lineas-investigacion/lineas-investigacion.component')
+        .then((component) => component.LineasInvestigacionComponent),
   },
   {
     path: '',

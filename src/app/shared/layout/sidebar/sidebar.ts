@@ -30,6 +30,11 @@ export class Sidebar {
       path: '/red/1',
       icon: 'fa-solid fa-circle-nodes',
       label: 'Red de vínculos'
+    },
+    {
+      path: '/lineas-investigacion',
+      icon: 'fa-solid fa-diagram-project',
+      label: 'Líneas de investigación'
     }
   ];
 }

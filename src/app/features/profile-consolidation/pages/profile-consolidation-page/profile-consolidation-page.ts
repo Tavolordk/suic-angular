@@ -601,6 +601,12 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set('bookmarks');
   }
 
+  goToInvestigationLines(): void {
+    this.profileOpen.set(false);
+    this.activeSidebarPanel.set(null);
+    void this.router.navigateByUrl('/lineas-investigacion');
+  }
+
   closeSidebarPanel(): void {
     this.activeSidebarPanel.set(null);
   }

@@ -1,0 +1,420 @@
+<section class="investigation-shell">
+  <header class="investigation-topbar">
+    <div class="investigation-topbar__content">
+      <div class="investigation-topbar__logo">
+        <img src="seguridad-logo.png" alt="Logo SSPC" />
+      </div>
+
+      <p class="investigation-topbar__title">Sistema Plataforma México</p>
+
+      <div class="investigation-topbar__actions">
+        <div class="investigation-clock">
+          <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"></circle>
+            <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+
+          <div>
+            <strong>{{ currentTime() | date:'HH:mm:ss' }}</strong>
+            <small>{{ currentDateLabel() }}</small>
+          </div>
+        </div>
+
+        <button type="button" class="investigation-user" aria-label="Perfil de usuario">
+          <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
+            <path
+              d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
+              stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"></path>
+            <path
+              d="M14 13.2083C16.5773 13.2083 18.6667 11.119 18.6667 8.54167C18.6667 5.96434 16.5773 3.875 14 3.875C11.4227 3.875 9.33333 5.96434 9.33333 8.54167C9.33333 11.119 11.4227 13.2083 14 13.2083Z"
+              stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="investigation-main">
+    <aside class="investigation-sidebar" aria-label="Navegación principal">
+      <a class="investigation-sidebar__button" [routerLink]="routes.search" title="Búsqueda principal"
+        aria-label="Búsqueda principal">
+        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+          <path
+            d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
+            stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+        </svg>
+      </a>
+
+      <a class="investigation-sidebar__button" [routerLink]="routes.history" title="Historial de búsquedas"
+        aria-label="Historial de búsquedas">
+        <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round"></path>
+          <path d="M3 3v5h5M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+      </a>
+
+      <a class="investigation-sidebar__button" [routerLink]="routes.saved" title="Búsquedas guardadas"
+        aria-label="Búsquedas guardadas">
+        <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 3h12v18l-6-4-6 4V3z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+      </a>
+
+      <a class="investigation-sidebar__button investigation-sidebar__button--active"
+        [routerLink]="routes.investigations" title="Líneas de investigación" aria-label="Líneas de investigación">
+        <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="2"></circle>
+          <path d="M8.5 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          <circle cx="18" cy="12" r="2.5" stroke="currentColor" stroke-width="2"></circle>
+        </svg>
+      </a>
+    </aside>
+
+    <main class="investigation-content">
+      <section class="investigation-panel">
+        <header class="investigation-heading">
+          <div>
+            <h1>Líneas de investigación</h1>
+            <p>Gestiona y continúa tus líneas de investigación guardadas.</p>
+          </div>
+
+          <label class="investigation-search">
+            <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
+              <path
+                d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z"
+                stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <input type="search" placeholder="Buscar línea de investigación" [value]="searchTerm()"
+              (input)="updateSearch($event)" />
+          </label>
+        </header>
+
+        <section class="investigation-tools">
+          <div class="investigation-sort">
+            <label for="investigation-sort">Ordenar por:</label>
+            <select id="investigation-sort" [value]="sortOrder()" (change)="updateSort($event)">
+              <option value="recent">Más reciente</option>
+              <option value="oldest">Más antigua</option>
+              <option value="name">Nombre A-Z</option>
+            </select>
+          </div>
+
+          <div class="investigation-view-toggle" aria-label="Cambiar vista">
+            <button type="button" [class.investigation-view-toggle__active]="viewMode() === 'grid'"
+              (click)="setViewMode('grid')" aria-label="Vista de cuadrícula">
+              <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"></rect>
+              </svg>
+            </button>
+
+            <button type="button" [class.investigation-view-toggle__active]="viewMode() === 'list'"
+              (click)="setViewMode('list')" aria-label="Vista de lista">
+              <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="6" rx="1" stroke="currentColor" stroke-width="2"></rect>
+                <rect x="3" y="14" width="18" height="6" rx="1" stroke="currentColor" stroke-width="2"></rect>
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="investigation-list" [class.investigation-list--grid]="viewMode() === 'grid'">
+          @for (line of visibleLines(); track line.id) {
+          <article class="investigation-card">
+            <button type="button" class="investigation-card__preview" (click)="openGraphPreview(line)"
+              [attr.aria-label]="'Ver vista previa resumida del grafo de ' + line.title">
+              <svg class="graph-preview graph-preview--compact" viewBox="0 0 600 330" role="img"
+                [attr.aria-label]="'Muestra animada del grafo de ' + line.title">
+                <defs>
+                  <radialGradient [attr.id]="'preview-background-' + line.id" cx="50%" cy="45%" r="70%">
+                    <stop offset="0%" stop-color="#172b43"></stop>
+                    <stop offset="100%" stop-color="#091524"></stop>
+                  </radialGradient>
+                </defs>
+
+                <rect width="600" height="330" rx="20" [attr.fill]="'url(#preview-background-' + line.id + ')'"></rect>
+
+                <g class="graph-preview__edges">
+                  @for (edge of line.graph.edges; track edge.id) {
+                  <line class="graph-preview__edge" [attr.x1]="edge.x1" [attr.y1]="edge.y1" [attr.x2]="edge.x2"
+                    [attr.y2]="edge.y2" [attr.stroke-width]="edge.weight" [style.--edge-delay]="edge.delay + 's'">
+                  </line>
+                  }
+                </g>
+
+                <g class="graph-preview__nodes">
+                  @for (node of line.graph.nodes; track node.id) {
+                  <g class="graph-preview__node" [class.graph-preview__node--important]="node.important"
+                    [style.--node-delay]="node.delay + 's'">
+                    <circle class="graph-preview__node-halo" [attr.cx]="node.x" [attr.cy]="node.y"
+                      [attr.r]="node.radius + 8"></circle>
+
+                    <circle class="graph-preview__node-core"
+                      [class.graph-preview__node-core--person]="node.tone === 'person'"
+                      [class.graph-preview__node-core--vehicle]="node.tone === 'vehicle'"
+                      [class.graph-preview__node-core--weapon]="node.tone === 'weapon'"
+                      [class.graph-preview__node-core--organization]="node.tone === 'organization'"
+                      [class.graph-preview__node-core--location]="node.tone === 'location'"
+                      [class.graph-preview__node-core--event]="node.tone === 'event'" [attr.cx]="node.x"
+                      [attr.cy]="node.y" [attr.r]="node.radius"></circle>
+                  </g>
+                  }
+                </g>
+              </svg>
+
+              <span class="investigation-card__preview-status">
+                {{ line.graph.totalNodes | number:'1.0-0' }} nodos
+                <i aria-hidden="true"></i>
+                {{ line.graph.totalEdges | number:'1.0-0' }} conexiones
+              </span>
+
+              <span class="investigation-card__preview-overlay">
+                <span class="investigation-card__preview-icon">
+                  <i class="fa-solid fa-diagram-project"></i>
+                </span>
+                <strong>Ver vista previa</strong>
+                <small>Grafo resumido y animado</small>
+              </span>
+            </button>
+
+            <div class="investigation-card__body">
+              <h2>{{ line.title }}</h2>
+
+              <div class="investigation-card__entities">
+                @for (entity of line.entities; track entity.label; let last = $last) {
+                <span class="investigation-chip" [class.investigation-chip--person]="entity.tone === 'person'"
+                  [class.investigation-chip--vehicle]="entity.tone === 'vehicle'"
+                  [class.investigation-chip--weapon]="entity.tone === 'weapon'">
+                  {{ entity.label }}
+                </span>
+
+                @if (!last) {
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                }
+                }
+              </div>
+
+              <div class="investigation-card__stats">
+                @for (stat of line.stats; track stat.label + stat.value) {
+                <div>
+                  <strong>{{ stat.value }}</strong>
+                  <span>{{ stat.label }}</span>
+                </div>
+                }
+              </div>
+            </div>
+
+            <aside class="investigation-card__actions">
+              <button type="button" class="investigation-card__menu" aria-label="Opciones de la investigación">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+
+              <div class="investigation-card__activity">
+                <span>Última actividad</span>
+                <strong>{{ line.lastActivity }}</strong>
+              </div>
+
+              <a class="investigation-card__open" [routerLink]="routes.graph"
+                [queryParams]="{ investigationId: line.id }">
+                Abrir investigación
+              </a>
+            </aside>
+          </article>
+          } @empty {
+          <div class="investigation-empty">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <strong>No se encontraron líneas de investigación</strong>
+            <span>Prueba con otro nombre, persona, vehículo o arma.</span>
+          </div>
+          }
+        </section>
+      </section>
+
+      <nav class="investigation-pagination" aria-label="Paginación">
+        <button type="button" class="investigation-pagination__edge" [disabled]="currentPage() === 1"
+          (click)="previousPage()">
+          <i class="fa-solid fa-chevron-left"></i>
+          Anterior
+        </button>
+
+        @for (page of pages; track page) {
+        <button type="button" [class.investigation-pagination__active]="currentPage() === page"
+          [attr.aria-current]="currentPage() === page ? 'page' : null" (click)="goToPage(page)">
+          {{ page }}
+        </button>
+        }
+
+        <button type="button" class="investigation-pagination__edge" [disabled]="currentPage() === totalPages"
+          (click)="nextPage()">
+          Siguiente
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </nav>
+    </main>
+  </div>
+  @if (selectedLine(); as selected) {
+  <div class="graph-modal-backdrop" (mousedown)="onPreviewBackdrop($event)">
+    <section class="graph-modal" role="dialog" aria-modal="true"
+      [attr.aria-labelledby]="'graph-preview-title-' + selected.id" (mousedown)="$event.stopPropagation()">
+      <header class="graph-modal__header">
+        <div>
+          <span class="graph-modal__eyebrow">Vista previa resumida</span>
+          <h2 [id]="'graph-preview-title-' + selected.id">{{ selected.title }}</h2>
+          <p>
+            Se presenta una muestra representativa; el grafo completo puede contener
+            miles o millones de conexiones.
+          </p>
+        </div>
+
+        <button type="button" class="graph-modal__close" aria-label="Cerrar vista previa" (click)="closeGraphPreview()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </header>
+
+      <div class="graph-modal__body">
+        <section class="graph-modal__metrics" aria-label="Resumen del grafo">
+          <article>
+            <span>Nodos totales</span>
+            <strong>{{ selected.graph.totalNodes | number:'1.0-0' }}</strong>
+          </article>
+          <article>
+            <span>Conexiones totales</span>
+            <strong>{{ selected.graph.totalEdges | number:'1.0-0' }}</strong>
+          </article>
+          <article>
+            <span>Nodos mostrados</span>
+            <strong>{{ selected.graph.sampledNodes }}</strong>
+          </article>
+          <article>
+            <span>Conexiones mostradas</span>
+            <strong>{{ selected.graph.sampledEdges }}</strong>
+          </article>
+        </section>
+
+        <section class="graph-modal__visual">
+          <svg class="graph-preview graph-preview--modal" viewBox="0 0 600 330" role="img"
+            [attr.aria-label]="'Grafo resumido de ' + selected.title">
+            <defs>
+              <radialGradient [attr.id]="'modal-background-' + selected.id" cx="50%" cy="45%" r="70%">
+                <stop offset="0%" stop-color="#18314d"></stop>
+                <stop offset="100%" stop-color="#081421"></stop>
+              </radialGradient>
+            </defs>
+
+            <rect width="600" height="330" rx="18" [attr.fill]="'url(#modal-background-' + selected.id + ')'"></rect>
+
+            <g class="graph-preview__edges">
+              @for (edge of selected.graph.edges; track edge.id) {
+              <line class="graph-preview__edge" [attr.x1]="edge.x1" [attr.y1]="edge.y1" [attr.x2]="edge.x2"
+                [attr.y2]="edge.y2" [attr.stroke-width]="edge.weight" [style.--edge-delay]="edge.delay + 's'"></line>
+              }
+            </g>
+
+            <g class="graph-preview__nodes">
+              @for (node of selected.graph.nodes; track node.id) {
+              <g class="graph-preview__node" [class.graph-preview__node--important]="node.important"
+                [style.--node-delay]="node.delay + 's'">
+                <circle class="graph-preview__node-halo" [attr.cx]="node.x" [attr.cy]="node.y"
+                  [attr.r]="node.radius + 10"></circle>
+
+                <circle class="graph-preview__node-core"
+                  [class.graph-preview__node-core--person]="node.tone === 'person'"
+                  [class.graph-preview__node-core--vehicle]="node.tone === 'vehicle'"
+                  [class.graph-preview__node-core--weapon]="node.tone === 'weapon'"
+                  [class.graph-preview__node-core--organization]="node.tone === 'organization'"
+                  [class.graph-preview__node-core--location]="node.tone === 'location'"
+                  [class.graph-preview__node-core--event]="node.tone === 'event'" [attr.cx]="node.x" [attr.cy]="node.y"
+                  [attr.r]="node.radius"></circle>
+
+                @if (node.important) {
+                <text class="graph-preview__label" [attr.x]="node.x" [attr.y]="node.y + node.radius + 17"
+                  text-anchor="middle">
+                  {{ node.label }}
+                </text>
+                }
+              </g>
+              }
+            </g>
+          </svg>
+
+          <span class="graph-modal__sample-badge">
+            Muestra: {{ selected.graph.sampledNodes }} de
+            {{ selected.graph.totalNodes | number:'1.0-0' }} nodos
+          </span>
+        </section>
+
+        <section class="graph-modal__details">
+          <article class="graph-modal__summary">
+            <h3>Qué representa esta muestra</h3>
+            <p>{{ selected.graph.summary }}</p>
+
+            <div class="graph-modal__strategy">
+              <i class="fa-solid fa-filter-circle-dollar"></i>
+              <div>
+                <strong>Criterio de selección</strong>
+                <span>{{ selected.graph.samplingStrategy }}</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="graph-modal__breakdown">
+            <h3>Tipos de entidad</h3>
+            <div class="graph-modal__category-list">
+              @for (category of selected.graph.categories; track category.label) {
+              <div>
+                <span class="graph-modal__category-dot"
+                  [class.graph-modal__category-dot--person]="category.tone === 'person'"
+                  [class.graph-modal__category-dot--vehicle]="category.tone === 'vehicle'"
+                  [class.graph-modal__category-dot--weapon]="category.tone === 'weapon'"
+                  [class.graph-modal__category-dot--organization]="category.tone === 'organization'"
+                  [class.graph-modal__category-dot--location]="category.tone === 'location'"
+                  [class.graph-modal__category-dot--event]="category.tone === 'event'">
+                </span>
+                <span>{{ category.label }}</span>
+                <strong>{{ category.count | number:'1.0-0' }}</strong>
+              </div>
+              }
+            </div>
+          </article>
+
+          <article class="graph-modal__breakdown">
+            <h3>Relaciones predominantes</h3>
+            <div class="graph-modal__relationship-list">
+              @for (relationship of selected.graph.relationships; track relationship.label) {
+              <div>
+                <span>{{ relationship.label }}</span>
+                <strong>{{ relationship.count | number:'1.0-0' }}</strong>
+              </div>
+              }
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <footer class="graph-modal__footer">
+        <span>
+          El grafo completo se consulta sólo al abrir la investigación.
+        </span>
+
+        <div>
+          <button type="button" class="graph-modal__secondary" (click)="closeGraphPreview()">
+            Cerrar
+          </button>
+
+          <a class="graph-modal__primary" [routerLink]="routes.graph" [queryParams]="{ investigationId: selected.id }">
+            Abrir grafo completo
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </a>
+        </div>
+      </footer>
+    </section>
+  </div>
+  }
+
+</section>

@@ -436,6 +436,12 @@ export class SearchPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set('bookmarks');
   }
 
+  goToInvestigationLines(): void {
+    this.closeProfile();
+    this.activeSidebarPanel.set(null);
+    void this.router.navigateByUrl('/lineas-investigacion');
+  }
+
   closeSidebarPanel(): void {
     this.activeSidebarPanel.set(null);
   }
