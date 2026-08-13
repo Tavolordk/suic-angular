@@ -109,6 +109,15 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly selectedEntity = signal<SearchEntity>('personas');
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
+  readonly searchTipIndex = signal(0);
+  readonly searchTips = [
+    'Consultando coincidencias en las fuentes disponibles.',
+    'Al finalizar podrás abrir un resultado para revisar su perfil y vínculos.',
+    'Si alguna fuente responde de forma parcial, el estado se mostrará junto al total de resultados.'
+  ] as const;
+  readonly activeSearchTip = computed(
+    () => this.searchTips[this.searchTipIndex() % this.searchTips.length]
+  );
   readonly searchAttempted = signal(false);
   readonly hasSearched = signal(Boolean(this.restoredPage));
   readonly searchPanelExpanded = signal(
@@ -236,6 +245,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.mapResults(this.restoredPage?.items ?? [])
   );
   private clockInterval?: ReturnType<typeof setInterval>;
+  private searchTipInterval?: ReturnType<typeof setInterval>;
 
   readonly activeForm = computed<FormGroup>(() => {
     switch (this.selectedEntity()) {
@@ -287,6 +297,8 @@ export class SearchPage implements OnInit, OnDestroy {
     if (this.clockInterval) {
       clearInterval(this.clockInterval);
     }
+
+    this.stopSearchTipRotation();
   }
 
   selectEntity(entity: SearchEntity): void {
@@ -353,14 +365,14 @@ export class SearchPage implements OnInit, OnDestroy {
     this.profileOpen.set(false);
     this.errorMessage.set(null);
     this.hasSearched.set(false);
-    this.isSearching.set(true);
+    this.beginSearching();
     this.results.set([]);
     this.totalResultsCount.set(0);
     this.currentPage.set(1);
 
     this.searchApi
       .executeSearch(request, this.pageSize())
-      .pipe(finalize(() => this.isSearching.set(false)))
+      .pipe(finalize(() => this.endSearching()))
       .subscribe({
         next: (page) => {
           this.applyPage(page);
@@ -402,6 +414,13 @@ export class SearchPage implements OnInit, OnDestroy {
   nextPage(): void {
     if (this.hasNextPage()) {
       this.loadPage(this.currentPage() + 1);
+    }
+  }
+
+  lastPage(): void {
+    const lastPageNumber = this.totalPages();
+    if (lastPageNumber > 0 && this.currentPage() < lastPageNumber) {
+      this.loadPage(lastPageNumber);
     }
   }
 
@@ -545,6 +564,34 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
+  private beginSearching(): void {
+    this.isSearching.set(true);
+    this.searchTipIndex.set(0);
+    this.stopSearchTipRotation();
+
+    if (!this.isBrowser || this.searchTips.length <= 1) {
+      return;
+    }
+
+    this.searchTipInterval = setInterval(() => {
+      this.searchTipIndex.update(
+        (index) => (index + 1) % this.searchTips.length
+      );
+    }, 3200);
+  }
+
+  private endSearching(): void {
+    this.isSearching.set(false);
+    this.stopSearchTipRotation();
+  }
+
+  private stopSearchTipRotation(): void {
+    if (this.searchTipInterval) {
+      clearInterval(this.searchTipInterval);
+      this.searchTipInterval = undefined;
+    }
+  }
+
   private loadPage(pageNumber: number): void {
     const currentSearchId = this.searchId();
     if (!currentSearchId || this.isSearching()) {
@@ -552,11 +599,11 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     this.errorMessage.set(null);
-    this.isSearching.set(true);
+    this.beginSearching();
 
     this.searchApi
       .getResults(currentSearchId, pageNumber, this.pageSize())
-      .pipe(finalize(() => this.isSearching.set(false)))
+      .pipe(finalize(() => this.endSearching()))
       .subscribe({
         next: (page) => {
           this.applyPage(page);
@@ -604,8 +651,13 @@ export class SearchPage implements OnInit, OnDestroy {
     const totals = new Map<ResultTagType, number>();
 
     for (const link of item.links ?? []) {
+      const count = Math.max(link.count, 0);
+      if (count === 0) {
+        continue;
+      }
+
       const type = this.resolveTagType(link.entityType);
-      totals.set(type, (totals.get(type) ?? 0) + Math.max(link.count, 0));
+      totals.set(type, (totals.get(type) ?? 0) + count);
     }
 
     return Array.from(totals, ([type, count]) => ({ type, count }));
@@ -627,6 +679,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   private resetResultState(): void {
+    this.stopSearchTipRotation();
     this.hasSearched.set(false);
     this.isSearching.set(false);
     this.errorMessage.set(null);

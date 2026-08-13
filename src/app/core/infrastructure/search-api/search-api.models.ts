@@ -120,6 +120,12 @@ export interface SearchResultLinkItemDto {
   linkId: string;
   status?: string | null;
   relationshipCode?: string | null;
+  // Compatibilidad con motores que exponen la placa a nivel del vínculo
+  // en lugar de incluirla dentro de identifiers/attributes.
+  placa?: string | null;
+  plate?: string | null;
+  licensePlate?: string | null;
+  plateNumber?: string | null;
   identifiers?: SearchResultEvidenceDto[] | null;
   attributes?: SearchResultEvidenceDto[] | null;
   origins?: SearchResultLinkOriginDto[] | null;

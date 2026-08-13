@@ -382,16 +382,22 @@
                 </form>
             </section>
 
-            <section class="search-loading-panel" *ngIf="canShowSearching()">
+            <section class="search-loading-modal" *ngIf="canShowSearching()" role="dialog" aria-modal="true"
+                aria-labelledby="search-loading-title" aria-describedby="search-loading-message">
                 <div class="search-loading-card">
+                    <span class="search-loading-card__eyebrow">Consulta en proceso</span>
+
                     <div class="search-loading-dots" aria-hidden="true">
                         <span class="search-dot"></span>
                         <span class="search-dot"></span>
                         <span class="search-dot"></span>
                     </div>
 
-                    <h2>Buscando resultados</h2>
-                    <p>Esto puede tardar unos segundos</p>
+                    <h2 id="search-loading-title">Buscando resultados</h2>
+                    <p id="search-loading-message" class="search-loading-card__message" aria-live="polite">
+                        {{ activeSearchTip() }}
+                    </p>
+                    <small>La consulta continuará automáticamente; no es necesario volver a presionar Buscar.</small>
                 </div>
             </section>
 
@@ -427,6 +433,17 @@
                     </p>
 
                     <div class="search-results__actions">
+                        <!-- UI preparada para integrar el servicio de reporte cuando esté disponible. -->
+                        <button type="button" class="search-report-button" title="Generar reporte de búsqueda">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M6 2h9l3 3v17H6V2z" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linejoin="round"></path>
+                                <path d="M15 2v4h4M9 11h6M9 15h6M9 19h4" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round"></path>
+                            </svg>
+                            Generar reporte
+                        </button>
+
                         <div class="search-page-size">
                             <button type="button" title="Mostrar 10 resultados por página"
                                 [class.search-page-size__button--active]="pageSize() === 10" (click)="setPageSize(10)">
@@ -486,7 +503,7 @@
                         [style.animation-delay.ms]="i * 35" title="Abrir detalle del perfil" tabindex="0"
                         (click)="openResultDetail(result)" (keydown.enter)="openResultDetail(result)">
                         <div class="search-result-card__header">
-                            <div class="search-result-card__tags">
+                            <div class="search-result-card__tags" *ngIf="result.tags.length > 0">
                                 <div *ngFor="let tag of result.tags" class="search-result-tag"
                                     [ngClass]="getTagClass(tag)" [title]="getTagLabel(tag) + ': ' + tag.count">
                                     <button type="button" class="search-result-tag__icon">
@@ -585,6 +602,12 @@
                     <button type="button" (click)="nextPage()"
                         [disabled]="!hasNextPage() || canShowSearching()">
                         Siguiente
+                    </button>
+
+                    <button type="button" (click)="lastPage()"
+                        [disabled]="currentPage() >= totalPages() || canShowSearching()"
+                        title="Ir a la última página">
+                        Última
                     </button>
                 </nav>
             </section>

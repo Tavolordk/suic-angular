@@ -54,15 +54,26 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   ESTADOCIVIL: 'Estado civil',
   DOMICILIO: 'Domicilio',
   DIRECCION: 'Dirección',
+  DIRECCIONCOMPLETA: 'Dirección',
+  FULLADDRESS: 'Dirección',
   CALLE: 'Calle',
+  VIALIDAD: 'Calle',
   NUMEROEXTERIOR: 'Número exterior',
+  NUMEXT: 'Número exterior',
+  NOEXTERIOR: 'Número exterior',
   NUMEROINTERIOR: 'Número interior',
+  NUMINT: 'Número interior',
+  NOINTERIOR: 'Número interior',
   COLONIA: 'Colonia',
+  ASENTAMIENTO: 'Asentamiento',
+  LOCALIDAD: 'Localidad',
   MUNICIPIO: 'Municipio',
   ALCALDIA: 'Alcaldía',
+  DELEGACION: 'Alcaldía',
   ENTIDAD: 'Entidad',
   ESTADO: 'Estado',
   CODIGOPOSTAL: 'Código postal',
+  CP: 'Código postal',
   TELEFONO: 'Teléfono',
   CELULAR: 'Celular',
   CORREO: 'Correo electrónico',
@@ -70,6 +81,11 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   NIV: 'NIV',
   VIN: 'NIV',
   PLACA: 'Placa',
+  PLACAS: 'Placa',
+  PLATE: 'Placa',
+  PLATENUMBER: 'Placa',
+  LICENSEPLATE: 'Placa',
+  VEHICLEPLATE: 'Placa',
   NUMEROMOTOR: 'Número de motor',
   NOMOTOR: 'Número de motor',
   MARCA: 'Marca',
@@ -437,7 +453,7 @@ function mapLinkGroup(
   const entityType = group.entityType?.trim() || 'Relacionado';
   const kind = resolveLinkKind(entityType);
   const items = (group.items ?? [])
-    .map((item, itemIndex) => mapLinkItem(item, index, itemIndex))
+    .map((item, itemIndex) => mapLinkItem(item, index, itemIndex, kind))
     .filter((item) => item.fields.length > 0 || item.sources.length > 0);
 
   // El número mostrado en el chip sale de linkGroups[].count.
@@ -459,7 +475,8 @@ function mapLinkGroup(
 function mapLinkItem(
   item: SearchResultLinkItemDto,
   groupIndex: number,
-  itemIndex: number
+  itemIndex: number,
+  kind: ProfileLinkKind
 ): ProfileLinkItemViewModel {
   const fields: ProfileLinkFieldViewModel[] = [];
   const evidence = [
@@ -481,6 +498,17 @@ function mapLinkItem(
       value: formatEvidenceValue(normalizeCode(rawCode), rawValue)
     });
   });
+
+  if (kind === 'vehicle' && !fields.some((field) => normalizeCode(field.label) === 'PLACA')) {
+    const plate = resolveTopLevelVehiclePlate(item);
+    if (plate) {
+      fields.push({
+        id: `link-${groupIndex}-${itemIndex}-plate`,
+        label: 'Placa',
+        value: plate
+      });
+    }
+  }
 
   const status = item.status?.trim();
   if (status) {
@@ -505,6 +533,68 @@ function mapLinkItem(
     fields: deduplicateLinkFields(fields),
     sources: mapLinkSources(item, groupIndex, itemIndex)
   };
+}
+
+function resolveTopLevelVehiclePlate(item: SearchResultLinkItemDto): string {
+  const values = [item.placa, item.plate, item.licensePlate, item.plateNumber];
+  const directValue = values.find((value) => value?.trim())?.trim();
+  if (directValue) {
+    return directValue;
+  }
+
+  // Respaldo para variaciones del JSON del motor, por ejemplo:
+  // { vehicle: { licensePlate: 'ABC-123-A' } }.
+  return findVehiclePlateInObject(item);
+}
+
+function findVehiclePlateInObject(value: unknown, visited = new Set<object>()): string {
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+
+  const objectValue = value as Record<string, unknown>;
+  if (visited.has(objectValue)) {
+    return '';
+  }
+  visited.add(objectValue);
+
+  const plateKeys = new Set([
+    'PLACA',
+    'PLACAS',
+    'PLATE',
+    'PLATENUMBER',
+    'LICENSEPLATE',
+    'VEHICLEPLATE'
+  ]);
+
+  for (const [key, nestedValue] of Object.entries(objectValue)) {
+    if (
+      plateKeys.has(normalizeCode(key)) &&
+      typeof nestedValue === 'string' &&
+      nestedValue.trim()
+    ) {
+      return nestedValue.trim();
+    }
+  }
+
+  for (const nestedValue of Object.values(objectValue)) {
+    if (Array.isArray(nestedValue)) {
+      for (const item of nestedValue) {
+        const nestedPlate = findVehiclePlateInObject(item, visited);
+        if (nestedPlate) {
+          return nestedPlate;
+        }
+      }
+      continue;
+    }
+
+    const nestedPlate = findVehiclePlateInObject(nestedValue, visited);
+    if (nestedPlate) {
+      return nestedPlate;
+    }
+  }
+
+  return '';
 }
 
 function mapLinkSources(

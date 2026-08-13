@@ -1934,3 +1934,90 @@
     flex-basis: 32px;
   }
 }
+
+
+/* Bloque de direcciones separado del detalle de datos personales */
+.address-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.address-list__item {
+  overflow: hidden;
+  border: 1px solid rgba(22, 59, 92, 0.12);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.address-list__item > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(22, 59, 92, 0.08);
+}
+
+.address-list__item > header div {
+  min-width: 0;
+}
+
+.address-list__item > header strong,
+.address-list__item > header small {
+  display: block;
+}
+
+.address-list__item > header strong {
+  color: #162836;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.address-list__item > header small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: rgba(22, 40, 54, 0.54);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.address-list__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  padding: 10px 12px 12px;
+}
+
+.address-list__fields > div {
+  min-width: 0;
+}
+
+.address-list__fields span,
+.address-list__fields strong {
+  display: block;
+}
+
+.address-list__fields span {
+  color: rgba(22, 40, 54, 0.52);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.address-list__fields strong {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #162836;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 720px) {
+  .address-list__fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -438,10 +438,10 @@
                                 <i class="fa-solid fa-chevron-up"></i>
                             </button>
 
-                            @if (selectedFields().length === 0) {
+                            @if (selectedPersonalFields().length === 0) {
                             <div class="accordion-card__empty">
-                                <i class="fa-solid fa-spinner"></i>
-                                Sin campos seleccionados
+                                <i class="fa-solid fa-circle-info"></i>
+                                Sin datos personales seleccionados
                             </div>
                             } @else {
                             <div class="selected-fields-carousel">
@@ -474,6 +474,50 @@
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                 </nav>
+                                }
+                            </div>
+                            }
+                        </section>
+
+                        <section class="accordion-card accordion-card--open">
+                            <button type="button" class="accordion-card__button">
+                                <span>
+                                    <i class="fa-solid fa-location-dot"></i>
+                                    Direcciones
+                                </span>
+
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+
+                            @if (selectedAddresses().length === 0) {
+                            <div class="accordion-card__empty">
+                                <i class="fa-solid fa-circle-info"></i>
+                                Sin direcciones seleccionadas
+                            </div>
+                            } @else {
+                            <div class="address-list">
+                                @for (address of selectedAddresses(); track address.id) {
+                                <article class="address-list__item">
+                                    <header>
+                                        <div>
+                                            <strong>{{ address.title }}</strong>
+                                            <small>{{ address.sourceTitle }}</small>
+                                        </div>
+                                        <span class="selected-field__source-avatar" [style.background]="address.sourceColor"
+                                            [title]="address.sourceTitle">
+                                            {{ address.sourceCode }}
+                                        </span>
+                                    </header>
+
+                                    <div class="address-list__fields">
+                                        @for (field of address.fields; track field.sourceTitle + field.id) {
+                                        <div>
+                                            <span>{{ field.label }}</span>
+                                            <strong [title]="field.value">{{ field.value }}</strong>
+                                        </div>
+                                        }
+                                    </div>
+                                </article>
                                 }
                             </div>
                             }

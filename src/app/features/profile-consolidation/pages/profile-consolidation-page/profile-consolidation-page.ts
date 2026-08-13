@@ -40,6 +40,49 @@ const CONSOLIDATED_FIELDS_PER_PAGE = 3;
 const PHOTOS_PER_PAGE = 3;
 const LINK_ITEMS_PER_PAGE = 2;
 
+interface ConsolidatedAddressViewModel {
+  id: string;
+  title: string;
+  sourceCode: string;
+  sourceTitle: string;
+  sourceColor: string;
+  fields: SelectedProfileFieldViewModel[];
+}
+
+const ADDRESS_FIELD_CODES = new Set([
+  'DOMICILIO',
+  'DIRECCION',
+  'ADDRESS',
+  'FULLADDRESS',
+  'DIRECCIONCOMPLETA',
+  'CALLE',
+  'STREET',
+  'VIALIDAD',
+  'NUMEROEXTERIOR',
+  'EXTERIORNUMBER',
+  'NUMEXT',
+  'NOEXTERIOR',
+  'NUMEROINTERIOR',
+  'INTERIORNUMBER',
+  'NUMINT',
+  'NOINTERIOR',
+  'COLONIA',
+  'ASENTAMIENTO',
+  'LOCALIDAD',
+  'MUNICIPIO',
+  'CITY',
+  'ALCALDIA',
+  'DELEGACION',
+  'ENTIDAD',
+  'ESTADO',
+  'COUNTRY',
+  'PAIS',
+  'CODIGOPOSTAL',
+  'CP',
+  'ZIPCODE',
+  'POSTALCODE'
+]);
+
 @Component({
   selector: 'app-profile-consolidation-page',
   standalone: true,
@@ -149,6 +192,18 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     )
   );
 
+  readonly selectedPersonalFields = computed(() =>
+    this.selectedFields().filter((field) => !isAddressField(field))
+  );
+
+  readonly selectedAddressFields = computed(() =>
+    this.selectedFields().filter(isAddressField)
+  );
+
+  readonly selectedAddresses = computed<ConsolidatedAddressViewModel[]>(() =>
+    buildAddressGroups(this.selectedAddressFields())
+  );
+
   readonly totalAvailable = computed(() =>
     this.sources().reduce((total, source) => total + source.fields.length, 0)
   );
@@ -234,7 +289,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly consolidatedFieldPages = computed(() =>
-    chunkItems(this.selectedFields(), CONSOLIDATED_FIELDS_PER_PAGE)
+    chunkItems(this.selectedPersonalFields(), CONSOLIDATED_FIELDS_PER_PAGE)
   );
   readonly consolidatedFieldPageCount = computed(
     () => this.consolidatedFieldPages().length
@@ -742,6 +797,55 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
     return null;
   }
+}
+
+function isAddressField(field: SelectedProfileFieldViewModel): boolean {
+  const normalized = normalizeFieldCode(field.code);
+  return ADDRESS_FIELD_CODES.has(normalized);
+}
+
+function normalizeFieldCode(value: string): string {
+  const leaf = value
+    .replace(/\[(?:'|")?([^'"\]]+)(?:'|")?\]/g, '.$1')
+    .split(/[./\\:]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .at(-1) ?? value;
+
+  return leaf
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase();
+}
+
+function buildAddressGroups(
+  fields: readonly SelectedProfileFieldViewModel[]
+): ConsolidatedAddressViewModel[] {
+  const groups = new Map<string, ConsolidatedAddressViewModel>();
+
+  fields.forEach((field) => {
+    const recordMatch = / · Registro (\d+)$/i.exec(field.label);
+    const recordNumber = recordMatch?.[1] ?? '1';
+    const key = `${field.sourceId}|${recordNumber}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.fields.push(field);
+      return;
+    }
+
+    groups.set(key, {
+      id: key,
+      title: `Dirección ${groups.size + 1}`,
+      sourceCode: field.sourceCode,
+      sourceTitle: field.sourceTitle,
+      sourceColor: field.sourceColor,
+      fields: [field]
+    });
+  });
+
+  return Array.from(groups.values());
 }
 
 function chunkItems<T>(items: readonly T[], pageSize: number): T[][] {

@@ -418,4 +418,27 @@ describe('mapSearchResultDetail', () => {
     ]);
   });
 
+  it('acepta la placa del vehículo aunque el motor la envíe a nivel del vínculo', () => {
+    const detail = createDetail();
+    const vehicleItem = detail.linkGroups?.[0]?.items?.[0];
+
+    if (!vehicleItem) {
+      throw new Error('No se encontró el vínculo de vehículo de prueba');
+    }
+
+    vehicleItem.attributes = (vehicleItem.attributes ?? []).filter(
+      (field) => field.code !== 'vehicle.placa'
+    );
+    vehicleItem.licensePlate = 'ABC-123-A';
+
+    const result = mapSearchResultDetail(detail);
+    const vehicle = result.links.find((link) => link.kind === 'vehicle');
+
+    expect(vehicle?.items[0].fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Placa', value: 'ABC-123-A' })
+      ])
+    );
+  });
+
 });
