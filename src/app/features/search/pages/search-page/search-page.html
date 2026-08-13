@@ -433,6 +433,32 @@
                     </p>
 
                     <div class="search-results__actions">
+                        <div class="search-link-filter" role="group" aria-label="Filtrar resultados por vínculos">
+                            <button type="button"
+                                [class.search-link-filter__button--active]="linkFilter() === 'all'"
+                                [attr.aria-pressed]="linkFilter() === 'all'"
+                                (click)="setLinkFilter('all')">
+                                Todos
+                                <span>{{ pageResultsCount() }}</span>
+                            </button>
+
+                            <button type="button"
+                                [class.search-link-filter__button--active]="linkFilter() === 'linked'"
+                                [attr.aria-pressed]="linkFilter() === 'linked'"
+                                (click)="setLinkFilter('linked')">
+                                Vinculados
+                                <span>{{ linkedResultsOnPage() }}</span>
+                            </button>
+
+                            <button type="button"
+                                [class.search-link-filter__button--active]="linkFilter() === 'unlinked'"
+                                [attr.aria-pressed]="linkFilter() === 'unlinked'"
+                                (click)="setLinkFilter('unlinked')">
+                                Sin vínculos
+                                <span>{{ unlinkedResultsOnPage() }}</span>
+                            </button>
+                        </div>
+
                         <!-- UI preparada para integrar el servicio de reporte cuando esté disponible. -->
                         <button type="button" class="search-report-button" title="Generar reporte de búsqueda">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -535,6 +561,16 @@
                                 </div>
                             </div>
 
+                            <div class="search-result-unlinked" *ngIf="result.tags.length === 0"
+                                title="Este resultado no tiene información vinculada">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M9.5 14.5l5-5M7.2 17.8l-1 1a3 3 0 0 1-4.2-4.2l3-3a3 3 0 0 1 4.2 0M16.8 6.2l1-1A3 3 0 0 1 22 9.4l-3 3a3 3 0 0 1-4.2 0M4 4l16 16"
+                                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                                        stroke-linejoin="round"></path>
+                                </svg>
+                                <span>Sin vínculos</span>
+                            </div>
+
                             <button type="button" class="search-result-card__save"
                                 [class.search-result-card__save--active]="result.saved"
                                 [title]="result.saved ? 'Quitar de guardados' : 'Guardar'"
@@ -591,24 +627,61 @@
                     </article>
                 </div>
 
+                <div class="search-results__filtered-empty" *ngIf="visibleResults().length === 0">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M4 5h16M7 12h10M10 19h4" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round"></path>
+                    </svg>
+                    <div>
+                        <strong>No hay resultados para este filtro en la página {{ currentPage() }}</strong>
+                        <span>Puedes cambiar el filtro o navegar a otra página.</span>
+                    </div>
+                </div>
+
+                <div class="search-results__filter-scope" *ngIf="linkFilter() !== 'all'">
+                    El filtro de vínculos se aplica a los {{ pageResultsCount() }} resultados cargados en esta página.
+                </div>
+
                 <nav class="search-pagination" *ngIf="totalPages() > 1" aria-label="Paginación de resultados">
-                    <button type="button" (click)="previousPage()"
-                        [disabled]="!hasPreviousPage() || canShowSearching()">
-                        Anterior
-                    </button>
+                    <div class="search-pagination__navigation">
+                        <button type="button" class="search-pagination__text-button" (click)="firstPage()"
+                            [disabled]="currentPage() <= 1 || canShowSearching()" title="Ir a la primera página">
+                            Primera
+                        </button>
 
-                    <span>Página {{ currentPage() }} de {{ totalPages() }}</span>
+                        <button type="button" class="search-pagination__text-button" (click)="previousPage()"
+                            [disabled]="!hasPreviousPage() || canShowSearching()">
+                            Anterior
+                        </button>
 
-                    <button type="button" (click)="nextPage()"
-                        [disabled]="!hasNextPage() || canShowSearching()">
-                        Siguiente
-                    </button>
+                        <div class="search-pagination__pages" aria-label="Páginas disponibles">
+                            <ng-container *ngFor="let pageItem of paginationItems()">
+                                <span class="search-pagination__ellipsis" *ngIf="pageItem === 'ellipsis'; else pageNumber">…</span>
+                                <ng-template #pageNumber>
+                                    <button type="button" class="search-pagination__page-button"
+                                        [class.search-pagination__page-button--active]="pageItem === currentPage()"
+                                        [attr.aria-current]="pageItem === currentPage() ? 'page' : null"
+                                        [disabled]="pageItem === currentPage() || canShowSearching()"
+                                        (click)="goToPage($any(pageItem))">
+                                        {{ pageItem }}
+                                    </button>
+                                </ng-template>
+                            </ng-container>
+                        </div>
 
-                    <button type="button" (click)="lastPage()"
-                        [disabled]="currentPage() >= totalPages() || canShowSearching()"
-                        title="Ir a la última página">
-                        Última
-                    </button>
+                        <button type="button" class="search-pagination__text-button" (click)="nextPage()"
+                            [disabled]="!hasNextPage() || canShowSearching()">
+                            Siguiente
+                        </button>
+
+                        <button type="button" class="search-pagination__text-button" (click)="lastPage()"
+                            [disabled]="currentPage() >= totalPages() || canShowSearching()"
+                            title="Ir a la última página">
+                            Última
+                        </button>
+                    </div>
+
+                    <span class="search-pagination__summary">Página {{ currentPage() }} de {{ totalPages() }}</span>
                 </nav>
             </section>
         </main>

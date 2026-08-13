@@ -41,6 +41,8 @@ type PageSize = 10 | 18;
 type ResultTagType = 'personas' | 'vehiculo' | 'armas';
 type SidebarPanel = 'history' | 'bookmarks' | null;
 type QuickSearchIcon = 'person' | 'curp';
+type LinkFilter = 'all' | 'linked' | 'unlinked';
+type PaginationItem = number | 'ellipsis';
 type UppercasePersonField =
   | 'nombres'
   | 'apellidoPaterno'
@@ -125,6 +127,7 @@ export class SearchPage implements OnInit, OnDestroy {
   );
   readonly errorMessage = signal<string | null>(null);
   readonly pageSize = signal<PageSize>(this.searchState.pageSize());
+  readonly linkFilter = signal<LinkFilter>('all');
   readonly searchId = signal<string | null>(this.restoredPage?.searchId ?? null);
   readonly currentPage = signal(this.restoredPage?.pagination.page ?? 1);
   readonly totalPages = signal(this.restoredPage?.pagination.totalPages ?? 0);
@@ -258,8 +261,60 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   });
 
-  readonly visibleResults = computed(() => this.results());
+  readonly pageResultsCount = computed(() => this.results().length);
+  readonly linkedResultsOnPage = computed(
+    () => this.results().filter((result) => result.tags.length > 0).length
+  );
+  readonly unlinkedResultsOnPage = computed(
+    () => this.results().length - this.linkedResultsOnPage()
+  );
+  readonly visibleResults = computed(() => {
+    const filter = this.linkFilter();
+    if (filter === 'linked') {
+      return this.results().filter((result) => result.tags.length > 0);
+    }
+    if (filter === 'unlinked') {
+      return this.results().filter((result) => result.tags.length === 0);
+    }
+    return this.results();
+  });
   readonly totalResults = computed(() => this.totalResultsCount());
+  readonly paginationItems = computed<PaginationItem[]>(() => {
+    const total = this.totalPages();
+    const current = this.currentPage();
+
+    if (total <= 1) {
+      return [];
+    }
+
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, index) => index + 1);
+    }
+
+    const pages = new Set<number>([
+      1,
+      total,
+      Math.ceil(total / 2),
+      current - 1,
+      current,
+      current + 1
+    ]);
+
+    const ordered = Array.from(pages)
+      .filter((page) => page >= 1 && page <= total)
+      .sort((a, b) => a - b);
+
+    const items: PaginationItem[] = [];
+    ordered.forEach((page, index) => {
+      const previous = ordered[index - 1];
+      if (index > 0 && page - previous > 1) {
+        items.push('ellipsis');
+      }
+      items.push(page);
+    });
+
+    return items;
+  });
 
   readonly canShowEmptyStates = computed(
     () => !this.hasSearched() && !this.isSearching() && !this.errorMessage()
@@ -363,6 +418,7 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     this.profileOpen.set(false);
+    this.linkFilter.set('all');
     this.errorMessage.set(null);
     this.hasSearched.set(false);
     this.beginSearching();
@@ -405,6 +461,27 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
+  setLinkFilter(filter: LinkFilter): void {
+    this.linkFilter.set(filter);
+  }
+
+  goToPage(pageNumber: number): void {
+    if (
+      pageNumber < 1 ||
+      pageNumber > this.totalPages() ||
+      pageNumber === this.currentPage() ||
+      this.isSearching()
+    ) {
+      return;
+    }
+
+    this.loadPage(pageNumber);
+  }
+
+  firstPage(): void {
+    this.goToPage(1);
+  }
+
   previousPage(): void {
     if (this.hasPreviousPage()) {
       this.loadPage(this.currentPage() - 1);
@@ -418,10 +495,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   lastPage(): void {
-    const lastPageNumber = this.totalPages();
-    if (lastPageNumber > 0 && this.currentPage() < lastPageNumber) {
-      this.loadPage(lastPageNumber);
-    }
+    this.goToPage(this.totalPages());
   }
 
   toggleProfile(): void {
@@ -685,6 +759,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.errorMessage.set(null);
     this.searchId.set(null);
     this.results.set([]);
+    this.linkFilter.set('all');
     this.totalResultsCount.set(0);
     this.currentPage.set(1);
     this.totalPages.set(0);
