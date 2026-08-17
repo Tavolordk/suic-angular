@@ -4,25 +4,32 @@ import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { AuthStorage } from '../auth/auth.storage';
 
+/**
+ * Agrega el access token a todas las peticiones protegidas.
+ *
+ * Según el swagger de Spm.Api la seguridad global es `Bearer`, y solo se declaran
+ * públicos (`security: []`) los endpoints de CAPTCHA, el reto MFA, la verificación
+ * MFA y el refresh de tokens. Todo lo demás —incluyendo POST /api/v1/auth/sessions/logout
+ * y los endpoints de /api/search— viaja con `Authorization: Bearer <accessToken>`.
+ */
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
     const authStorage = inject(AuthStorage);
     const authService = inject(AuthService);
     const session = authStorage.session();
-    const token = session?.accessToken;
+    const token = session?.accessToken?.trim();
+    const tokenType = session?.tokenType?.trim() || 'Bearer';
+    const publicAuthenticationRequest = isPublicAuthenticationRequest(
+        request.url,
+        request.method
+    );
     const sessionManagementRequest = isSessionManagementRequest(request.url);
-    const refreshTokenRequest = isRefreshTokenRequest(request.url, request.method);
 
     const headers: Record<string, string> = {
         'X-Trace-Id': createTraceId()
     };
 
-    // El endpoint PATCH /api/auth/tokens se autentica con el refreshToken del body.
-    // No enviamos además el access token, para que un Bearer próximo a vencer no
-    // interfiera con una renovación válida.
-    // Tampoco se sobrescribe una cabecera Authorization que el servicio llamador
-    // ya haya construido (p. ej. SearchApiService).
-    if (token && !refreshTokenRequest && !request.headers.has('Authorization')) {
-        headers['Authorization'] = `${session?.tokenType || 'Bearer'} ${token}`;
+    if (token && !publicAuthenticationRequest) {
+        headers['Authorization'] = `${tokenType} ${token}`;
     }
 
     if (token && !sessionManagementRequest) {
@@ -49,16 +56,32 @@ function isSessionRejectedError(error: unknown): boolean {
 }
 
 function isSessionManagementRequest(url: string): boolean {
-    return url.includes('/api/auth/');
+    return url.includes('/api/v1/auth/');
 }
 
-function isRefreshTokenRequest(url: string, method: string): boolean {
-    if (method.toUpperCase() !== 'PATCH') {
+/**
+ * Endpoints declarados sin seguridad en el swagger. El refresh entra aquí porque
+ * se autentica con el refreshToken del cuerpo: mandarle un access token vencido
+ * provocaría un 401 antes de poder renovar la sesión.
+ */
+function isPublicAuthenticationRequest(url: string, method: string): boolean {
+    if (method.toUpperCase() !== 'POST') {
         return false;
     }
 
-    const cleanUrl = url.split('?')[0].replace(/\/+$/, '');
-    return cleanUrl.endsWith('/api/auth/tokens');
+    const cleanUrl = normalizeUrl(url);
+
+    return (
+        cleanUrl.endsWith('/api/v1/auth/captcha/challenges') ||
+        cleanUrl.includes('/api/v1/auth/captcha/challenges/') ||
+        cleanUrl.endsWith('/api/v1/auth/mfa/challenges') ||
+        cleanUrl.endsWith('/api/v1/auth/mfa/verification') ||
+        cleanUrl.endsWith('/api/v1/auth/tokens/refresh')
+    );
+}
+
+function normalizeUrl(url: string): string {
+    return url.split('?')[0].replace(/\/+$/, '');
 }
 
 function createTraceId(): string {

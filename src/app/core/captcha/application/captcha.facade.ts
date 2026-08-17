@@ -7,15 +7,11 @@ import {
     PLATFORM_ID,
     signal
 } from '@angular/core';
-import { catchError, finalize, map, Observable, tap, throwError } from 'rxjs';
-import {
-    CaptchaChallenge,
-    CaptchaGenerationOptions,
-    CaptchaVerification
-} from '../domain/captcha.model';
+import { finalize } from 'rxjs';
+import { CaptchaChallenge, CaptchaGenerationOptions } from '../domain/captcha.model';
 import { CaptchaRepository } from '../domain/captcha.repository';
 
-export const CAPTCHA_LENGTH = 7;
+export const CAPTCHA_LENGTH = 5;
 
 @Injectable({ providedIn: 'root' })
 export class CaptchaFacade implements OnDestroy {
@@ -101,54 +97,6 @@ export class CaptchaFacade implements OnDestroy {
         this.challengeState.set(null);
         this.remainingSecondsState.set(0);
         this.errorState.set(null);
-    }
-
-    verifyAnswer(answer: string): Observable<CaptchaVerification> {
-        const challenge = this.challenge();
-        const normalizedAnswer = answer.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-        if (!challenge) {
-            return throwError(() => new Error('Primero genera un captcha válido.'));
-        }
-
-        if (this.isExpired()) {
-            this.refresh();
-            return throwError(
-                () => new Error('El captcha caducó. Generamos uno nuevo, inténtalo de nuevo.')
-            );
-        }
-
-        if (!new RegExp(`^[A-Z0-9]{${CAPTCHA_LENGTH}}$`).test(normalizedAnswer)) {
-            return throwError(
-                () =>
-                    new Error(
-                        `El captcha debe tener exactamente ${CAPTCHA_LENGTH} caracteres alfanuméricos.`
-                    )
-            );
-        }
-
-        this.verifyingState.set(true);
-        this.errorState.set(null);
-
-        return this.repository.verify({ id: challenge.id, answer: normalizedAnswer }).pipe(
-            map((verification) => {
-                if (!verification.ok) {
-                    throw new Error('El captcha no coincide. Intenta nuevamente.');
-                }
-
-                if (!verification.token) {
-                    throw new Error('El captcha fue validado, pero no se recibió token temporal.');
-                }
-
-                return verification;
-            }),
-            tap(() => this.errorState.set(null)),
-            catchError((error: Error) => {
-                this.errorState.set(error.message);
-                return throwError(() => error);
-            }),
-            finalize(() => this.verifyingState.set(false))
-        );
     }
 
     clearError(): void {

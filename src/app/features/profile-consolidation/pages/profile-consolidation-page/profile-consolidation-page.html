@@ -332,25 +332,32 @@
                         </section>
 
                         <section class="selection-counter">
-                            <span>{{ getSelectedSourceCount(source) }} de {{ source.fields.length }} campos</span>
+                            <span>
+                                {{ getRemainingSourceCount(source) }} pendientes de {{ source.fields.length }} campos
+                            </span>
 
-                            <button type="button" (click)="selectAll()">
-                                {{ getSelectedSourceCount(source) === source.fields.length && source.fields.length > 0
-                                ? 'Quitar selección'
-                                : 'Seleccionar todo' }}
+                            <button type="button" [disabled]="getRemainingSourceCount(source) === 0"
+                                (click)="selectAll()">
+                                {{ getRemainingSourceCount(source) === 0 ? 'Todo seleccionado' : 'Seleccionar todo' }}
                             </button>
                         </section>
 
                         <section class="selection-fields-carousel">
+                            @if (availableSourceFields().length === 0) {
+                            <div class="selection-fields-empty">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <div>
+                                    <strong>Todos los datos de esta fuente ya están en el perfil consolidado.</strong>
+                                    <span>Para regresarlos, usa la <b>×</b> del dato o el botón "Quitar todo".</span>
+                                </div>
+                            </div>
+                            } @else {
                             <div class="selection-fields profile-carousel__page">
                                 @for (field of visibleSourceFields(); track field.id) {
-                                <button type="button" class="field-row" [class.field-row--selected]="field.selected"
-                                    (click)="toggleField(field.id)">
-                                    <span class="field-row__checkbox"
-                                        [class.field-row__checkbox--selected]="field.selected">
-                                        @if (field.selected) {
-                                        <i class="fa-solid fa-check"></i>
-                                        }
+                                <button type="button" class="field-row" (click)="toggleField(field.id)"
+                                    [attr.aria-label]="'Agregar ' + field.label + ' al perfil consolidado'">
+                                    <span class="field-row__checkbox">
+                                        <i class="fa-solid fa-arrow-right"></i>
                                     </span>
 
                                     <strong>{{ field.label }}</strong>
@@ -360,7 +367,7 @@
                             </div>
 
                             @if (sourceFieldPageCount() > 1) {
-                            <nav class="profile-carousel__controls" aria-label="Páginas de información de la fuente">
+                            <nav class="profile-carousel__controls" aria-label="Páginas de información pendiente">
                                 <button type="button" aria-label="Información anterior"
                                     (click)="previousSourceFieldPage()">
                                     <i class="fa-solid fa-chevron-left"></i>
@@ -372,6 +379,7 @@
                                 </button>
                             </nav>
                             }
+                            }
                         </section>
 
                         <footer class="selection-info">
@@ -380,8 +388,8 @@
                             <div>
                                 <strong>Información</strong>
                                 <p>
-                                    Esta fuente tiene {{ source.fields.length }} campos disponibles.
-                                    Selecciona los datos que formarán parte del perfil consolidado.
+                                    Al seleccionar un dato se quitará de esta sección y pasará al Perfil consolidado.
+                                    Los datos que sigues viendo aquí son los que faltan por integrar.
                                 </p>
                             </div>
                         </footer>
@@ -396,7 +404,15 @@
                         <section class="consolidated-progress">
                             <div>
                                 <span>Datos completados</span>
-                                <strong>{{ completedLabel() }}</strong>
+
+                                <span class="consolidated-progress__actions">
+                                    <strong>{{ completedLabel() }}</strong>
+                                    <button type="button" class="consolidated-progress__clear"
+                                        [disabled]="totalSelected() === 0" (click)="clearAllSelected()">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                        Quitar todo
+                                    </button>
+                                </span>
                             </div>
 
                             <div class="progress-line">
@@ -457,6 +473,13 @@
                                             [style.background]="field.sourceColor" [title]="field.sourceTitle">
                                             {{ field.sourceCode }}
                                         </small>
+
+                                        <button type="button" class="selected-field__remove"
+                                            [attr.aria-label]="'Quitar ' + field.label + ' del perfil consolidado'"
+                                            title="Quitar y regresar a Selección de datos"
+                                            (click)="removeSelectedField(field.sourceId, field.id)">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
                                     </article>
                                     }
                                 </div>
@@ -495,29 +518,55 @@
                                 Sin direcciones seleccionadas
                             </div>
                             } @else {
-                            <div class="address-list">
-                                @for (address of selectedAddresses(); track address.id) {
-                                <article class="address-list__item">
-                                    <header>
-                                        <div>
-                                            <strong>{{ address.title }}</strong>
-                                            <small>{{ address.sourceTitle }}</small>
-                                        </div>
-                                        <span class="selected-field__source-avatar" [style.background]="address.sourceColor"
-                                            [title]="address.sourceTitle">
-                                            {{ address.sourceCode }}
-                                        </span>
-                                    </header>
+                            <div class="address-carousel">
+                                <div class="address-list profile-carousel__page">
+                                    @for (address of visibleAddresses(); track address.id) {
+                                    <article class="address-list__item">
+                                        <header>
+                                            <div>
+                                                <strong>{{ address.title }}</strong>
+                                                <small>{{ address.sourceTitle }}</small>
+                                            </div>
 
-                                    <div class="address-list__fields">
-                                        @for (field of address.fields; track field.sourceTitle + field.id) {
-                                        <div>
-                                            <span>{{ field.label }}</span>
-                                            <strong [title]="field.value">{{ field.value }}</strong>
+                                            <div class="address-list__actions">
+                                                <span class="selected-field__source-avatar"
+                                                    [style.background]="address.sourceColor" [title]="address.sourceTitle">
+                                                    {{ address.sourceCode }}
+                                                </span>
+                                                <button type="button" class="selected-field__remove"
+                                                    aria-label="Quitar dirección del perfil consolidado"
+                                                    title="Quitar dirección y regresarla a Selección de datos"
+                                                    (click)="removeAddress(address)">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </div>
+                                        </header>
+
+                                        <div class="address-list__fields">
+                                            @for (field of address.fields; track field.sourceTitle + field.id) {
+                                            <div>
+                                                <span>{{ field.label }}</span>
+                                                <strong [title]="field.value">{{ field.value }}</strong>
+                                            </div>
+                                            }
                                         </div>
-                                        }
-                                    </div>
-                                </article>
+                                    </article>
+                                    }
+                                </div>
+
+                                @if (addressPageCount() > 1) {
+                                <nav class="profile-carousel__controls profile-carousel__controls--compact"
+                                    aria-label="Páginas de direcciones">
+                                    <button type="button" aria-label="Dirección anterior"
+                                        (click)="previousAddressPage()">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <span>{{ addressPageLabel() }}</span>
+                                    <button type="button" aria-label="Dirección siguiente"
+                                        (click)="nextAddressPage()">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </nav>
                                 }
                             </div>
                             }

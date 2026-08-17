@@ -1,7 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
-import { AuthService } from '../../auth/auth.service';
 import { SEARCH_API_BASE_URL } from './search-api.config';
 import {
   ApiResponse,
@@ -13,9 +12,9 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SearchApiService {
   private readonly http = inject(HttpClient);
-  private readonly authService = inject(AuthService);
   private readonly apiBaseUrl = inject(SEARCH_API_BASE_URL);
 
+  /** POST /api/search - el Bearer lo agrega authTokenInterceptor. */
   executeSearch(
     request: SearchRequest,
     pageSize: number
@@ -32,6 +31,7 @@ export class SearchApiService {
       .pipe(map((response) => this.unwrap(response, 'No fue posible ejecutar la búsqueda.')));
   }
 
+  /** GET /api/search/{searchId}/results - el Bearer lo agrega authTokenInterceptor. */
   getResults(
     searchId: string,
     page: number,
@@ -48,6 +48,7 @@ export class SearchApiService {
       .pipe(map((response) => this.unwrap(response, 'No fue posible cargar los resultados.')));
   }
 
+  /** GET /api/search/{searchId}/results/{resultId} - Bearer global. */
   getResultDetail(
     searchId: string,
     resultId: string
@@ -61,15 +62,9 @@ export class SearchApiService {
   }
 
   private createHeaders(): HttpHeaders {
-    const session = this.authService.session();
-    if (!session?.accessToken) {
-      return new HttpHeaders({ Accept: 'application/json' });
-    }
-
-    return new HttpHeaders({
-      Accept: 'application/json',
-      Authorization: `${session.tokenType || 'Bearer'} ${session.accessToken}`
-    });
+    // Authorization se centraliza en authTokenInterceptor para evitar que cada
+    // servicio tenga que leer/manipular la sesión por separado.
+    return new HttpHeaders({ Accept: 'application/json' });
   }
 
   private unwrap<T>(response: ApiResponse<T>, fallbackMessage: string): T {

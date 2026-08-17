@@ -19,12 +19,12 @@ import {
     Observable,
     of,
     shareReplay,
-    switchMap,
     tap,
-    throwError
+    throwError,
+    timeout
 } from 'rxjs';
 
-import { CaptchaFacade } from '../captcha/application/captcha.facade';
+import { CAPTCHA_LENGTH, CaptchaFacade } from '../captcha/application/captcha.facade';
 import { AuthApi } from './auth.api';
 import { AuthHttpError, LoginContactRequest, LoginContactResponse } from './auth-api.model';
 import {
@@ -36,6 +36,9 @@ import {
 import { AuthStorage } from './auth.storage';
 import {
     DEFAULT_AUTHENTICATED_ROUTE,
+    LOGOUT_REASON_INACTIVITY,
+    LOGOUT_REASON_USER,
+    LOGOUT_REQUEST_TIMEOUT_MS,
     SESSION_ACTIVITY_STORAGE_THROTTLE_MS,
     SESSION_INACTIVITY_COUNTDOWN_MS,
     SESSION_INACTIVITY_LIMIT_MS,
@@ -66,7 +69,8 @@ export class AuthService {
     private readonly sessionPromptErrorState = signal<string | null>(null);
     private readonly sessionPromptRemainingSecondsState = signal(0);
 
-    private challengeCaptchaToken: string | null = null;
+    private challengeCaptchaId: string | null = null;
+    private challengeCaptchaAnswer: string | null = null;
     private sessionMonitorId: ReturnType<typeof setInterval> | null = null;
     private sessionPromptCountdownId: ReturnType<typeof setInterval> | null = null;
     private sessionPromptDeadlineAt: number | null = null;
@@ -184,10 +188,9 @@ export class AuthService {
     // ------------------------------------------------------------------
 
     /**
-     * Valida el CAPTCHA contra el backend y, solo si responde ok, solicita el
-     * código de un solo uso. El endpoint /api/auth/contacto no recibe el token de
-     * captcha, así que la validación funciona como compuerta previa del cliente y
-     * el token se conserva para autorizar el reenvío del código.
+     * El CAPTCHA se valida como parte de /api/v1/auth/mfa/challenges.
+     * No hay una validación HTTP intermedia del CAPTCHA: se envían directamente
+     * captchaChallengeId y captchaAnswer junto con la cuenta al reto MFA.
      */
     login(request: LoginRequest): Observable<LoginContactResponse> {
         this.loadingState.set(true);
@@ -195,13 +198,38 @@ export class AuthService {
         this.sessionPromptErrorState.set(null);
         this.captcha.clearError();
 
-        return this.captcha.verifyAnswer(request.captcha).pipe(
-            tap((verification) => {
-                this.challengeCaptchaToken = verification.token;
-            }),
-            switchMap(() => this.requestContactCode(request)),
+        const captchaChallengeId = this.captcha.challenge()?.id ?? null;
+        const captchaAnswer = request.captcha.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+        if (!captchaChallengeId) {
+            this.loadingState.set(false);
+            return throwError(() => new Error('No se encontró el challenge del CAPTCHA actual.'));
+        }
+
+        if (this.captcha.isExpired()) {
+            this.captcha.refresh();
+            this.loadingState.set(false);
+            return throwError(
+                () => new Error('El captcha caducó. Generamos uno nuevo, inténtalo de nuevo.')
+            );
+        }
+
+        if (!new RegExp(`^[A-Z0-9]{${CAPTCHA_LENGTH}}$`).test(captchaAnswer)) {
+            this.loadingState.set(false);
+            return throwError(
+                () =>
+                    new Error(
+                        `El captcha debe tener exactamente ${CAPTCHA_LENGTH} caracteres alfanuméricos.`
+                    )
+            );
+        }
+
+        this.challengeCaptchaId = captchaChallengeId;
+        this.challengeCaptchaAnswer = captchaAnswer;
+
+        return this.requestContactCode(request, captchaChallengeId, captchaAnswer).pipe(
             catchError((error: unknown) => {
-                this.challengeCaptchaToken = null;
+                this.clearCaptchaMfaContext();
                 this.errorState.set(this.toErrorMessage(error));
                 this.captcha.refresh();
 
@@ -211,12 +239,24 @@ export class AuthService {
         );
     }
 
-    /** POST /api/auth/contacto */
-    requestContactCode(payload: LoginPayload): Observable<LoginContactResponse> {
+    /** POST /api/v1/auth/mfa/challenges */
+    requestContactCode(
+        payload: LoginPayload,
+        captchaChallengeId: string | null = this.challengeCaptchaId,
+        captchaAnswer: string | null = this.challengeCaptchaAnswer
+    ): Observable<LoginContactResponse> {
+        if (!captchaChallengeId || !captchaAnswer) {
+            return throwError(
+                () => new Error('Faltan los datos del CAPTCHA requeridos para solicitar el código MFA.')
+            );
+        }
+
         const identity = this.normalizeLoginPayload(payload);
         const request: LoginContactRequest = {
             cuenta: identity.usuario,
-            medioContacto: this.resolveContactMethod(identity)
+            medioContacto: this.resolveContactMethod(identity),
+            captchaChallengeId,
+            captchaAnswer
         };
 
         return this.api.requestContactCode(request).pipe(
@@ -233,7 +273,7 @@ export class AuthService {
     /**
      * Reenvía el código al mismo proceso de autenticación. El backend conserva la
      * autoridad para invalidar el OTP anterior, contar intentos y bloquear. Por
-     * seguridad se exige haber validado un CAPTCHA en esta misma navegación.
+     * seguridad se exige conservar el CAPTCHA usado para crear el reto MFA.
      */
     resendContactCode(): Observable<LoginContactResponse> {
         const pending = this.pendingContact();
@@ -244,7 +284,7 @@ export class AuthService {
             );
         }
 
-        if (!this.challengeCaptchaToken) {
+        if (!this.challengeCaptchaId || !this.challengeCaptchaAnswer) {
             return throwError(
                 () =>
                     new Error(
@@ -255,33 +295,23 @@ export class AuthService {
 
         const request: LoginContactRequest = {
             cuenta: pending.cuenta,
-            medioContacto: this.resolvePendingContactMethod(pending)
+            medioContacto: this.resolvePendingContactMethod(pending),
+            captchaChallengeId: this.challengeCaptchaId,
+            captchaAnswer: this.challengeCaptchaAnswer
         };
 
         return this.api.requestContactCode(request).pipe(
             map((response) => {
-                this.storage.saveChallenge({
-                    ...pending,
-                    cuenta: response.cuenta?.trim() || request.cuenta,
-                    // No reemplazar el contacto real con el canal retornado
-                    // por la API (por ejemplo, "telegram").
-                    medioContacto: request.medioContacto,
-                    contactoEnmascarado:
-                        response.contactoEnmascarado ?? pending.contactoEnmascarado,
-                    sistema: response.sistema ?? pending.sistema,
-                    audience: response.audience ?? pending.audience,
-                    profileVersion: response.profileVersion,
-                    perfiles: response.perfiles ?? pending.perfiles,
-                    idCodigo: response.idCodigo ?? pending.idCodigo,
-                    issuedAt: new Date().toISOString()
-                });
+                this.storage.saveChallenge(
+                    this.api.mergePendingChallenge(pending, response, request)
+                );
 
                 return response;
             })
         );
     }
 
-    /** POST /api/auth/contacto/verificar */
+    /** POST /api/v1/auth/mfa/verification */
     verifyContactCode(codigo: string): Observable<AuthSession> {
         const pending = this.pendingContact();
 
@@ -306,7 +336,7 @@ export class AuthService {
             )
             .pipe(
                 map((session) => {
-                    this.challengeCaptchaToken = null;
+                    this.clearCaptchaMfaContext();
                     this.storage.saveSession(session);
                     this.restartSessionMonitor();
 
@@ -316,7 +346,7 @@ export class AuthService {
     }
 
     cancelPendingAuthentication(): void {
-        this.challengeCaptchaToken = null;
+        this.clearCaptchaMfaContext();
         this.storage.clearChallenge();
     }
 
@@ -328,18 +358,34 @@ export class AuthService {
     // Cierre de sesión
     // ------------------------------------------------------------------
 
-    /** DELETE /api/auth/sesiones */
-    logout(motivo = 'USER_LOGOUT'): void {
+    /**
+     * POST /api/v1/auth/sessions/logout
+     *
+     * La sesión local se limpia en `finalize` y no antes: el interceptor toma el
+     * Bearer de AuthStorage al ejecutar la petición, así que borrarlo primero
+     * dejaría salir el logout sin `Authorization` y el backend respondería 401.
+     * El timeout garantiza que un backend lento no deje al usuario atorado.
+     */
+    logout(motivo = LOGOUT_REASON_USER): void {
         const currentSession = this.session();
 
-        this.challengeCaptchaToken = null;
+        this.clearCaptchaMfaContext();
         this.stopSessionMonitor();
         this.clearSessionPrompt();
 
         this.api
             .logout(currentSession, motivo)
             .pipe(
-                catchError(() => of(void 0)),
+                timeout({ first: LOGOUT_REQUEST_TIMEOUT_MS }),
+                catchError((error: unknown) => {
+                    // El cierre local siempre procede: si el backend no confirma,
+                    // la sesión se invalidará al vencer el refresh token.
+                    console.warn(
+                        `[AuthService] No se pudo confirmar el cierre de sesión en el backend: ${this.toErrorMessage(error)}`
+                    );
+
+                    return of(void 0);
+                }),
                 finalize(() => {
                     this.storage.clearAll();
                     void this.router.navigateByUrl('/login');
@@ -705,6 +751,11 @@ export class AuthService {
         return null;
     }
 
+    private clearCaptchaMfaContext(): void {
+        this.challengeCaptchaId = null;
+        this.challengeCaptchaAnswer = null;
+    }
+
     private parseUtcTimestamp(value: string | null | undefined): number | null {
         const raw = value?.trim();
 
@@ -728,7 +779,7 @@ export class AuthService {
     }
 
     private forceLocalLogout(message: string): void {
-        this.challengeCaptchaToken = null;
+        this.clearCaptchaMfaContext();
         this.stopSessionMonitor();
         this.clearSessionPrompt();
         this.storage.clearAll();
@@ -737,7 +788,7 @@ export class AuthService {
     }
 
     private forceTabTakeoverLogout(): void {
-        this.challengeCaptchaToken = null;
+        this.clearCaptchaMfaContext();
         this.stopSessionMonitor();
         this.clearSessionPrompt();
         this.storage.clearLocalAuthState();
@@ -860,8 +911,11 @@ export class AuthService {
         // el interceptor toma de ahí el Bearer para autorizar DELETE /sesiones.
         if (currentSession) {
             this.api
-                .logout(currentSession, 'INACTIVITY_TIMEOUT')
-                .pipe(catchError(() => of(void 0)))
+                .logout(currentSession, LOGOUT_REASON_INACTIVITY)
+                .pipe(
+                    timeout({ first: LOGOUT_REQUEST_TIMEOUT_MS }),
+                    catchError(() => of(void 0))
+                )
                 .subscribe();
         }
 
@@ -941,7 +995,7 @@ export class AuthService {
     private resolvePendingContactMethod(pending: PendingContactAuthentication): string {
         // Priorizar los datos capturados por el usuario. Versiones anteriores
         // guardaban en medioContacto el canal retornado por la API ("telegram"),
-        // que no es válido para /contacto/verificar.
+        // que no es válido como medio de contacto para /api/v1/auth/mfa/verification.
         const medioContacto =
             pending.telefono || pending.correo || pending.medioContacto;
 

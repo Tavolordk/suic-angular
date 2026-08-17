@@ -38,3 +38,12 @@ export const SESSION_REFRESH_LOCK_TTL_MS = 20 * 1000;
 
 // Margen para decidir si un 401 vino por token vencido o por falta de permisos.
 export const SESSION_UNAUTHORIZED_VALID_TOKEN_MARGIN_MS = 30 * 1000;
+
+// SessionLogoutRequest.motivo es obligatorio (minLength 1, maxLength 500) y el
+// backend lo guarda en la bitácora de sesiones, así que se manda en texto legible.
+export const LOGOUT_REASON_USER = 'Cierre voluntario';
+export const LOGOUT_REASON_INACTIVITY = 'Cierre por inactividad';
+
+// El cierre local no debe depender de que el backend responda. Si la petición
+// tarda más que esto, se limpia la sesión igual y se redirige al login.
+export const LOGOUT_REQUEST_TIMEOUT_MS = 5 * 1000;

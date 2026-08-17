@@ -37,6 +37,7 @@ interface QuickSearchItem {
 const SOURCES_PER_PAGE = 5;
 const FIELDS_PER_PAGE = 5;
 const CONSOLIDATED_FIELDS_PER_PAGE = 3;
+const ADDRESSES_PER_PAGE = 1;
 const PHOTOS_PER_PAGE = 3;
 const LINK_ITEMS_PER_PAGE = 2;
 
@@ -131,6 +132,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly sourcePageIndex = signal(0);
   readonly sourceFieldPageIndex = signal(0);
   readonly consolidatedFieldPageIndex = signal(0);
+  readonly addressPageIndex = signal(0);
   readonly photoPageIndex = signal(0);
   readonly linkItemPageIndex = signal(0);
 
@@ -263,8 +265,12 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     createPageLabel(this.normalizedSourcePageIndex(), this.sourcePageCount())
   );
 
+  readonly availableSourceFields = computed<ProfileFieldViewModel[]>(() =>
+    (this.selectedSource()?.fields ?? []).filter((field) => !field.selected)
+  );
+
   readonly sourceFieldPages = computed(() =>
-    chunkItems(this.selectedSource()?.fields ?? [], FIELDS_PER_PAGE)
+    chunkItems(this.availableSourceFields(), FIELDS_PER_PAGE)
   );
   readonly sourceFieldPageCount = computed(
     () => this.sourceFieldPages().length
@@ -313,6 +319,20 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       this.normalizedConsolidatedFieldPageIndex(),
       this.consolidatedFieldPageCount()
     )
+  );
+
+  readonly addressPages = computed(() =>
+    chunkItems(this.selectedAddresses(), ADDRESSES_PER_PAGE)
+  );
+  readonly addressPageCount = computed(() => this.addressPages().length);
+  readonly normalizedAddressPageIndex = computed(() =>
+    normalizePageIndex(this.addressPageIndex(), this.addressPageCount())
+  );
+  readonly visibleAddresses = computed<ConsolidatedAddressViewModel[]>(() =>
+    pageAt(this.addressPages(), this.normalizedAddressPageIndex())
+  );
+  readonly addressPageLabel = computed(() =>
+    createPageLabel(this.normalizedAddressPageIndex(), this.addressPageCount())
   );
 
   readonly photoPages = computed(() =>
@@ -452,6 +472,26 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     );
   }
 
+  previousAddressPage(): void {
+    this.addressPageIndex.set(
+      movePageIndex(
+        this.normalizedAddressPageIndex(),
+        this.addressPageCount(),
+        -1
+      )
+    );
+  }
+
+  nextAddressPage(): void {
+    this.addressPageIndex.set(
+      movePageIndex(
+        this.normalizedAddressPageIndex(),
+        this.addressPageCount(),
+        1
+      )
+    );
+  }
+
   previousPhotoPage(): void {
     this.photoPageIndex.set(
       movePageIndex(
@@ -508,6 +548,10 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     return source.fields.filter((field) => field.selected).length;
   }
 
+  getRemainingSourceCount(source: ProfileSourceViewModel): number {
+    return source.fields.length - this.getSelectedSourceCount(source);
+  }
+
   toggleField(fieldId: string): void {
     const currentSourceId = this.selectedSource()?.id;
     if (!currentSourceId) {
@@ -529,17 +573,65 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       )
     );
 
-    this.consolidatedFieldPageIndex.set(0);
+    this.focusConsolidatedField(currentSourceId, fieldId);
+    this.accepted.set(false);
+  }
+
+  removeSelectedField(sourceId: string, fieldId: string): void {
+    this.sources.update((sources) =>
+      sources.map((source) =>
+        source.id !== sourceId
+          ? source
+          : {
+              ...source,
+              fields: source.fields.map((field) =>
+                field.id === fieldId ? { ...field, selected: false } : field
+              )
+            }
+      )
+    );
+
+    this.focusAvailableField(sourceId, fieldId);
+    this.accepted.set(false);
+  }
+
+  removeAddress(address: ConsolidatedAddressViewModel): void {
+    const fieldIdsBySource = new Map<string, Set<string>>();
+
+    address.fields.forEach((field) => {
+      const ids = fieldIdsBySource.get(field.sourceId) ?? new Set<string>();
+      ids.add(field.id);
+      fieldIdsBySource.set(field.sourceId, ids);
+    });
+
+    this.sources.update((sources) =>
+      sources.map((source) => {
+        const fieldIds = fieldIdsBySource.get(source.id);
+        if (!fieldIds) {
+          return source;
+        }
+
+        return {
+          ...source,
+          fields: source.fields.map((field) =>
+            fieldIds.has(field.id) ? { ...field, selected: false } : field
+          )
+        };
+      })
+    );
+
+    const firstReturnedField = address.fields[0];
+    if (firstReturnedField) {
+      this.focusAvailableField(firstReturnedField.sourceId, firstReturnedField.id);
+    }
     this.accepted.set(false);
   }
 
   selectAll(): void {
     const selectedSource = this.selectedSource();
-    if (!selectedSource) {
+    if (!selectedSource || !this.getRemainingSourceCount(selectedSource)) {
       return;
     }
-
-    const shouldSelect = selectedSource.fields.some((field) => !field.selected);
 
     this.sources.update((sources) =>
       sources.map((source) =>
@@ -549,13 +641,33 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
               ...source,
               fields: source.fields.map((field) => ({
                 ...field,
-                selected: shouldSelect
+                selected: true
               }))
             }
       )
     );
 
+    this.sourceFieldPageIndex.set(0);
     this.consolidatedFieldPageIndex.set(0);
+    this.addressPageIndex.set(0);
+    this.accepted.set(false);
+  }
+
+  clearAllSelected(): void {
+    if (!this.totalSelected()) {
+      return;
+    }
+
+    this.sources.update((sources) =>
+      sources.map((source) => ({
+        ...source,
+        fields: source.fields.map((field) => ({ ...field, selected: false }))
+      }))
+    );
+
+    this.sourceFieldPageIndex.set(0);
+    this.consolidatedFieldPageIndex.set(0);
+    this.addressPageIndex.set(0);
     this.accepted.set(false);
   }
 
@@ -695,6 +807,53 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     }
   }
 
+  private focusAvailableField(sourceId: string, fieldId: string): void {
+    const sourceIndex = this.sources().findIndex((source) => source.id === sourceId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    this.selectedSourceId.set(sourceId);
+    this.sourcePageIndex.set(Math.floor(sourceIndex / SOURCES_PER_PAGE));
+
+    const source = this.sources()[sourceIndex];
+    const availableFields = source.fields.filter((field) => !field.selected);
+    const fieldIndex = availableFields.findIndex((field) => field.id === fieldId);
+    this.sourceFieldPageIndex.set(
+      fieldIndex >= 0 ? Math.floor(fieldIndex / FIELDS_PER_PAGE) : 0
+    );
+  }
+
+  private focusConsolidatedField(sourceId: string, fieldId: string): void {
+    const field = this.selectedFields().find(
+      (item) => item.sourceId === sourceId && item.id === fieldId
+    );
+    if (!field) {
+      return;
+    }
+
+    if (isAddressField(field)) {
+      const addressIndex = this.selectedAddresses().findIndex((address) =>
+        address.fields.some(
+          (item) => item.sourceId === sourceId && item.id === fieldId
+        )
+      );
+      this.addressPageIndex.set(
+        addressIndex >= 0 ? Math.floor(addressIndex / ADDRESSES_PER_PAGE) : 0
+      );
+      return;
+    }
+
+    const fieldIndex = this.selectedPersonalFields().findIndex(
+      (item) => item.sourceId === sourceId && item.id === fieldId
+    );
+    this.consolidatedFieldPageIndex.set(
+      fieldIndex >= 0
+        ? Math.floor(fieldIndex / CONSOLIDATED_FIELDS_PER_PAGE)
+        : 0
+    );
+  }
+
   private moveSourcePage(direction: number): void {
     const nextIndex = movePageIndex(
       this.normalizedSourcePageIndex(),
@@ -715,6 +874,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.sourcePageIndex.set(0);
     this.sourceFieldPageIndex.set(0);
     this.consolidatedFieldPageIndex.set(0);
+    this.addressPageIndex.set(0);
     this.photoPageIndex.set(0);
     this.linkItemPageIndex.set(0);
   }

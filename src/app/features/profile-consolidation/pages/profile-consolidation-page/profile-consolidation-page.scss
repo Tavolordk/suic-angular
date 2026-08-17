@@ -2021,3 +2021,174 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Flujo de transferencia entre Selección de datos y Perfil consolidado */
+.selection-counter button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.field-row__checkbox {
+  color: #223544;
+}
+
+.field-row:hover .field-row__checkbox {
+  border-color: #223544;
+  background: rgba(34, 53, 68, 0.08);
+}
+
+.selection-fields-empty {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 150px;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed rgba(34, 53, 68, 0.24);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.48);
+  color: rgba(34, 53, 68, 0.72);
+  text-align: left;
+}
+
+.selection-fields-empty > i {
+  flex: 0 0 auto;
+  color: rgba(39, 90, 26, 0.82);
+  font-size: 20px;
+}
+
+.selection-fields-empty strong,
+.selection-fields-empty span {
+  display: block;
+}
+
+.selection-fields-empty strong {
+  color: #223544;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.selection-fields-empty span {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.consolidated-progress__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.consolidated-progress__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 27px;
+  padding: 0 10px;
+  border: 1px solid rgba(34, 53, 68, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #223544;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.consolidated-progress__clear:hover:not(:disabled) {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.consolidated-progress__clear:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.selected-field {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.selected-field__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(117, 27, 44, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #751b2c;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.selected-field__remove:hover {
+  background: rgba(117, 27, 44, 0.08);
+  transform: scale(1.04);
+}
+
+.selected-field__remove i {
+  font-size: 11px;
+}
+
+/* Carrusel de direcciones: una dirección por página para evitar scroll excesivo. */
+.address-carousel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.address-carousel .address-list {
+  min-width: 0;
+}
+
+.address-carousel .profile-carousel__controls {
+  padding: 0 0 10px;
+}
+
+.address-list__actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.address-list__actions .selected-field__source-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(34, 53, 68, 0.16);
+}
+
+@media (max-width: 560px) {
+  .consolidated-progress > div:first-child {
+    align-items: flex-start;
+  }
+
+  .consolidated-progress__actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .selected-field {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}
