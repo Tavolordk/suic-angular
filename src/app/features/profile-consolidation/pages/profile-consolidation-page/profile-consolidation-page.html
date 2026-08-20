@@ -341,7 +341,7 @@
 
                         <section class="selection-counter">
                             <span>
-                                {{ getRemainingSourceCount(source) }} pendientes de {{ source.fields.length }} campos
+                                {{ getRemainingSourceCount(source) }} pendientes de {{ getDisplayableSourceCount(source) }} campos
                             </span>
 
                             <button type="button" [disabled]="getRemainingSourceCount(source) === 0"
@@ -729,23 +729,9 @@
                 </div>
             </div>
 
-            <p class="save-success-modal__message">{{ successMessage }}</p>
-
-            <div class="save-success-modal__meta">
-                <span>Profile ID</span>
-                <strong>{{ consolidatedProfileId() }}</strong>
-            </div>
-
-            <section class="save-success-modal__request">
-                <header>
-                    <div>
-                        <small>Request enviado</small>
-                        <strong>POST {{ consolidationEndpoint() }}</strong>
-                    </div>
-                    <span>{{ lastConsolidationRequest()?.selectedEvidenceIds?.length || 0 }} evidencias</span>
-                </header>
-                <pre>{{ lastConsolidationRequestJson() }}</pre>
-            </section>
+            <p class="save-success-modal__message">
+                El perfil se guardó correctamente. Ya puede visualizar el grafo con la información consolidada.
+            </p>
 
             <footer class="save-success-modal__actions">
                 <button type="button" (click)="closeSaveSuccessModal()">Cerrar</button>

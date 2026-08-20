@@ -83,7 +83,31 @@ const ADDRESS_FIELD_CODES = new Set([
   'CODIGOPOSTAL',
   'CP',
   'ZIPCODE',
-  'POSTALCODE'
+  'POSTALCODE',
+  'STATE',
+  'PROVINCE',
+  'MUNICIPALITY',
+  'TOWN',
+  'NEIGHBORHOOD',
+  'SUBURB',
+  'SETTLEMENT',
+  'ADDRESSLINE',
+  'ADDRESSLINE1',
+  'ADDRESSLINE2',
+  'STREETNAME',
+  'HOUSENUMBER',
+  'BUILDINGNUMBER',
+  'APARTMENTNUMBER',
+  'BETWEENSTREETS',
+  'ENTRECALLES',
+  'REFERENCIADOMICILIO',
+  'DOMICILIOREFERENCIA',
+  'TIPODOMICILIO',
+  'ADDRESSTYPE',
+  'LATITUD',
+  'LATITUDE',
+  'LONGITUD',
+  'LONGITUDE'
 ]);
 
 @Component({
@@ -122,7 +146,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly errorMessage = signal<string | null>(null);
   readonly saveErrorMessage = signal<string | null>(null);
   readonly saveSuccessMessage = signal<string | null>(null);
-  readonly lastConsolidationRequest = signal<ConsolidateProfileRequest | null>(null);
   readonly accepted = signal(false);
   readonly consolidatedProfileId = signal('');
   readonly selectedSourceId = signal('');
@@ -151,14 +174,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
   readonly canExportPdf = computed(
     () => !this.isLoading() && !this.errorMessage() && this.sources().length > 0
-  );
-  readonly lastConsolidationRequestJson = computed(() =>
-    JSON.stringify(this.lastConsolidationRequest(), null, 2)
-  );
-  readonly consolidationEndpoint = computed(() =>
-    this.searchId && this.resultId
-      ? `/api/search/${this.searchId}/results/${this.resultId}/consolidations`
-      : '/api/search/{searchId}/results/{resultId}/consolidations'
   );
 
   readonly recentSearches: QuickSearchItem[] = [
@@ -223,7 +238,10 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly totalAvailable = computed(() =>
-    this.sources().reduce((total, source) => total + source.fields.length, 0)
+    this.sources().reduce(
+      (total, source) => total + getDisplayableSourceFields(source.fields).length,
+      0
+    )
   );
 
   readonly totalSelected = computed(() => this.selectedFields().length);
@@ -282,7 +300,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly availableSourceFields = computed<ProfileFieldViewModel[]>(() =>
-    (this.selectedSource()?.fields ?? []).filter((field) => !field.selected)
+    getDisplayableSourceFields(this.selectedSource()?.fields ?? []).filter(
+      (field) => !field.selected
+    )
   );
 
   readonly sourceFieldPages = computed(() =>
@@ -399,7 +419,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.errorMessage.set(null);
     this.saveErrorMessage.set(null);
     this.saveSuccessMessage.set(null);
-    this.lastConsolidationRequest.set(null);
     this.consolidatedProfileId.set('');
     this.accepted.set(false);
 
@@ -565,11 +584,16 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   getSelectedSourceCount(source: ProfileSourceViewModel): number {
-    return source.fields.filter((field) => field.selected).length;
+    return getDisplayableSourceFields(source.fields).filter((field) => field.selected).length;
   }
 
   getRemainingSourceCount(source: ProfileSourceViewModel): number {
-    return source.fields.length - this.getSelectedSourceCount(source);
+    const displayableFields = getDisplayableSourceFields(source.fields);
+    return displayableFields.length - displayableFields.filter((field) => field.selected).length;
+  }
+
+  getDisplayableSourceCount(source: ProfileSourceViewModel): number {
+    return getDisplayableSourceFields(source.fields).length;
   }
 
   toggleField(fieldId: string): void {
@@ -579,18 +603,43 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     }
 
     this.sources.update((sources) =>
-      sources.map((source) =>
-        source.id !== currentSourceId
-          ? source
-          : {
-              ...source,
-              fields: source.fields.map((field) =>
-                field.id === fieldId
-                  ? { ...field, selected: !field.selected }
-                  : field
-              )
+      sources.map((source) => {
+        if (source.id !== currentSourceId) {
+          return source;
+        }
+
+        const target = source.fields.find((field) => field.id === fieldId);
+        if (!target) {
+          return source;
+        }
+
+        const selecting = !target.selected;
+        const targetKey = getConsolidationDatumKey(target);
+        const targetIsAddress = isAddressField(target);
+
+        return {
+          ...source,
+          fields: source.fields.map((field) => {
+            if (field.id === fieldId) {
+              return { ...field, selected: selecting };
             }
-      )
+
+            // El backend solo admite una evidencia por fuente para el mismo
+            // dato personal. Al elegir otra variante/registro del mismo dato,
+            // reemplazamos la selección anterior en lugar de enviar ambas.
+            if (
+              selecting &&
+              !targetIsAddress &&
+              !isAddressField(field) &&
+              getConsolidationDatumKey(field) === targetKey
+            ) {
+              return { ...field, selected: false };
+            }
+
+            return field;
+          })
+        };
+      })
     );
 
     this.focusConsolidatedField(currentSourceId, fieldId);
@@ -654,17 +703,25 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     }
 
     this.sources.update((sources) =>
-      sources.map((source) =>
-        source.id !== selectedSource.id
-          ? source
-          : {
-              ...source,
-              fields: source.fields.map((field) => ({
-                ...field,
-                selected: true
-              }))
-            }
-      )
+      sources.map((source) => {
+        if (source.id !== selectedSource.id) {
+          return source;
+        }
+
+        const displayableIds = new Set(
+          getDisplayableSourceFields(source.fields).map((field) => field.id)
+        );
+
+        return {
+          ...source,
+          fields: source.fields.map((field) => ({
+            ...field,
+            // Solo se seleccionan las opciones que realmente se muestran.
+            // Las evidencias repetidas permanecen fuera de la UI y fuera del payload.
+            selected: displayableIds.has(field.id)
+          }))
+        };
+      })
     );
 
     this.sourceFieldPageIndex.set(0);
@@ -759,8 +816,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       return;
     }
 
-    const selectedEvidenceIds = Array.from(
-      new Set(this.selectedPersonalFields().map((field) => field.id.trim()).filter(Boolean))
+    const selectedEvidenceIds = buildConsolidationEvidenceIds(
+      this.selectedPersonalFields()
     );
 
     if (!selectedEvidenceIds.length) {
@@ -773,7 +830,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.isSaving.set(true);
     this.saveErrorMessage.set(null);
     this.saveSuccessMessage.set(null);
-    this.lastConsolidationRequest.set(request);
 
     this.consolidatedProfilesApi
       .consolidateProfile(this.searchId, this.resultId, request)
@@ -872,7 +928,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.sourcePageIndex.set(Math.floor(sourceIndex / SOURCES_PER_PAGE));
 
     const source = this.sources()[sourceIndex];
-    const availableFields = source.fields.filter((field) => !field.selected);
+    const availableFields = getDisplayableSourceFields(source.fields).filter(
+      (field) => !field.selected
+    );
     const fieldIndex = availableFields.findIndex((field) => field.id === fieldId);
     this.sourceFieldPageIndex.set(
       fieldIndex >= 0 ? Math.floor(fieldIndex / FIELDS_PER_PAGE) : 0
@@ -1014,9 +1072,39 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 }
 
-function isAddressField(field: SelectedProfileFieldViewModel): boolean {
-  const normalized = normalizeFieldCode(field.code);
-  return ADDRESS_FIELD_CODES.has(normalized);
+function isAddressField(
+  field: Pick<ProfileFieldViewModel, 'code' | 'label'>
+): boolean {
+  const segments = normalizeFieldPathSegments(field.code);
+
+  if (segments.some((segment) => ADDRESS_FIELD_CODES.has(segment))) {
+    return true;
+  }
+
+  // Variantes comunes que llegan como STREET_NAME, addressLine_1, etc.
+  // Se validan por segmento para no confundir, por ejemplo, ESTADO_CIVIL
+  // con el ESTADO de un domicilio.
+  const addressPattern = /^(?:DOMICILIO|DIRECCION|ADDRESS|STREET|CALLE|VIALIDAD|COLONIA|NEIGHBORHOOD|POSTAL|ZIP|HOUSE|BUILDING|APARTMENT|NUMEXT|NUMINT|EXTERIORNUMBER|INTERIORNUMBER|BETWEENSTREETS|ENTRECALLES|LATITUD|LATITUDE|LONGITUD|LONGITUDE)/;
+  if (segments.some((segment) => addressPattern.test(segment))) {
+    return true;
+  }
+
+  const normalizedLabel = normalizeFieldCode(
+    field.label.replace(/ · Registro \d+$/i, '')
+  );
+  return ADDRESS_FIELD_CODES.has(normalizedLabel);
+}
+
+function normalizeFieldPathSegments(value: string): string[] {
+  const normalizedPath = value.replace(
+    /\[(?:'|")?([^'"\]]+)(?:'|")?\]/g,
+    '.$1'
+  );
+
+  return normalizedPath
+    .split(/[./\\:]+/)
+    .map((part) => normalizeFieldCode(part))
+    .filter(Boolean);
 }
 
 function normalizeFieldCode(value: string): string {
@@ -1032,6 +1120,93 @@ function normalizeFieldCode(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase();
+}
+
+function getConsolidationDatumKey(
+  field: Pick<ProfileFieldViewModel, 'code' | 'label'>
+): string {
+  const code = normalizeFieldCode(field.code);
+  if (code) {
+    return code;
+  }
+
+  return normalizeFieldCode(field.label.replace(/ · Registro \d+$/i, ''));
+}
+
+function getDisplayableSourceFields(
+  fields: readonly ProfileFieldViewModel[]
+): ProfileFieldViewModel[] {
+  const personalByDatum = new Map<string, ProfileFieldViewModel>();
+
+  fields.forEach((field) => {
+    // Las direcciones pueden representar domicilios distintos aunque compartan
+    // nombres de campo (CALLE, CP, ESTADO, etc.), por eso no se colapsan aquí.
+    if (isAddressField(field)) {
+      return;
+    }
+
+    const key = getConsolidationDatumKey(field);
+    const current = personalByDatum.get(key);
+
+    if (!current) {
+      personalByDatum.set(key, field);
+      return;
+    }
+
+    // Si por estado previo una variante repetida ya estaba seleccionada,
+    // conservamos esa como la única visible en vez de volver a mostrar otra.
+    if (field.selected && !current.selected) {
+      personalByDatum.set(key, field);
+    }
+  });
+
+  const canonicalPersonalIds = new Set(
+    Array.from(personalByDatum.values(), (field) => field.id)
+  );
+
+  // Conservamos el orden original de la fuente. De cada dato personal repetido
+  // solo queda una evidencia canónica; las demás ni siquiera se renderizan.
+  return fields.filter(
+    (field) => isAddressField(field) || canonicalPersonalIds.has(field.id)
+  );
+}
+
+function buildConsolidationEvidenceIds(
+  fields: readonly SelectedProfileFieldViewModel[]
+): string[] {
+  const evidenceIds: string[] = [];
+  const seenEvidenceIds = new Set<string>();
+  const seenSourceData = new Set<string>();
+
+  fields.forEach((field) => {
+    // Defensa final: aunque una variante de dirección haya quedado seleccionada
+    // visualmente, nunca debe salir en selectedEvidenceIds.
+    if (isAddressField(field)) {
+      return;
+    }
+
+    const evidenceId = field.id.trim();
+    if (!evidenceId || seenEvidenceIds.has(evidenceId)) {
+      return;
+    }
+
+    const sourceKey = normalizeFieldCode(
+      field.sourceTitle || field.sourceCode || field.sourceId
+    );
+    const sourceDataKey = `${sourceKey}|${getConsolidationDatumKey(field)}`;
+
+    // Regla del backend CONSOLIDATION_SOURCE_REPEATED:
+    // una fuente solo puede aportar una evidencia para cada dato personal.
+    if (seenSourceData.has(sourceDataKey)) {
+      return;
+    }
+
+    seenEvidenceIds.add(evidenceId);
+    seenSourceData.add(sourceDataKey);
+    evidenceIds.push(evidenceId);
+  });
+
+  return evidenceIds;
 }
 
 function buildAddressGroups(
