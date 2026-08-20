@@ -37,8 +37,7 @@
             @for (filter of filters; track filter.type) {
             <button type="button" class="graph-filter" [class.graph-filter--active]="isFilterActive(filter.type)"
                 [class.graph-filter--person]="filter.type === 'person'"
-                [class.graph-filter--vehicle]="filter.type === 'vehicle'"
-                [class.graph-filter--weapon]="filter.type === 'weapon'" (click)="toggleFilter(filter.type)">
+                [class.graph-filter--weapon]="filter.type === 'source'" (click)="toggleFilter(filter.type)">
                 @switch (filter.type) {
                 @case ('person') {
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -47,19 +46,12 @@
                     <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                 </svg>
                 }
-                @case ('vehicle') {
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                        d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
-                }
-                @case ('weapon') {
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
-                }
+                @case ('source') {
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
+                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        }
                 }
 
                 {{ filter.label }}
@@ -94,20 +86,12 @@
                         <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                     </svg>
                     }
-                    @case ('vehicle') {
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                            d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        </path>
-                    </svg>
-                    }
-                    @case ('weapon') {
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                    }
+                    @case ('source') {
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
+                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        }
                     }
 
                     <span>{{ getNodeTypeLabel(selectedNode().type) }}</span>
@@ -127,6 +111,62 @@
                     }
                 </div>
 
+                @if (selectedNode().type === 'person' && addresses().length > 0) {
+                <section class="graph-addresses">
+                    <header class="graph-addresses__header">
+                        <div>
+                            <span>Direcciones registradas</span>
+                            <strong>{{ addresses().length }}</strong>
+                        </div>
+                        <small>No se dibujan como nodos</small>
+                    </header>
+
+                    <div class="graph-addresses__list">
+                        @for (address of visibleAddresses(); track address.id) {
+                        <article class="graph-address-card">
+                            <div class="graph-address-card__title">
+                                <span class="graph-address-card__pin">
+                                    <i class="fa-solid fa-location-dot"></i>
+                                </span>
+                                <div>
+                                    <strong>{{ address.title }}</strong>
+                                    <p>{{ address.label }}</p>
+                                </div>
+                            </div>
+
+                            @if (address.details.length > 0) {
+                            <div class="graph-address-card__details">
+                                @for (detail of address.details; track detail.label) {
+                                <span><small>{{ detail.label }}</small>{{ detail.value }}</span>
+                                }
+                            </div>
+                            }
+
+                            @if (address.sourceNames.length > 0) {
+                            <footer class="graph-address-card__sources">
+                                @for (sourceName of address.sourceNames; track sourceName) {
+                                <span>{{ sourceName }}</span>
+                                }
+                            </footer>
+                            }
+                        </article>
+                        }
+                    </div>
+
+                    @if (addressPageCount() > 1) {
+                    <footer class="graph-addresses__pager">
+                        <button type="button" aria-label="Direcciones anteriores" (click)="previousAddressPage()">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span>{{ addressPageLabel() }}</span>
+                        <button type="button" aria-label="Direcciones siguientes" (click)="nextAddressPage()">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </footer>
+                    }
+                </section>
+                }
+
                 <div class="graph-detail__links">
                     <p>Vínculos</p>
 
@@ -137,24 +177,23 @@
                                     stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                                 <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                             </svg>
-                            Personas
+                            Perfil
                         </span>
 
-                        <strong>{{ selectedNode().links.persons }}</strong>
+                        <strong>{{ selectedNode().links.profiles }}</strong>
                     </div>
 
                     <div class="graph-link-chip graph-link-chip--vehicle">
                         <span>
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                    d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"></path>
+                                <path d="M12 21s7-5.4 7-12a7 7 0 1 0-14 0c0 6.6 7 12 7 12z" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                <circle cx="12" cy="9" r="2.2" stroke="currentColor" stroke-width="2"></circle>
                             </svg>
-                            Vehículos
+                            Direcciones registradas
                         </span>
 
-                        <strong>{{ selectedNode().links.vehicles }}</strong>
+                        <strong>{{ selectedNode().links.locations }}</strong>
                     </div>
 
                     <div class="graph-link-chip graph-link-chip--weapon">
@@ -163,10 +202,10 @@
                                 <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                             </svg>
-                            Armas
+                            Fuentes
                         </span>
 
-                        <strong>{{ selectedNode().links.weapons }}</strong>
+                        <strong>{{ selectedNode().links.sources }}</strong>
                     </div>
                 </div>
             </section>
@@ -184,7 +223,12 @@
             </button>
             }
 
-            <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()" viewBox="0 0 1100 680"
+            <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()"
+                [class.graph-canvas--intro]="introAnimating()"
+                [class.graph-canvas--intro-individual]="introAnimating() && introMode() === 'individual'"
+                [class.graph-canvas--intro-wave]="introAnimating() && introMode() === 'wave'"
+                [class.graph-canvas--intro-global]="introAnimating() && introMode() === 'global'"
+                [attr.data-intro-mode]="introMode()" viewBox="0 0 1100 680"
                 preserveAspectRatio="xMidYMid meet" (pointerdown)="onGraphPointerDown($event)"
                 (pointermove)="onGraphPointerMove($event)" (pointerup)="onGraphPointerUp($event)"
                 (pointercancel)="onGraphPointerUp($event)" (pointerleave)="onGraphPointerUp($event)"
@@ -216,7 +260,34 @@
                     </radialGradient>
                 </defs>
 
+                @if (introAnimating()) {
+                <rect class="graph-intro-darkness" x="0" y="0" width="1100" height="680"></rect>
+                }
+
                 <g [attr.transform]="graphTransform()">
+                    @if (introAnimating() && introMode() === 'individual') {
+                    <circle class="graph-intro-origin" [attr.cx]="nodes()[0].x" [attr.cy]="nodes()[0].y" r="42"></circle>
+                    <circle class="graph-intro-origin graph-intro-origin--wide" [attr.cx]="nodes()[0].x"
+                        [attr.cy]="nodes()[0].y" r="78"></circle>
+                    }
+
+                    @if (introAnimating() && introMode() === 'wave') {
+                    <circle class="graph-intro-wave graph-intro-wave--1" [attr.cx]="nodes()[0].x"
+                        [attr.cy]="nodes()[0].y" r="54"></circle>
+                    <circle class="graph-intro-wave graph-intro-wave--2" [attr.cx]="nodes()[0].x"
+                        [attr.cy]="nodes()[0].y" r="54"></circle>
+                    <circle class="graph-intro-wave graph-intro-wave--3" [attr.cx]="nodes()[0].x"
+                        [attr.cy]="nodes()[0].y" r="54"></circle>
+                    }
+
+                    @if (introAnimating() && introMode() === 'global') {
+                    <circle class="graph-intro-wave graph-intro-wave--global graph-intro-wave--1"
+                        [attr.cx]="nodes()[0].x" [attr.cy]="nodes()[0].y" r="58"></circle>
+                    <circle class="graph-intro-wave graph-intro-wave--global graph-intro-wave--2"
+                        [attr.cx]="nodes()[0].x" [attr.cy]="nodes()[0].y" r="58"></circle>
+                    }
+
+                    <g class="graph-world">
                     <circle class="graph-result-light" [attr.cx]="selectedNode().x" [attr.cy]="selectedNode().y" r="190"
                         fill="url(#selected-node-light)">
                     </circle>
@@ -225,18 +296,33 @@
                         [attr.cy]="selectedNode().y" r="88" [attr.fill]="getGlowColor(selectedNode().type)">
                     </circle>
 
-                    @for (link of visibleLinks(); track link.id) {
+                    @for (link of visibleLinks(); track link.id; let linkIndex = $index) {
                     <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
                         [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
                         [attr.opacity]="getLinkOpacity(link)" [attr.stroke-width]="getLinkStrokeWidth(link)"
-                        class="graph-edge"></line>
+                        [style.--intro-delay]="introMode() === 'individual' ? getIntroLinkDelay(linkIndex) + 'ms' : null"
+                        [style.--edge-target-opacity]="getLinkOpacity(link)" class="graph-edge"></line>
+
+                    @if (introAnimating() && introMode() === 'individual') {
+                    <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
+                        [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
+                        [style.--intro-delay]="getIntroLinkDelay(linkIndex) + 'ms'" pathLength="1"
+                        class="graph-edge-trace"></line>
+
+                    <circle [attr.cx]="getNodeById(link.targetId).x" [attr.cy]="getNodeById(link.targetId).y" r="6"
+                        [style.--intro-delay]="(getIntroLinkDelay(linkIndex) + 860) + 'ms'"
+                        class="graph-intro-arrival"></circle>
+                    }
                     }
 
                     @for (node of visibleNodes(); track node.id) {
                     <g class="graph-node" [class.graph-node--selected]="isSelected(node)"
                         [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
-                        [attr.opacity]="getNodeOpacity(node)" (click)="selectNode(node.id)"
-                        (dblclick)="consolidateNode(node.id)">
+                        [attr.opacity]="getNodeOpacity(node)"
+                        [style.--intro-node-delay]="introMode() === 'individual' ? getIntroNodeDelay(node) + 'ms' : null"
+                        [style.--node-target-opacity]="getNodeOpacity(node)"
+                        (click)="selectNode(node.id)"
+                        >
                         @if (isSelected(node)) {
                         <circle class="graph-node__pulse" [attr.r]="node.radius + 4" fill="none"
                             [attr.stroke]="getNodeColor(node.type)"></circle>
@@ -262,17 +348,10 @@
                             <circle cx="12" cy="7" r="4" stroke="white" stroke-width="2.2"></circle>
                         </svg>
                         }
-                        @case ('vehicle') {
-                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path
-                                d="M5 17H3v-5l2-5h14l2 5v5h-2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"
-                                stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-                        }
-                        @case ('weapon') {
-                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="white" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round"></path>
+                        @case ('source') {
+                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="color: white">
+                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
+                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                         </svg>
                         }
                         }
@@ -289,6 +368,7 @@
                         </text>
                     </g>
                     }
+                    </g>
                 </g>
             </svg>
 
@@ -297,7 +377,7 @@
 
                 <div>
                     <strong>{{ pendingProfilesLabel() }}</strong>
-                    <small>Doble clic en un nodo para consolidar</small>
+                    <small>Selecciona un nodo para consultar su detalle</small>
                 </div>
             </section>
 
@@ -306,18 +386,18 @@
 
                 <div>
                     <span class="legend-dot legend-dot--person"></span>
-                    Personas
-                </div>
-
-                <div>
-                    <span class="legend-dot legend-dot--vehicle"></span>
-                    Vehículos
+                    Perfil
                 </div>
 
                 <div>
                     <span class="legend-dot legend-dot--weapon"></span>
-                    Armas
+                    Fuentes
                 </div>
+
+                <small class="graph-legend__note">
+                    <i class="fa-solid fa-location-dot"></i>
+                    Direcciones en el panel de detalle
+                </small>
             </section>
 
             <section class="graph-zoom">

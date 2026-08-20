@@ -216,7 +216,7 @@
             <div class="profile-content__scroll">
                 <section class="profile-header-card">
                     <div>
-                        <h1>Perfil Preconsolidado</h1>
+                        <h1>Perfil consolidado</h1>
                         <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                     </div>
 
@@ -233,9 +233,9 @@
 
                         <button type="button" class="profile-header-card__primary"
                             [class.profile-header-card__primary--accepted]="accepted()"
-                            [disabled]="isLoading() || selectedFields().length === 0" (click)="accept()">
+                            [disabled]="isLoading() || isSaving() || accepted() || selectedPersonalFields().length === 0" (click)="accept()">
                             <i class="fa-regular fa-floppy-disk"></i>
-                            {{ accepted() ? 'Perfil guardado' : 'Guardar perfil' }}
+                            {{ isSaving() ? 'Guardando...' : (accepted() ? 'Perfil guardado' : 'Guardar perfil') }}
                         </button>
                     </div>
                 </section>
@@ -264,6 +264,14 @@
                     </div>
                 </section>
                 } @else if (selectedSource(); as source) {
+                @if (saveErrorMessage()) {
+                <section class="profile-header-card" role="alert">
+                    <div>
+                        <h2>No fue posible guardar el perfil</h2>
+                        <p>{{ saveErrorMessage() }}</p>
+                    </div>
+                </section>
+                }
                 <section class="profile-grid">
                     <article class="profile-card profile-card--sources">
                         <header class="profile-card__header">
@@ -486,7 +494,7 @@
 
                                 @if (consolidatedFieldPageCount() > 1) {
                                 <nav class="profile-carousel__controls profile-carousel__controls--compact"
-                                    aria-label="Páginas del perfil preconsolidado">
+                                    aria-label="Páginas del perfil consolidado">
                                     <button type="button" aria-label="Campos anteriores"
                                         (click)="previousConsolidatedFieldPage()">
                                         <i class="fa-solid fa-chevron-left"></i>
@@ -668,7 +676,7 @@
 
                         <footer class="consolidated-footer">
                             @if (!accepted()) {
-                            <button type="button" class="accept-button" [disabled]="selectedFields().length === 0"
+                            <button type="button" class="accept-button" [disabled]="selectedPersonalFields().length === 0 || isSaving()"
                                 (click)="accept()">
                                 Aceptar
                             </button>
@@ -678,7 +686,7 @@
                                 Aceptado
                             </button>
 
-                            <a routerLink="/grafo" [queryParams]="{ searchId: searchId, resultId: resultId }"
+                            <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
                                 class="graph-button">
                                 <i class="fa-solid fa-share-nodes"></i>
                                 Visualizar grafo
@@ -702,4 +710,52 @@
             </div>
         </main>
     </div>
+
+
+    @if (saveSuccessMessage(); as successMessage) {
+    <div class="save-success-modal" role="presentation" (click)="closeSaveSuccessModal()">
+        <section class="save-success-modal__card" role="dialog" aria-modal="true"
+            aria-labelledby="save-success-title" (click)="$event.stopPropagation()">
+            <button type="button" class="save-success-modal__close" aria-label="Cerrar"
+                (click)="closeSaveSuccessModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="save-success-modal__status">
+                <span><i class="fa-solid fa-check"></i></span>
+                <div>
+                    <small>Guardado exitoso</small>
+                    <h2 id="save-success-title">Perfil consolidado</h2>
+                </div>
+            </div>
+
+            <p class="save-success-modal__message">{{ successMessage }}</p>
+
+            <div class="save-success-modal__meta">
+                <span>Profile ID</span>
+                <strong>{{ consolidatedProfileId() }}</strong>
+            </div>
+
+            <section class="save-success-modal__request">
+                <header>
+                    <div>
+                        <small>Request enviado</small>
+                        <strong>POST {{ consolidationEndpoint() }}</strong>
+                    </div>
+                    <span>{{ lastConsolidationRequest()?.selectedEvidenceIds?.length || 0 }} evidencias</span>
+                </header>
+                <pre>{{ lastConsolidationRequestJson() }}</pre>
+            </section>
+
+            <footer class="save-success-modal__actions">
+                <button type="button" (click)="closeSaveSuccessModal()">Cerrar</button>
+                <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
+                    (click)="closeSaveSuccessModal()">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    Visualizar grafo
+                </a>
+            </footer>
+        </section>
+    </div>
+    }
 </section>

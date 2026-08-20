@@ -1419,3 +1419,16 @@
     animation: none;
   }
 }
+
+/* ConsolidatedProfiles: categorías reales devueltas por el servicio. */
+.investigation-chip--location {
+  border-color: #8b3086;
+  background: rgba(139, 48, 134, 0.14);
+  color: #73206e;
+}
+
+.investigation-chip--source {
+  border-color: #1f668f;
+  background: rgba(31, 102, 143, 0.12);
+  color: #1a5a7e;
+}

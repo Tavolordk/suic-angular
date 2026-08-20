@@ -77,7 +77,7 @@ function buildPdf(
     ? pages
     : [
         {
-          cardTitle: 'PERFIL PRECONSOLIDADO',
+          cardTitle: 'PERFIL CONSOLIDADO',
           cardSubtitle: '',
           continuation: false,
           lines: ['Sin información disponible.']

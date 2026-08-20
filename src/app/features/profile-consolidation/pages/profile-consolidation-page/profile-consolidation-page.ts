@@ -13,6 +13,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
+import { ConsolidateProfileRequest } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
 import {
   ProfileFieldViewModel,
@@ -101,6 +103,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
+  private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
@@ -115,8 +118,13 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly profileOpen = signal(false);
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly isLoading = signal(false);
+  readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly saveErrorMessage = signal<string | null>(null);
+  readonly saveSuccessMessage = signal<string | null>(null);
+  readonly lastConsolidationRequest = signal<ConsolidateProfileRequest | null>(null);
   readonly accepted = signal(false);
+  readonly consolidatedProfileId = signal('');
   readonly selectedSourceId = signal('');
   readonly sources = signal<ProfileSourceViewModel[]>([]);
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
@@ -143,6 +151,14 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
   readonly canExportPdf = computed(
     () => !this.isLoading() && !this.errorMessage() && this.sources().length > 0
+  );
+  readonly lastConsolidationRequestJson = computed(() =>
+    JSON.stringify(this.lastConsolidationRequest(), null, 2)
+  );
+  readonly consolidationEndpoint = computed(() =>
+    this.searchId && this.resultId
+      ? `/api/search/${this.searchId}/results/${this.resultId}/consolidations`
+      : '/api/search/{searchId}/results/{resultId}/consolidations'
   );
 
   readonly recentSearches: QuickSearchItem[] = [
@@ -381,6 +397,10 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
     this.isLoading.set(true);
     this.errorMessage.set(null);
+    this.saveErrorMessage.set(null);
+    this.saveSuccessMessage.set(null);
+    this.lastConsolidationRequest.set(null);
+    this.consolidatedProfileId.set('');
     this.accepted.set(false);
 
     this.searchApi
@@ -710,7 +730,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
     this.pdfExport.exportCards(
       createPdfFileName(this.profileName()),
-      'Perfil preconsolidado',
+      'Perfil consolidado',
       `${this.profileName()} - ${this.profileSubtitle()}`,
       [
         {
@@ -735,10 +755,45 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   accept(): void {
-    if (!this.selectedFields().length) {
+    if (!this.searchId || !this.resultId || !this.selectedPersonalFields().length || this.isSaving()) {
       return;
     }
-    this.accepted.set(true);
+
+    const selectedEvidenceIds = Array.from(
+      new Set(this.selectedPersonalFields().map((field) => field.id.trim()).filter(Boolean))
+    );
+
+    if (!selectedEvidenceIds.length) {
+      this.saveErrorMessage.set('No hay evidencias seleccionadas para guardar el perfil.');
+      return;
+    }
+
+    const request: ConsolidateProfileRequest = { selectedEvidenceIds };
+
+    this.isSaving.set(true);
+    this.saveErrorMessage.set(null);
+    this.saveSuccessMessage.set(null);
+    this.lastConsolidationRequest.set(request);
+
+    this.consolidatedProfilesApi
+      .consolidateProfile(this.searchId, this.resultId, request)
+      .pipe(finalize(() => this.isSaving.set(false)))
+      .subscribe({
+        next: ({ profile, message }) => {
+          this.consolidatedProfileId.set(profile.profileId);
+          this.accepted.set(true);
+          this.saveSuccessMessage.set(message);
+        },
+        error: (error: unknown) => {
+          this.accepted.set(false);
+          this.saveSuccessMessage.set(null);
+          this.saveErrorMessage.set(this.extractErrorMessage(error));
+        }
+      });
+  }
+
+  closeSaveSuccessModal(): void {
+    this.saveSuccessMessage.set(null);
   }
 
   toggleProfile(): void {
@@ -1077,5 +1132,5 @@ function createPdfFileName(profileName: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  return `perfil-preconsolidado-${normalized || 'resultado'}.pdf`;
+  return `perfil-consolidado-${normalized || 'resultado'}.pdf`;
 }

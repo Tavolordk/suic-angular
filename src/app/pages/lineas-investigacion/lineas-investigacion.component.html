@@ -124,6 +124,20 @@
           </div>
         </section>
 
+        @if (isLoading()) {
+        <div class="investigation-empty" aria-live="polite">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <strong>Cargando líneas de investigación</strong>
+          <span>Consultando perfiles consolidados.</span>
+        </div>
+        } @else if (errorMessage()) {
+        <div class="investigation-empty" role="alert">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>No fue posible cargar las líneas de investigación</strong>
+          <span>{{ errorMessage() }}</span>
+          <button type="button" class="investigation-card__open" (click)="loadProfiles(currentPage())">Reintentar</button>
+        </div>
+        } @else {
         <section class="investigation-list" [class.investigation-list--grid]="viewMode() === 'grid'">
           @for (line of visibleLines(); track line.id) {
           <article class="investigation-card">
@@ -189,8 +203,8 @@
               <div class="investigation-card__entities">
                 @for (entity of line.entities; track entity.label; let last = $last) {
                 <span class="investigation-chip" [class.investigation-chip--person]="entity.tone === 'person'"
-                  [class.investigation-chip--vehicle]="entity.tone === 'vehicle'"
-                  [class.investigation-chip--weapon]="entity.tone === 'weapon'">
+                  [class.investigation-chip--location]="entity.tone === 'location'"
+                  [class.investigation-chip--source]="entity.tone === 'source'">
                   {{ entity.label }}
                 </span>
 
@@ -221,7 +235,7 @@
               </div>
 
               <a class="investigation-card__open" [routerLink]="routes.graph"
-                [queryParams]="{ investigationId: line.id }">
+                [queryParams]="{ profileId: line.id }">
                 Abrir investigación
               </a>
             </aside>
@@ -234,6 +248,7 @@
           </div>
           }
         </section>
+        }
       </section>
 
       <nav class="investigation-pagination" aria-label="Paginación">
@@ -243,14 +258,14 @@
           Anterior
         </button>
 
-        @for (page of pages; track page) {
+        @for (page of pages(); track page) {
         <button type="button" [class.investigation-pagination__active]="currentPage() === page"
           [attr.aria-current]="currentPage() === page ? 'page' : null" (click)="goToPage(page)">
           {{ page }}
         </button>
         }
 
-        <button type="button" class="investigation-pagination__edge" [disabled]="currentPage() === totalPages"
+        <button type="button" class="investigation-pagination__edge" [disabled]="currentPage() === totalPages()"
           (click)="nextPage()">
           Siguiente
           <i class="fa-solid fa-chevron-right"></i>
@@ -407,7 +422,7 @@
             Cerrar
           </button>
 
-          <a class="graph-modal__primary" [routerLink]="routes.graph" [queryParams]="{ investigationId: selected.id }">
+          <a class="graph-modal__primary" [routerLink]="routes.graph" [queryParams]="{ profileId: selected.id }">
             Abrir grafo completo
             <i class="fa-solid fa-arrow-up-right-from-square"></i>
           </a>

@@ -2192,3 +2192,208 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
   }
 }
+
+
+/* Modal de confirmación de consolidación. Incluye el request real enviado al backend. */
+.save-success-modal {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(11, 22, 39, 0.58);
+  backdrop-filter: blur(5px);
+}
+
+.save-success-modal__card {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid rgba(34, 53, 68, 0.14);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(11, 22, 39, 0.28);
+}
+
+.save-success-modal__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(34, 53, 68, 0.12);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #223544;
+  cursor: pointer;
+}
+
+.save-success-modal__status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 44px;
+}
+
+.save-success-modal__status > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 15px;
+  background: rgba(39, 90, 26, 0.11);
+  color: #275a1a;
+  font-size: 20px;
+}
+
+.save-success-modal__status small,
+.save-success-modal__request small {
+  display: block;
+  color: rgba(34, 53, 68, 0.58);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.save-success-modal__status h2 {
+  margin: 3px 0 0;
+  color: #223544;
+  font-size: 22px;
+}
+
+.save-success-modal__message {
+  margin: 18px 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(39, 90, 26, 0.16);
+  border-radius: 12px;
+  background: rgba(39, 90, 26, 0.06);
+  color: #23431b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.save-success-modal__meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(34, 53, 68, 0.05);
+}
+
+.save-success-modal__meta span {
+  color: rgba(34, 53, 68, 0.56);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.save-success-modal__meta strong {
+  overflow: hidden;
+  color: #223544;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-success-modal__request {
+  overflow: hidden;
+  border: 1px solid rgba(34, 53, 68, 0.14);
+  border-radius: 14px;
+  background: #0b1627;
+}
+
+.save-success-modal__request header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.save-success-modal__request header strong {
+  display: block;
+  margin-top: 4px;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.save-success-modal__request header > span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(252, 176, 37, 0.14);
+  color: #fcb025;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.save-success-modal__request pre {
+  max-height: 285px;
+  margin: 0;
+  overflow: auto;
+  padding: 16px;
+  color: #c8d3e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.save-success-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.save-success-modal__actions button,
+.save-success-modal__actions a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 15px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.save-success-modal__actions button {
+  border: 1px solid rgba(34, 53, 68, 0.16);
+  background: #ffffff;
+  color: #223544;
+}
+
+.save-success-modal__actions a {
+  border: 1px solid #275a1a;
+  background: #275a1a;
+  color: #ffffff;
+}
+
+@media (max-width: 620px) {
+  .save-success-modal { padding: 12px; }
+  .save-success-modal__card { padding: 22px 16px 16px; border-radius: 16px; }
+  .save-success-modal__request header { align-items: flex-start; flex-direction: column; }
+  .save-success-modal__actions { flex-direction: column-reverse; }
+  .save-success-modal__actions button,
+  .save-success-modal__actions a { width: 100%; }
+}

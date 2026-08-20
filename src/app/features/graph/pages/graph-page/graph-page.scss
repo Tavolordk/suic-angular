@@ -498,6 +498,114 @@
     stroke-width 0.2s ease;
 }
 
+/* Recorrido luminoso adaptativo: la duración visual permanece acotada aunque crezca el grafo. */
+.graph-canvas--intro {
+  cursor: default;
+}
+
+/* 0-200 relaciones: trazado individual. */
+.graph-canvas--intro-individual .graph-edge {
+  animation: graph-edge-intro-reveal 1.02s cubic-bezier(0.2, 0.72, 0.2, 1) var(--intro-delay, 320ms) both;
+}
+
+.graph-canvas--intro-individual .graph-node {
+  animation: graph-node-intro-reveal 0.52s ease-out var(--intro-node-delay, 120ms) both;
+}
+
+.graph-canvas--intro-individual .graph-result-light {
+  animation: graph-result-light-intro 0.7s ease-out 1.95s both;
+}
+
+.graph-canvas--intro-individual .graph-result-light--core {
+  animation-name: graph-result-light-core-intro;
+}
+
+/* 201-2,000 relaciones: una sola animación del mundo + ondas constantes. */
+.graph-canvas--intro-wave .graph-world {
+  animation: graph-world-wave-reveal 1.55s cubic-bezier(0.16, 0.78, 0.2, 1) 300ms both;
+}
+
+/* 2,001+ relaciones: una sola revelación global. No hay animaciones por arista/nodo. */
+.graph-canvas--intro-global .graph-world {
+  animation: graph-world-global-reveal 1.35s cubic-bezier(0.16, 0.78, 0.2, 1) 260ms both;
+}
+
+.graph-intro-darkness {
+  fill: rgba(2, 7, 14, 0.82);
+  pointer-events: none;
+  animation: graph-darkness-release 2.82s ease-out both;
+}
+
+.graph-edge-trace {
+  stroke: rgba(236, 251, 255, 0.98);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.12 0.88;
+  stroke-dashoffset: 0.12;
+  opacity: 0;
+  pointer-events: none;
+  filter: url('#glow-lg');
+  animation: graph-light-trace 1.05s cubic-bezier(0.18, 0.74, 0.2, 1) var(--intro-delay, 420ms) both;
+}
+
+.graph-intro-origin {
+  fill: rgba(236, 251, 255, 0.08);
+  stroke: rgba(236, 251, 255, 0.95);
+  stroke-width: 2.2;
+  opacity: 0;
+  pointer-events: none;
+  filter: url('#glow-lg');
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph-origin-wave 0.96s ease-out 100ms both;
+}
+
+.graph-intro-origin--wide {
+  stroke-width: 1.2;
+  animation-delay: 260ms;
+}
+
+
+.graph-intro-wave {
+  fill: none;
+  stroke: rgba(236, 251, 255, 0.92);
+  stroke-width: 3;
+  opacity: 0;
+  pointer-events: none;
+  filter: url('#glow-lg');
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph-propagation-wave 1.68s cubic-bezier(0.12, 0.72, 0.18, 1) 100ms both;
+}
+
+.graph-intro-wave--2 {
+  animation-delay: 250ms;
+}
+
+.graph-intro-wave--3 {
+  animation-delay: 400ms;
+}
+
+.graph-intro-wave--global {
+  stroke-width: 4.5;
+  animation-name: graph-propagation-global;
+  animation-duration: 1.9s;
+}
+
+.graph-intro-wave--global.graph-intro-wave--2 {
+  animation-delay: 320ms;
+}
+
+.graph-intro-arrival {
+  fill: rgba(242, 253, 255, 0.98);
+  opacity: 0;
+  pointer-events: none;
+  filter: url('#glow-lg');
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: graph-arrival-flash 0.58s ease-out var(--intro-delay, 1280ms) both;
+}
+
 .graph-result-light {
   pointer-events: none;
   mix-blend-mode: screen;
@@ -792,6 +900,210 @@
   }
 }
 
+@keyframes graph-edge-intro-reveal {
+  0%,
+  18% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: var(--edge-target-opacity, 0.45);
+  }
+}
+
+@keyframes graph-light-trace {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0.12;
+  }
+
+  9% {
+    opacity: 1;
+  }
+
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -0.88;
+  }
+}
+
+@keyframes graph-node-intro-reveal {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+  }
+
+  55% {
+    opacity: var(--node-target-opacity, 1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: var(--node-target-opacity, 1);
+    filter: blur(0);
+  }
+}
+
+@keyframes graph-origin-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.32);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+@keyframes graph-arrival-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  34% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.7);
+  }
+}
+
+@keyframes graph-darkness-release {
+  0%,
+  66% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes graph-world-wave-reveal {
+  0% {
+    opacity: 0.04;
+  }
+
+  30% {
+    opacity: 0.2;
+  }
+
+  72% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes graph-world-global-reveal {
+  0% {
+    opacity: 0.02;
+  }
+
+  42% {
+    opacity: 0.28;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes graph-propagation-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  12% {
+    opacity: 0.95;
+  }
+
+  70% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(7.2);
+  }
+}
+
+@keyframes graph-propagation-global {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  72% {
+    opacity: 0.62;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(12.5);
+  }
+}
+
+@keyframes graph-result-light-intro {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes graph-result-light-core-intro {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0.36;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-intro-darkness,
+  .graph-edge-trace,
+  .graph-intro-origin,
+  .graph-intro-arrival,
+  .graph-intro-wave {
+    display: none;
+  }
+
+  .graph-canvas--intro-individual .graph-edge,
+  .graph-canvas--intro-individual .graph-node,
+  .graph-canvas--intro-individual .graph-result-light,
+  .graph-canvas--intro-individual .graph-result-light--core,
+  .graph-canvas--intro-wave .graph-world,
+  .graph-canvas--intro-global .graph-world {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
 /* Responsive */
 
 @media (max-width: 980px) {
@@ -874,5 +1186,201 @@
 
   .graph-floating-card--legend {
     display: none;
+  }
+}
+
+/* Direcciones fuera del canvas: colección paginada en el panel de detalle. */
+.graph-addresses {
+  margin: 0 16px 16px;
+  padding: 12px;
+  border: 1px solid rgba(139, 48, 134, 0.22);
+  border-radius: 14px;
+  background: rgba(139, 48, 134, 0.06);
+}
+
+.graph-addresses__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.graph-addresses__header > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.graph-addresses__header span {
+  color: #d4b5d2;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.graph-addresses__header strong {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #8b3086;
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.graph-addresses__header small {
+  color: rgba(153, 168, 190, 0.48);
+  font-size: 9px;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.graph-addresses__list {
+  display: grid;
+  gap: 8px;
+}
+
+.graph-address-card {
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  background: rgba(8, 16, 30, 0.66);
+}
+
+.graph-address-card__title {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.graph-address-card__pin {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(139, 48, 134, 0.18);
+  color: #c877c3;
+  font-size: 11px;
+}
+
+.graph-address-card__title > div {
+  min-width: 0;
+}
+
+.graph-address-card__title strong {
+  display: block;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.graph-address-card__title p {
+  display: -webkit-box;
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: rgba(153, 168, 190, 0.72);
+  font-size: 10px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.graph-address-card__details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.graph-address-card__details span {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 9px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.graph-address-card__details small {
+  display: block;
+  margin-bottom: 2px;
+  color: rgba(153, 168, 190, 0.44);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.graph-address-card__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.graph-address-card__sources span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(62, 140, 34, 0.13);
+  color: #7bc65e;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.graph-addresses__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.graph-addresses__pager button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgba(139, 48, 134, 0.25);
+  border-radius: 999px;
+  background: rgba(139, 48, 134, 0.08);
+  color: #d59bd1;
+  cursor: pointer;
+}
+
+.graph-addresses__pager span {
+  min-width: 58px;
+  color: rgba(153, 168, 190, 0.7);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.graph-legend__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 132px;
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(153, 168, 190, 0.1);
+  color: rgba(153, 168, 190, 0.54);
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.graph-legend__note i {
+  color: #8b3086;
+}
+
+@media (min-width: 981px) {
+  .graph-detail {
+    width: 310px;
+    min-width: 310px;
+    flex-basis: 310px;
   }
 }
