@@ -223,6 +223,13 @@
             </button>
             }
 
+            @if (!aiPanelOpen()) {
+            <button type="button" class="graph-ai-toggle" (click)="openAiPanel()" title="Abrir asistente IA">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                IA
+            </button>
+            }
+
             <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()"
                 [class.graph-canvas--intro]="introAnimating()"
                 [class.graph-canvas--intro-individual]="introAnimating() && introMode() === 'individual'"
@@ -414,5 +421,111 @@
                 </button>
             </section>
         </main>
+
+        @if (aiPanelOpen()) {
+        <aside #aiPanel class="graph-ai"
+            [class.graph-ai--positioned]="aiPanelPositioned()"
+            [class.graph-ai--dragging]="aiPanelDragging()"
+            [class.graph-ai--minimized]="aiPanelMinimized()"
+            [class.graph-ai--maximized]="aiPanelMaximized()"
+            [style.left.px]="aiPanelPositioned() ? aiPanelX() : null"
+            [style.top.px]="aiPanelPositioned() ? aiPanelY() : null"
+            role="dialog" aria-label="Asistente de análisis del perfil">
+            <header class="graph-ai__header"
+                [class.graph-ai__header--draggable]="!aiPanelMaximized()"
+                (pointerdown)="startAiPanelDrag($event)"
+                (pointermove)="moveAiPanelDrag($event)"
+                (pointerup)="endAiPanelDrag($event)"
+                (pointercancel)="endAiPanelDrag($event)">
+                <div class="graph-ai__identity">
+                    <span class="graph-ai__spark"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <div>
+                        <strong>Asistente IA</strong>
+                        <small>
+                            <span class="graph-ai__status-dot" [class.graph-ai__status-dot--fallback]="aiServiceStatus() === 'fallback'"></span>
+                            {{ aiServiceStatusLabel() }} · privado · sin gateway
+                        </small>
+                    </div>
+                </div>
+                <div class="graph-ai__header-actions">
+                    <span class="graph-ai__drag-hint" title="Arrastra para mover"><i class="fa-solid fa-grip-lines"></i></span>
+                    <button type="button" aria-label="Limpiar conversación" title="Limpiar conversación" [disabled]="aiMessages().length === 0 && !aiQuestion()" (click)="clearAiConversation()">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                    <button type="button" [attr.aria-label]="aiPanelMinimized() ? 'Restaurar asistente IA' : 'Minimizar asistente IA'" [title]="aiPanelMinimized() ? 'Restaurar' : 'Minimizar'" (click)="toggleAiPanelMinimized()">
+                        <i class="fa-solid" [class.fa-window-restore]="aiPanelMinimized()" [class.fa-window-minimize]="!aiPanelMinimized()"></i>
+                    </button>
+                    <button type="button" [attr.aria-label]="aiPanelMaximized() ? 'Restaurar tamaño del asistente IA' : 'Ampliar asistente IA'" [title]="aiPanelMaximized() ? 'Restaurar tamaño' : 'Ampliar'" (click)="toggleAiPanelMaximized()">
+                        <i class="fa-solid" [class.fa-compress]="aiPanelMaximized()" [class.fa-expand]="!aiPanelMaximized()"></i>
+                    </button>
+                    <button type="button" aria-label="Cerrar asistente IA" title="Cerrar" (click)="closeAiPanel()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </header>
+
+            <div class="graph-ai__body">
+                <section #aiChatViewport class="graph-ai-chat" aria-live="polite" aria-label="Conversación con el asistente IA">
+                    @for (message of aiMessages(); track message.id) {
+                    <article class="graph-ai-message" [class.graph-ai-message--user]="message.role === 'user'" [class.graph-ai-message--assistant]="message.role === 'assistant'">
+                        <div class="graph-ai-message__avatar">
+                            @if (message.role === 'user') {<i class="fa-solid fa-user"></i>}
+                            @else {<i class="fa-solid fa-wand-magic-sparkles"></i>}
+                        </div>
+                        <div class="graph-ai-message__content">
+                            <header>
+                                <strong>{{ message.role === 'user' ? 'Tú' : 'IA local' }}</strong>
+                                @if (message.role === 'assistant' && message.mode === 'local-llm') {
+                                <span class="graph-ai-message__mode"><i class="fa-solid fa-microchip"></i>{{ message.model || 'modelo local' }}</span>
+                                }
+                                @if (message.role === 'assistant' && message.mode === 'deterministic-fallback') {
+                                <span class="graph-ai-message__mode graph-ai-message__mode--fallback"><i class="fa-solid fa-shield-halved"></i>exacto local</span>
+                                }
+                            </header>
+                            @if (message.role === 'assistant' && message.streaming && !message.text) {
+                            <div class="graph-ai-thinking" role="status" aria-label="La IA está preparando la respuesta">
+                                <span class="graph-ai-thinking__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                                <em>Revisando los datos y las fuentes…</em>
+                            </div>
+                            } @else {
+                            <p>{{ message.text }}@if (message.streaming) {<span class="graph-ai-typing-caret" aria-hidden="true"></span>}</p>
+                            }
+
+                            @if (message.role === 'assistant' && message.evidence.length > 0) {
+                            <details class="graph-ai-message__sources">
+                                <summary><i class="fa-solid fa-link"></i>Fuentes usadas ({{ message.evidence.length }})</summary>
+                                <div>
+                                    @for (item of message.evidence.slice(0, 10); track item.kind + '-' + item.id) {
+                                    <article>
+                                        <strong>{{ item.label }}</strong>
+                                        <p>{{ item.value }}</p>
+                                        @if (item.sourceCodes.length > 0) {
+                                        <footer>@for (source of item.sourceCodes; track source) {<span>{{ source }}</span>}</footer>
+                                        }
+                                    </article>
+                                    }
+                                </div>
+                            </details>
+                            }
+                        </div>
+                    </article>
+                    }
+                </section>
+
+                @if (aiErrorMessage()) {
+                <p class="graph-ai__error"><i class="fa-solid fa-circle-exclamation"></i>{{ aiErrorMessage() }}</p>
+                }
+            </div>
+
+            <footer class="graph-ai-composer">
+                <div class="graph-ai-composer__box">
+                    <textarea #aiComposer rows="1" [value]="aiQuestion()" (input)="setAiQuestion($event)" (keydown)="onAiComposerKeydown($event)" placeholder="Escribe tu pregunta..."></textarea>
+                    @if (isAiLoading()) {
+                    <button type="button" class="graph-ai-composer__send graph-ai-composer__send--stop" aria-label="Detener generación" title="Detener" (click)="stopAiGeneration()"><i class="fa-solid fa-stop"></i></button>
+                    } @else {
+                    <button type="button" class="graph-ai-composer__send" aria-label="Enviar pregunta" title="Enviar" [disabled]="!loadedProfile() || !aiQuestion().trim()" (click)="askAi()"><i class="fa-solid fa-arrow-up"></i></button>
+                    }
+                </div>
+            </footer>
+        </aside>
+        }
     </div>
 </section>

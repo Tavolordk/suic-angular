@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { AuthStorage } from '../auth/auth.storage';
+import { SKIP_SYSTEM_AUTH } from './http-context.tokens';
 
 /**
  * Agrega el access token a todas las peticiones protegidas.
@@ -11,10 +12,13 @@ import { AuthStorage } from '../auth/auth.storage';
  * públicos (`security: []`) los endpoints de CAPTCHA, el reto MFA, la verificación
  * MFA y el refresh de tokens. Todo lo demás —incluyendo POST /api/v1/auth/sessions/logout
  * y los endpoints de /api/search— viaja con `Authorization: Bearer <accessToken>`.
+ * Las peticiones marcadas con `SKIP_SYSTEM_AUTH` (por ejemplo la API IA local)
+ * nunca reciben el JWT ni participan en la gestión de sesión.
  */
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
     const authStorage = inject(AuthStorage);
     const authService = inject(AuthService);
+    const skipSystemAuth = request.context.get(SKIP_SYSTEM_AUTH);
     const session = authStorage.session();
     const token = session?.accessToken?.trim();
     const tokenType = session?.tokenType?.trim() || 'Bearer';
@@ -28,17 +32,17 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
         'X-Trace-Id': createTraceId()
     };
 
-    if (token && !publicAuthenticationRequest) {
+    if (token && !publicAuthenticationRequest && !skipSystemAuth) {
         headers['Authorization'] = `${tokenType} ${token}`;
     }
 
-    if (token && !sessionManagementRequest) {
+    if (token && !sessionManagementRequest && !skipSystemAuth) {
         authService.notifyAuthenticatedHttpActivity();
     }
 
     return next(request.clone({ setHeaders: headers })).pipe(
         catchError((error: unknown) => {
-            if (token && isSessionRejectedError(error) && !sessionManagementRequest) {
+            if (token && isSessionRejectedError(error) && !sessionManagementRequest && !skipSystemAuth) {
                 // El servicio decide si el 401 fue por sesión caducada (muestra modal)
                 // o por falta de permisos (propaga el error a la pantalla).
                 return authService.resolveUnauthorizedRequest(error);

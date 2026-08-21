@@ -2,13 +2,28 @@ import { DecimalPipe } from '@angular/common';
 import {
   AfterViewInit,
   Component,
+  ElementRef,
   OnDestroy,
   OnInit,
+  ViewChild,
   computed,
   inject,
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
+import {
+  GraphAnalysisApiResponse,
+  IntelligenceChatHistoryMessage,
+  IntelligenceGraphPayload
+} from '../../../../core/intelligence/intelligence-api.models';
+import { ProfileIntelligenceService } from '../../../../core/intelligence/profile-intelligence.service';
+import {
+  IntelligenceAnswer,
+  IntelligenceEvidence,
+  ProfileIntelligenceSnapshot
+} from '../../../../core/intelligence/profile-intelligence.models';
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
 import {
   ConsolidatedProfileAddressDto,
@@ -53,6 +68,18 @@ interface GraphFilter {
   label: string;
 }
 
+
+interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  evidence: IntelligenceEvidence[];
+  disclaimer?: string | null;
+  streaming?: boolean;
+  mode?: 'local-llm' | 'deterministic-fallback';
+  model?: string | null;
+}
+
 interface GraphAddressViewModel {
   id: string;
   title: string;
@@ -76,6 +103,19 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
+  private readonly profileIntelligence = inject(ProfileIntelligenceService);
+  private readonly intelligenceApi = inject(IntelligenceApiService);
+
+  @ViewChild('aiPanel') private aiPanelElement?: ElementRef<HTMLElement>;
+  @ViewChild('aiChatViewport') private aiChatViewport?: ElementRef<HTMLElement>;
+  @ViewChild('aiComposer') private aiComposer?: ElementRef<HTMLTextAreaElement>;
+  private aiChatSubscription?: Subscription;
+  private aiMessageSequence = 0;
+  private aiPanelDragPointerId: number | null = null;
+  private aiPanelDragStartClientX = 0;
+  private aiPanelDragStartClientY = 0;
+  private aiPanelDragStartX = 0;
+  private aiPanelDragStartY = 0;
 
   readonly profileId =
     this.route.snapshot.queryParamMap.get('profileId')?.trim() ||
@@ -123,6 +163,24 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly links = signal<GraphLink[]>([]);
   readonly addresses = signal<GraphAddressViewModel[]>([]);
   readonly addressPageIndex = signal(0);
+
+  // La IA trabaja sobre el response ya recibido. No cambia contratos ni dispara endpoints existentes.
+  readonly loadedProfile = signal<ConsolidatedProfileResponse | null>(null);
+  readonly aiPanelOpen = signal(true);
+  readonly aiPanelMinimized = signal(false);
+  readonly aiPanelMaximized = signal(false);
+  readonly aiPanelPositioned = signal(false);
+  readonly aiPanelDragging = signal(false);
+  readonly aiPanelX = signal(0);
+  readonly aiPanelY = signal(16);
+  readonly aiQuestion = signal('');
+  readonly aiSnapshot = signal<ProfileIntelligenceSnapshot | null>(null);
+  readonly aiAnswer = signal<IntelligenceAnswer | null>(null);
+  readonly aiMessages = signal<AiChatMessage[]>([]);
+  readonly aiErrorMessage = signal<string | null>(null);
+  readonly isAiLoading = signal(false);
+  readonly aiServiceStatus = signal<'checking' | 'online' | 'fallback'>('checking');
+  readonly aiGraphAnalysis = signal<GraphAnalysisApiResponse | null>(null);
 
   readonly nodeIndex = computed(
     () => new Map(this.nodes().map((node) => [node.id, node] as const))
@@ -184,6 +242,18 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     `translate(${this.panX()} ${this.panY()}) scale(${this.zoom()})`
   );
 
+  readonly aiEvidence = computed<IntelligenceEvidence[]>(() => {
+    const lastAssistant = [...this.aiMessages()].reverse().find((message) => message.role === 'assistant');
+    return lastAssistant?.evidence ?? this.aiAnswer()?.evidence ?? [];
+  });
+  readonly aiServiceStatusLabel = computed(() => {
+    switch (this.aiServiceStatus()) {
+      case 'online': return 'Qwen local listo';
+      case 'fallback': return 'Modo exacto local';
+      default: return 'Conectando IA local';
+    }
+  });
+
   ngOnInit(): void {
     this.loadProfile();
   }
@@ -196,6 +266,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     if (this.introTimer) {
       clearTimeout(this.introTimer);
     }
+    this.aiChatSubscription?.unsubscribe();
   }
 
   loadProfile(): void {
@@ -212,19 +283,465 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.consolidatedProfilesApi.getProfile(this.profileId).subscribe({
       next: (profile) => {
         const graph = mapProfileToGraph(profile);
+        const fallbackSnapshot = this.profileIntelligence.analyze(profile);
+        this.loadedProfile.set(profile);
         this.nodes.set(graph.nodes);
         this.links.set(graph.links);
         this.addresses.set(mapAddressesForPanel(profile.addresses ?? []));
         this.addressPageIndex.set(0);
         this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+
+        // Fallback determinista inmediato: la pantalla nunca depende de que la API IA esté arriba.
+        this.aiSnapshot.set(fallbackSnapshot);
+        const initialAnswer = this.profileIntelligence.answer(
+          '',
+          profile,
+          this.selectedNodeContext(),
+          this.currentAiGraphPayload()
+        );
+        this.aiAnswer.set(initialAnswer);
+        // El chat inicia limpio. El análisis automático queda disponible como respaldo,
+        // pero no ocupa la conversación hasta que el usuario haga una pregunta.
+        this.aiMessages.set([]);
+        this.aiErrorMessage.set(null);
+        this.aiServiceStatus.set('checking');
         this.isLoading.set(false);
         this.restartIntroAnimation();
+
+        // Llamadas NUEVAS e independientes; no modifican ni repiten los endpoints de negocio.
+        this.refreshRemoteProfileAnalysis(profile);
+        this.refreshRemoteGraphAnalysis();
+        this.refreshLocalLlmHealth();
       },
       error: (error: unknown) => {
         this.isLoading.set(false);
         this.setGraphError(extractErrorMessage(error));
       }
     });
+  }
+
+
+  toggleAiPanel(): void {
+    if (this.aiPanelOpen()) {
+      this.closeAiPanel();
+    } else {
+      this.openAiPanel();
+    }
+  }
+
+  openAiPanel(): void {
+    this.aiPanelOpen.set(true);
+    this.aiPanelMinimized.set(false);
+    this.aiPanelMaximized.set(false);
+    this.focusAiComposer();
+  }
+
+  closeAiPanel(): void {
+    this.endAiPanelDrag();
+    this.aiPanelOpen.set(false);
+    this.aiPanelMinimized.set(false);
+    this.aiPanelMaximized.set(false);
+  }
+
+  toggleAiPanelMinimized(): void {
+    const next = !this.aiPanelMinimized();
+    this.aiPanelMinimized.set(next);
+    if (next) {
+      this.aiPanelMaximized.set(false);
+    }
+    this.clampAiPanelPositionSoon();
+  }
+
+  toggleAiPanelMaximized(): void {
+    const next = !this.aiPanelMaximized();
+    this.aiPanelMaximized.set(next);
+    if (next) {
+      this.aiPanelMinimized.set(false);
+      this.endAiPanelDrag();
+    } else {
+      this.clampAiPanelPositionSoon();
+      this.focusAiComposer();
+    }
+  }
+
+  startAiPanelDrag(event: PointerEvent): void {
+    if (this.aiPanelMaximized()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button')) {
+      return;
+    }
+
+    const panel = this.aiPanelElement?.nativeElement;
+    const parent = panel?.parentElement;
+    if (!panel || !parent) {
+      return;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+
+    if (!this.aiPanelPositioned()) {
+      this.aiPanelX.set(panelRect.left - parentRect.left);
+      this.aiPanelY.set(panelRect.top - parentRect.top);
+      this.aiPanelPositioned.set(true);
+    }
+
+    this.aiPanelDragPointerId = event.pointerId;
+    this.aiPanelDragStartClientX = event.clientX;
+    this.aiPanelDragStartClientY = event.clientY;
+    this.aiPanelDragStartX = this.aiPanelX();
+    this.aiPanelDragStartY = this.aiPanelY();
+    this.aiPanelDragging.set(true);
+
+    const handle = event.currentTarget as HTMLElement | null;
+    handle?.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  moveAiPanelDrag(event: PointerEvent): void {
+    if (!this.aiPanelDragging() || this.aiPanelDragPointerId !== event.pointerId) {
+      return;
+    }
+
+    const panel = this.aiPanelElement?.nativeElement;
+    const parent = panel?.parentElement;
+    if (!panel || !parent) {
+      return;
+    }
+
+    const parentRect = parent.getBoundingClientRect();
+    const panelWidth = panel.offsetWidth;
+    const panelHeight = panel.offsetHeight;
+    const margin = 8;
+    const deltaX = event.clientX - this.aiPanelDragStartClientX;
+    const deltaY = event.clientY - this.aiPanelDragStartClientY;
+    const maxX = Math.max(margin, parentRect.width - panelWidth - margin);
+    const maxY = Math.max(margin, parentRect.height - panelHeight - margin);
+
+    this.aiPanelX.set(clamp(this.aiPanelDragStartX + deltaX, margin, maxX));
+    this.aiPanelY.set(clamp(this.aiPanelDragStartY + deltaY, margin, maxY));
+  }
+
+  endAiPanelDrag(event?: PointerEvent): void {
+    if (event && this.aiPanelDragPointerId !== null) {
+      const handle = event.currentTarget as HTMLElement | null;
+      if (handle?.hasPointerCapture?.(this.aiPanelDragPointerId)) {
+        handle.releasePointerCapture(this.aiPanelDragPointerId);
+      }
+    }
+    this.aiPanelDragPointerId = null;
+    this.aiPanelDragging.set(false);
+  }
+
+  private clampAiPanelPositionSoon(): void {
+    if (!this.aiPanelPositioned()) {
+      return;
+    }
+    setTimeout(() => this.clampAiPanelPosition());
+  }
+
+  private clampAiPanelPosition(): void {
+    const panel = this.aiPanelElement?.nativeElement;
+    const parent = panel?.parentElement;
+    if (!panel || !parent || this.aiPanelMaximized()) {
+      return;
+    }
+
+    const parentRect = parent.getBoundingClientRect();
+    const margin = 8;
+    const maxX = Math.max(margin, parentRect.width - panel.offsetWidth - margin);
+    const maxY = Math.max(margin, parentRect.height - panel.offsetHeight - margin);
+    this.aiPanelX.set(clamp(this.aiPanelX(), margin, maxX));
+    this.aiPanelY.set(clamp(this.aiPanelY(), margin, maxY));
+  }
+
+  setAiQuestion(event: Event): void {
+    const target = event.target as HTMLTextAreaElement | null;
+    this.aiQuestion.set(target?.value ?? '');
+    if (target) {
+      target.style.height = 'auto';
+      target.style.height = `${Math.min(target.scrollHeight, 132)}px`;
+    }
+  }
+
+  onAiComposerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.askAi();
+    }
+  }
+
+  askAi(questionOverride?: string): void {
+    const profile = this.loadedProfile();
+    if (!profile || this.isAiLoading()) {
+      if (!profile) {
+        this.aiErrorMessage.set('Primero debe cargarse el perfil consolidado.');
+      }
+      return;
+    }
+
+    const question = (questionOverride ?? this.aiQuestion()).trim();
+    if (!question) {
+      return;
+    }
+
+    const selectedNode = this.selectedNodeContext();
+    const graph = this.currentAiGraphPayload();
+    const history = this.currentChatHistory();
+    const userMessage = this.createAiMessage('user', question);
+    const assistantMessage = this.createAiMessage('assistant', '', {
+      streaming: true,
+      mode: 'local-llm'
+    });
+
+    this.aiMessages.update((messages) => [...messages, userMessage, assistantMessage]);
+    this.aiQuestion.set('');
+    this.resetAiComposerHeight();
+    this.isAiLoading.set(true);
+    this.aiErrorMessage.set(null);
+    this.scrollAiChatToBottom();
+
+    this.aiChatSubscription?.unsubscribe();
+    this.aiChatSubscription = this.intelligenceApi
+      .streamChat(profile, question, history, selectedNode, graph)
+      .subscribe({
+        next: (event) => {
+          if (event.type === 'meta') {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              mode: event.mode,
+              model: event.model ?? null
+            }));
+            this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
+          }
+
+          if (event.type === 'delta') {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              text: message.text + event.text
+            }));
+          }
+
+          if (event.type === 'replace') {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              text: event.text,
+              mode: event.mode,
+              model: event.model ?? null
+            }));
+            this.aiServiceStatus.set('fallback');
+          }
+
+          if (event.type === 'done') {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              streaming: false,
+              evidence: event.evidence ?? [],
+              disclaimer: event.disclaimer ?? null,
+              mode: event.mode,
+              model: event.model ?? null
+            }));
+
+            const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
+            if (completed) {
+              this.aiAnswer.set({
+                text: completed.text,
+                evidence: completed.evidence,
+                disclaimer: completed.disclaimer ?? undefined
+              });
+            }
+
+            this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
+            this.isAiLoading.set(false);
+          }
+
+          this.scrollAiChatToBottom();
+        },
+        error: () => {
+          const fallback = this.profileIntelligence.answer(question, profile, selectedNode, graph);
+          this.updateAiMessage(assistantMessage.id, (message) => ({
+            ...message,
+            text: fallback.text,
+            evidence: fallback.evidence,
+            disclaimer: fallback.disclaimer,
+            streaming: false,
+            mode: 'deterministic-fallback',
+            model: null
+          }));
+          this.aiAnswer.set(fallback);
+          this.aiServiceStatus.set('fallback');
+          this.aiErrorMessage.set(
+            'La API de IA local no respondió. Se usó el analizador determinista del navegador; los datos del perfil siguen disponibles.'
+          );
+          this.isAiLoading.set(false);
+          this.scrollAiChatToBottom();
+        },
+        complete: () => {
+          if (this.isAiLoading()) {
+            this.isAiLoading.set(false);
+          }
+        }
+      });
+  }
+
+  stopAiGeneration(): void {
+    if (!this.isAiLoading()) {
+      return;
+    }
+    this.aiChatSubscription?.unsubscribe();
+    this.aiChatSubscription = undefined;
+    this.aiMessages.update((messages) =>
+      messages.map((message) =>
+        message.streaming
+          ? {
+              ...message,
+              streaming: false,
+              text: message.text || 'Generación detenida por el usuario.'
+            }
+          : message
+      )
+    );
+    this.isAiLoading.set(false);
+  }
+
+  clearAiConversation(): void {
+    this.aiChatSubscription?.unsubscribe();
+    this.aiChatSubscription = undefined;
+    this.aiQuestion.set('');
+    this.aiErrorMessage.set(null);
+    this.isAiLoading.set(false);
+    this.aiMessages.set([]);
+    this.aiAnswer.set(null);
+    this.resetAiComposerHeight();
+    this.focusAiComposer();
+  }
+
+  private resetAiComposerHeight(): void {
+    setTimeout(() => {
+      const element = this.aiComposer?.nativeElement;
+      if (element) {
+        element.style.height = '44px';
+      }
+    });
+  }
+
+  private focusAiComposer(): void {
+    setTimeout(() => this.aiComposer?.nativeElement.focus());
+  }
+
+  private currentChatHistory(): IntelligenceChatHistoryMessage[] {
+    return this.aiMessages()
+      .filter((message) => !message.streaming && message.text.trim().length > 0)
+      .slice(-8)
+      .map((message) => ({ role: message.role, content: message.text }));
+  }
+
+  private createAiMessage(
+    role: 'user' | 'assistant',
+    text: string,
+    options: Partial<Omit<AiChatMessage, 'id' | 'role' | 'text'>> = {}
+  ): AiChatMessage {
+    this.aiMessageSequence += 1;
+    return {
+      id: `ai-message-${this.aiMessageSequence}`,
+      role,
+      text,
+      evidence: [],
+      streaming: false,
+      ...options
+    };
+  }
+
+  private updateAiMessage(
+    messageId: string,
+    updater: (message: AiChatMessage) => AiChatMessage
+  ): void {
+    this.aiMessages.update((messages) =>
+      messages.map((message) => (message.id === messageId ? updater(message) : message))
+    );
+  }
+
+  private scrollAiChatToBottom(): void {
+    setTimeout(() => {
+      const element = this.aiChatViewport?.nativeElement;
+      if (element) {
+        element.scrollTop = element.scrollHeight;
+      }
+    });
+  }
+
+  private refreshRemoteProfileAnalysis(profile: ConsolidatedProfileResponse): void {
+    this.intelligenceApi.analyzeProfile(profile).subscribe({
+      next: (snapshot) => {
+        this.aiSnapshot.set(snapshot);
+        this.aiErrorMessage.set(null);
+      },
+      error: () => {
+        this.aiServiceStatus.set('fallback');
+        this.aiErrorMessage.set(
+          'No fue posible conectar con http://127.0.0.1:8080. El perfil funciona normalmente y usa el análisis local como respaldo.'
+        );
+      }
+    });
+  }
+
+  private refreshRemoteGraphAnalysis(): void {
+    if (!this.loadedProfile()) {
+      return;
+    }
+
+    this.intelligenceApi.analyzeGraph(this.currentAiGraphPayload()).subscribe({
+      next: (analysis) => {
+        this.aiGraphAnalysis.set(analysis);
+      },
+      error: () => {
+        // El grafo visual continúa funcionando; sólo se pierde esta descripción complementaria.
+        this.aiGraphAnalysis.set(null);
+      }
+    });
+  }
+
+  private refreshLocalLlmHealth(): void {
+    this.intelligenceApi.checkLlmHealth().subscribe({
+      next: (health) => {
+        const ready = health.runtimeReachable && health.modelAvailable && health.status === 'ok';
+        this.aiServiceStatus.set(ready ? 'online' : 'fallback');
+        if (ready) {
+          this.aiErrorMessage.set(null);
+        }
+      },
+      error: () => {
+        this.aiServiceStatus.set('fallback');
+      }
+    });
+  }
+
+  private currentAiGraphPayload(): IntelligenceGraphPayload {
+    return {
+      nodes: this.nodes().map((node) => ({
+        id: node.id,
+        type: this.getNodeTypeLabel(node.type),
+        title: node.title,
+        subtitle: node.subtitle,
+        details: node.details
+      })),
+      links: this.links().map((link) => ({ ...link })),
+      selectedNodeId: this.selectedNodeId()
+    };
+  }
+
+  private selectedNodeContext() {
+    const selected = this.selectedNode();
+    return {
+      id: selected.id,
+      type: this.getNodeTypeLabel(selected.type),
+      title: selected.title,
+      subtitle: selected.subtitle,
+      details: selected.details
+    };
   }
 
   getIntroLinkDelay(index: number): number {
@@ -272,6 +789,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.selectedNodeId.set(nodeId);
     this.detailPanelOpen.set(true);
+    this.refreshRemoteGraphAnalysis();
   }
 
   toggleDetailPanel(): void {
@@ -469,6 +987,12 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   private setGraphError(message: string): void {
     this.errorMessage.set(message);
+    this.loadedProfile.set(null);
+    this.aiSnapshot.set(null);
+    this.aiAnswer.set(null);
+    this.aiMessages.set([]);
+    this.aiGraphAnalysis.set(null);
+    this.aiServiceStatus.set('fallback');
     this.nodes.set([createPlaceholderNode(this.profileId || 'profile', 'No fue posible cargar el perfil', message)]);
     this.links.set([]);
     this.addresses.set([]);
@@ -739,4 +1263,8 @@ function extractErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'Ocurrió un error inesperado al consultar el perfil consolidado.';
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
