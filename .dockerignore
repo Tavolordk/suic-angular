@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+.git
+.gitignore
+.vscode
+*.tar
+*.tar.gz
+*.zip
+npm-debug.log*

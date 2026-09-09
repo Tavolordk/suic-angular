@@ -57,3 +57,20 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Docker / servidor
+
+El gateway ya no está fijo en el código. Para construir una imagen con gateway por defecto:
+
+```powershell
+.\build-docker.ps1 -Version "2.1.0" -GatewayUrl "http://10.237.3.42:8081"
+```
+
+El script genera `ssr-front_2.1.0.tar`. En el servidor usa `docker-compose.yml` y `.env`.
+Si el gateway cambia después, basta actualizar `GATEWAY_URL` en `.env` y ejecutar:
+
+```bash
+docker compose up -d --force-recreate
+```
+
+No es necesario reconstruir Angular ni generar otro TAR para un cambio de IP/puerto.

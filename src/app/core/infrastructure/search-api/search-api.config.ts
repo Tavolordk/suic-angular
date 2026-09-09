@@ -1,13 +1,11 @@
 import { InjectionToken } from '@angular/core';
+import { getGatewayUrl } from '../../config/runtime-config';
 
 /**
- * El Swagger entregado pertenece al mismo host actualmente usado por AuthService.
- * Al mover la API a gateway o proxy, cambia solamente este token.
+ * Base de los endpoints de búsqueda publicados por el mismo API Gateway.
+ * Mantiene /api como parte del contrato del frontend.
  */
-export const SEARCH_API_BASE_URL = new InjectionToken<string>(
-  'SEARCH_API_BASE_URL',
-  {
-    providedIn: 'root',
-    factory: () => 'http://10.237.3.42:55808/api'
-  }
-);
+export const SEARCH_API_BASE_URL = new InjectionToken<string>('SEARCH_API_BASE_URL', {
+  providedIn: 'root',
+  factory: () => `${getGatewayUrl()}/api`,
+});

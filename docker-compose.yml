@@ -1,0 +1,11 @@
+services:
+  ssr-front:
+    image: ${FRONT_IMAGE:-ssr-front}:${FRONT_VERSION:-2.1.0}
+    container_name: ssr-front
+    restart: unless-stopped
+    environment:
+      GATEWAY_URL: ${GATEWAY_URL:-http://10.237.3.42:8081}
+      PORT: 4000
+      NODE_ENV: production
+    ports:
+      - "${FRONT_PORT:-3500}:4000"

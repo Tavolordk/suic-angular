@@ -9,6 +9,16 @@ import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
+const gatewayUrl = (
+  process.env['GATEWAY_URL'] ||
+  process.env['DEFAULT_GATEWAY_URL'] ||
+  'http://10.237.3.42:8081'
+).replace(/\/+$/, '');
+
+(globalThis as typeof globalThis & { __APP_CONFIG__?: { gatewayUrl?: string } }).__APP_CONFIG__ = {
+  gatewayUrl,
+};
+
 const app = express();
 const angularApp = new AngularNodeAppEngine();
 
@@ -23,6 +33,17 @@ const angularApp = new AngularNodeAppEngine();
  * });
  * ```
  */
+
+/**
+ * runtime-config.js debe leerse siempre fresco para permitir cambiar GATEWAY_URL
+ * sin reconstruir la imagen.
+ */
+app.get('/runtime-config.js', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(join(browserDistFolder, 'runtime-config.js'));
+});
 
 /**
  * Serve static files from /browser

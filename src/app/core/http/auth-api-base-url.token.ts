@@ -1,10 +1,11 @@
 import { InjectionToken } from '@angular/core';
+import { getGatewayUrl } from '../config/runtime-config';
 
 /**
- * Host de Spm.Api. Los endpoints de autenticación y captcha cuelgan de
- * `/api/auth`. Al mover la API a gateway o proxy, cambia solamente este token.
+ * Host base del API Gateway. El valor se obtiene de runtime-config.js y puede
+ * cambiarse con GATEWAY_URL sin recompilar el frontend.
  */
 export const AUTH_API_BASE_URL = new InjectionToken<string>('AUTH_API_BASE_URL', {
-    providedIn: 'root',
-    factory: () => 'http://10.237.3.42:55808'
+  providedIn: 'root',
+  factory: () => getGatewayUrl(),
 });
