@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       GATEWAY_URL: ${GATEWAY_URL:-http://10.237.3.42:8081}
+      INTELLIGENCE_API_URL: ${INTELLIGENCE_API_URL:-http://127.0.0.1:8080}
       PORT: 4000
       NODE_ENV: production
     ports:

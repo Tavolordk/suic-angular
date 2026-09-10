@@ -15,8 +15,17 @@ const gatewayUrl = (
   'http://10.237.3.42:8081'
 ).replace(/\/+$/, '');
 
-(globalThis as typeof globalThis & { __APP_CONFIG__?: { gatewayUrl?: string } }).__APP_CONFIG__ = {
+const intelligenceApiUrl = (
+  process.env['INTELLIGENCE_API_URL'] ||
+  process.env['DEFAULT_INTELLIGENCE_API_URL'] ||
+  'http://127.0.0.1:8080'
+).replace(/\/+$/, '');
+
+(globalThis as typeof globalThis & {
+  __APP_CONFIG__?: { gatewayUrl?: string; intelligenceApiUrl?: string };
+}).__APP_CONFIG__ = {
   gatewayUrl,
+  intelligenceApiUrl,
 };
 
 const app = express();
@@ -36,7 +45,7 @@ const angularApp = new AngularNodeAppEngine();
 
 /**
  * runtime-config.js debe leerse siempre fresco para permitir cambiar GATEWAY_URL
- * sin reconstruir la imagen.
+ * e INTELLIGENCE_API_URL sin reconstruir la imagen.
  */
 app.get('/runtime-config.js', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

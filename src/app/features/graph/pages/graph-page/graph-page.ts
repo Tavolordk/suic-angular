@@ -682,7 +682,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       error: () => {
         this.aiServiceStatus.set('fallback');
         this.aiErrorMessage.set(
-          'No fue posible conectar con http://127.0.0.1:8080. El perfil funciona normalmente y usa el análisis local como respaldo.'
+          'No fue posible conectar con la API de inteligencia configurada. El perfil funciona normalmente y usa el análisis local como respaldo.'
         );
       }
     });

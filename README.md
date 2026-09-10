@@ -60,17 +60,26 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## Docker / servidor
 
-El gateway ya no está fijo en el código. Para construir una imagen con gateway por defecto:
+El gateway y la API de inteligencia se configuran en runtime. Para construir una imagen con valores por defecto:
 
 ```powershell
-.\build-docker.ps1 -Version "2.1.0" -GatewayUrl "http://10.237.3.42:8081"
+.\build-docker.ps1 `
+  -Version "2.1.0" `
+  -GatewayUrl "http://10.237.3.42:8081" `
+  -IntelligenceApiUrl "http://10.237.3.42:8080"
 ```
 
-El script genera `ssr-front_2.1.0.tar`. En el servidor usa `docker-compose.yml` y `.env`.
-Si el gateway cambia después, basta actualizar `GATEWAY_URL` en `.env` y ejecutar:
+El script genera `ssr-front_2.1.0.tar` y un `.env`. En el servidor, si cambia cualquiera de las URLs, solo actualiza:
+
+```dotenv
+GATEWAY_URL=http://10.237.3.42:8081
+INTELLIGENCE_API_URL=http://10.237.3.42:8080
+```
+
+y recrea el contenedor:
 
 ```bash
 docker compose up -d --force-recreate
 ```
 
-No es necesario reconstruir Angular ni generar otro TAR para un cambio de IP/puerto.
+No es necesario reconstruir Angular ni generar otro TAR por un cambio de IP, host o puerto.
