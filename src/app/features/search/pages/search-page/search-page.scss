@@ -1798,3 +1798,17 @@
 .search-form__grid input[type='text']::placeholder {
   text-transform: none;
 }
+
+
+/* Historial / guardados: lectura más clara y preparada para datos del endpoint. */
+.search-sidebar-panel__header > div { min-width: 0; }
+.search-sidebar-panel__eyebrow { display:block; margin-bottom:3px; color:#617487; font-size:10px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
+.search-sidebar-panel__header p { margin:4px 0 0; color:#76889a; font-size:11px; line-height:1.35; }
+.search-sidebar-panel__item { align-items:center; gap:11px; min-height:76px; padding:11px 12px; border-radius:12px; }
+.search-sidebar-panel__content { display:flex; flex:1 1 auto; min-width:0; flex-direction:column; gap:5px; text-align:left; }
+.search-sidebar-panel__item-topline { display:flex; align-items:center; gap:8px; min-width:0; }
+.search-sidebar-panel__item-topline strong { flex:1 1 auto; min-width:0; overflow:hidden; color:#243746; font-size:12px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+.search-sidebar-panel__item-topline small { flex:0 0 auto; padding:3px 7px; border-radius:999px; background:rgba(28,106,84,.09); color:#1c6a54; font-size:8px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+.search-sidebar-panel__description { display:-webkit-box; overflow:hidden; color:#738393; font-size:10px; line-height:1.35; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.search-sidebar-panel__chevron { width:15px; height:15px; flex:0 0 15px; color:#8b9aa8; transition:transform .18s ease,color .18s ease; }
+.search-sidebar-panel__item:hover .search-sidebar-panel__chevron { color:#1c6a54; transform:translateX(2px); }

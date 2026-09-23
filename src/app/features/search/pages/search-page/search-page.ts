@@ -6,6 +6,7 @@ import {
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  HostListener,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
@@ -502,6 +503,11 @@ export class SearchPage implements OnInit, OnDestroy {
     this.profileOpen.update((value) => !value);
   }
 
+  @HostListener('document:click')
+  closeProfileOnOutsideClick(): void {
+    this.closeProfile();
+  }
+
   closeProfile(): void {
     this.profileOpen.set(false);
   }
@@ -550,6 +556,30 @@ export class SearchPage implements OnInit, OnDestroy {
     this.search();
   }
 
+
+  getQuickSearchTypeLabel(item: QuickSearchItem): string {
+    return item.icon === 'curp' ? 'CURP' : 'Persona';
+  }
+
+  getQuickSearchDescription(item: QuickSearchItem): string {
+    const labels: Partial<Record<keyof PersonSearchFormValue, string>> = {
+      nombres: 'Nombre',
+      apellidoPaterno: 'A. paterno',
+      apellidoMaterno: 'A. materno',
+      alias: 'Alias',
+      fechaNacimiento: 'Nacimiento',
+      curp: 'CURP',
+      rfc: 'RFC',
+      contacto: 'Contacto'
+    };
+
+    const parts = Object.entries(item.values)
+      .filter(([, value]) => String(value ?? '').trim())
+      .slice(0, 2)
+      .map(([key, value]) => `${labels[key as keyof PersonSearchFormValue] ?? key}: ${String(value).trim()}`);
+
+    return parts.join(' · ') || 'Búsqueda de persona';
+  }
   getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {
     return item.icon;
   }

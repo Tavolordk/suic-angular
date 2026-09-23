@@ -23,9 +23,9 @@
                     </div>
                 </div>
 
-                <div class="search-profile">
+                <div class="search-profile" (click)="$event.stopPropagation()">
                     <button type="button" class="search-profile__button"
-                        [attr.aria-label]="'Abrir menú de usuario de ' + accountNumber()" (click)="toggleProfile()">
+                        [attr.aria-label]="'Abrir menú de usuario de ' + accountNumber()" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">
                         <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
                             <path
                                 d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
@@ -138,9 +138,15 @@
 
         <section class="search-sidebar-panel" *ngIf="activeSidebarPanel()" (click)="$event.stopPropagation()">
             <header class="search-sidebar-panel__header">
-                <h2>
-                    {{ activeSidebarPanel() === 'history' ? 'Búsquedas recientes' : 'Búsquedas guardadas' }}
-                </h2>
+                <div>
+                    <span class="search-sidebar-panel__eyebrow">
+                        {{ activeSidebarPanel() === 'history' ? 'Historial' : 'Colección' }}
+                    </span>
+                    <h2>
+                        {{ activeSidebarPanel() === 'history' ? 'Búsquedas recientes' : 'Búsquedas guardadas' }}
+                    </h2>
+                    <p>Selecciona un registro para volver a cargar sus criterios.</p>
+                </div>
 
                 <button type="button" class="search-sidebar-panel__close" aria-label="Cerrar panel"
                     (click)="closeSidebarPanel()">
@@ -169,9 +175,17 @@
 
                     </span>
 
-                    <span class="search-sidebar-panel__text">
-                        {{ item.label }}
+                    <span class="search-sidebar-panel__content">
+                        <span class="search-sidebar-panel__item-topline">
+                            <strong>{{ item.label }}</strong>
+                            <small>{{ getQuickSearchTypeLabel(item) }}</small>
+                        </span>
+                        <span class="search-sidebar-panel__description">{{ getQuickSearchDescription(item) }}</span>
                     </span>
+
+                    <svg class="search-sidebar-panel__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
                 </button>
             </div>
         </section>

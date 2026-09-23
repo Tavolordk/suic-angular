@@ -25,13 +25,14 @@ import {
   ProfileIntelligenceSnapshot
 } from '../../../../core/intelligence/profile-intelligence.models';
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
+import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { SearchResultDetailResponse, SearchResultLinkItemDto } from '../../../../core/infrastructure/search-api/search-api.models';
 import {
   ConsolidatedProfileAddressDto,
-  ConsolidatedProfileOriginDto,
   ConsolidatedProfileResponse
 } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 
-type GraphNodeType = 'person' | 'source';
+type GraphNodeType = 'person' | 'vehicle' | 'weapon';
 type IntroAnimationMode = 'individual' | 'wave' | 'global';
 
 interface GraphNodeDetail {
@@ -40,9 +41,9 @@ interface GraphNodeDetail {
 }
 
 interface GraphNodeLinks {
-  profiles: number;
-  locations: number;
-  sources: number;
+  persons: number;
+  vehicles: number;
+  weapons: number;
 }
 
 interface GraphNode {
@@ -61,6 +62,8 @@ interface GraphLink {
   id: string;
   sourceId: string;
   targetId: string;
+  type: Exclude<GraphNodeType, 'person'> | 'person';
+  label: string;
 }
 
 interface GraphFilter {
@@ -78,6 +81,7 @@ interface AiChatMessage {
   streaming?: boolean;
   mode?: 'local-llm' | 'deterministic-fallback';
   model?: string | null;
+  thinking?: boolean;
 }
 
 interface GraphAddressViewModel {
@@ -103,6 +107,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
+  private readonly searchApi = inject(SearchApiService);
   private readonly profileIntelligence = inject(ProfileIntelligenceService);
   private readonly intelligenceApi = inject(IntelligenceApiService);
 
@@ -149,12 +154,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   readonly activeFilters = signal<Record<GraphNodeType, boolean>>({
     person: true,
-    source: true
+    vehicle: true,
+    weapon: true
   });
 
   readonly filters: GraphFilter[] = [
-    { type: 'person', label: 'Perfil' },
-    { type: 'source', label: 'Fuentes' }
+    { type: 'person', label: 'Personas' },
+    { type: 'vehicle', label: 'Vehículos' },
+    { type: 'weapon', label: 'Armas' }
   ];
 
   readonly nodes = signal<GraphNode[]>([
@@ -166,7 +173,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   // La IA trabaja sobre el response ya recibido. No cambia contratos ni dispara endpoints existentes.
   readonly loadedProfile = signal<ConsolidatedProfileResponse | null>(null);
-  readonly aiPanelOpen = signal(true);
+  readonly aiPanelOpen = signal(false);
   readonly aiPanelMinimized = signal(false);
   readonly aiPanelMaximized = signal(false);
   readonly aiPanelPositioned = signal(false);
@@ -179,6 +186,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly aiMessages = signal<AiChatMessage[]>([]);
   readonly aiErrorMessage = signal<string | null>(null);
   readonly isAiLoading = signal(false);
+  readonly aiThinkingEnabled = signal(true);
   readonly aiServiceStatus = signal<'checking' | 'online' | 'fallback'>('checking');
   readonly aiGraphAnalysis = signal<GraphAnalysisApiResponse | null>(null);
 
@@ -188,7 +196,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   readonly visibleNodes = computed(() => {
     const filters = this.activeFilters();
-    return this.nodes().filter((node) => filters[node.type]);
+    const rootId = this.nodes()[0]?.id;
+    return this.nodes().filter((node) => node.id === rootId || filters[node.type]);
   });
 
   readonly visibleLinks = computed(() => {
@@ -312,10 +321,36 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.refreshRemoteProfileAnalysis(profile);
         this.refreshRemoteGraphAnalysis();
         this.refreshLocalLlmHealth();
+        this.loadRelationshipGraph(profile);
       },
       error: (error: unknown) => {
         this.isLoading.set(false);
         this.setGraphError(extractErrorMessage(error));
+      }
+    });
+  }
+
+
+  private loadRelationshipGraph(profile: ConsolidatedProfileResponse): void {
+    const searchId = profile.searchId?.trim();
+    const resultId = profile.preconsolidatedResultId?.trim();
+
+    if (!searchId || !resultId) {
+      return;
+    }
+
+    this.searchApi.getResultDetail(searchId, resultId).subscribe({
+      next: (detail) => {
+        const graph = mapProfileToGraph(profile, detail);
+        this.nodes.set(graph.nodes);
+        this.links.set(graph.links);
+        this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+        this.restartIntroAnimation();
+        this.refreshRemoteGraphAnalysis();
+      },
+      error: () => {
+        // El perfil raíz sigue disponible aunque el endpoint de detalle no responda.
+        // Así el grafo nunca queda sin estado ni bloquea el análisis del perfil consolidado.
       }
     });
   }
@@ -491,10 +526,12 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const selectedNode = this.selectedNodeContext();
     const graph = this.currentAiGraphPayload();
     const history = this.currentChatHistory();
+    const thinking = this.aiThinkingEnabled();
     const userMessage = this.createAiMessage('user', question);
     const assistantMessage = this.createAiMessage('assistant', '', {
       streaming: true,
-      mode: 'local-llm'
+      mode: 'local-llm',
+      thinking
     });
 
     this.aiMessages.update((messages) => [...messages, userMessage, assistantMessage]);
@@ -506,14 +543,15 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.aiChatSubscription?.unsubscribe();
     this.aiChatSubscription = this.intelligenceApi
-      .streamChat(profile, question, history, selectedNode, graph)
+      .streamChat(profile, question, history, thinking, selectedNode, graph)
       .subscribe({
         next: (event) => {
           if (event.type === 'meta') {
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
               mode: event.mode,
-              model: event.model ?? null
+              model: event.model ?? null,
+              thinking: event.thinking ?? message.thinking
             }));
             this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
           }
@@ -530,9 +568,10 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
               ...message,
               text: event.text,
               mode: event.mode,
-              model: event.model ?? null
+              model: event.model ?? null,
+              thinking: event.thinking ?? message.thinking
             }));
-            this.aiServiceStatus.set('fallback');
+            this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
           }
 
           if (event.type === 'done') {
@@ -542,7 +581,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
               evidence: event.evidence ?? [],
               disclaimer: event.disclaimer ?? null,
               mode: event.mode,
-              model: event.model ?? null
+              model: event.model ?? null,
+              thinking: event.thinking ?? message.thinking
             }));
 
             const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
@@ -585,6 +625,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           }
         }
       });
+  }
+
+
+  toggleAiThinking(): void {
+    if (this.isAiLoading()) {
+      return;
+    }
+    this.aiThinkingEnabled.update((enabled) => !enabled);
   }
 
   stopAiGeneration(): void {
@@ -728,7 +776,11 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         subtitle: node.subtitle,
         details: node.details
       })),
-      links: this.links().map((link) => ({ ...link })),
+      links: this.links().map((link) => ({
+        id: link.id,
+        sourceId: link.sourceId,
+        targetId: link.targetId
+      })),
       selectedNodeId: this.selectedNodeId()
     };
   }
@@ -804,8 +856,11 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       }
 
       const selectedNode = this.selectedNode();
-      if (!nextFilters[selectedNode.type]) {
-        const nextNode = this.nodes().find((node) => nextFilters[node.type]);
+      const rootId = this.nodes()[0]?.id;
+      if (selectedNode.id !== rootId && !nextFilters[selectedNode.type]) {
+        const nextNode = this.nodes().find(
+          (node) => node.id === rootId || nextFilters[node.type]
+        );
         if (nextNode) {
           this.selectedNodeId.set(nextNode.id);
         }
@@ -943,7 +998,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     switch (type) {
       case 'person':
         return '#FCB025';
-      case 'source':
+      case 'vehicle':
+        return '#8B3086';
+      case 'weapon':
         return '#3E8C22';
       default:
         return '#99A8BE';
@@ -953,9 +1010,11 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   getNodeTypeLabel(type: GraphNodeType): string {
     switch (type) {
       case 'person':
-        return 'Perfil';
-      case 'source':
-        return 'Fuente';
+        return 'Persona';
+      case 'vehicle':
+        return 'Vehículo';
+      case 'weapon':
+        return 'Arma';
       default:
         return 'Entidad';
     }
@@ -1028,13 +1087,15 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 }
 
-function mapProfileToGraph(profile: ConsolidatedProfileResponse): {
+function mapProfileToGraph(
+  profile: ConsolidatedProfileResponse,
+  detail?: SearchResultDetailResponse | null
+): {
   nodes: GraphNode[];
   links: GraphLink[];
 } {
-  const addresses = profile.addresses ?? [];
-  const origins = collectOrigins(profile);
-  const positions = createRelatedPositions(origins.length);
+  const relationItems = collectGraphRelations(detail);
+  const positions = createRelatedPositions(relationItems.length);
   const profileTitle = resolveProfileTitle(profile);
   const rootDetails = (profile.data ?? [])
     .filter((datum) => datum.value?.trim())
@@ -1050,6 +1111,16 @@ function mapProfileToGraph(profile: ConsolidatedProfileResponse): {
     );
   }
 
+  const counts = relationItems.reduce(
+    (acc, relation) => {
+      if (relation.type === 'person') acc.persons += 1;
+      if (relation.type === 'vehicle') acc.vehicles += 1;
+      if (relation.type === 'weapon') acc.weapons += 1;
+      return acc;
+    },
+    { persons: 0, vehicles: 0, weapons: 0 }
+  );
+
   const nodes: GraphNode[] = [
     {
       id: profile.profileId,
@@ -1061,43 +1132,148 @@ function mapProfileToGraph(profile: ConsolidatedProfileResponse): {
       y: ROOT_Y,
       radius: 35,
       details: rootDetails,
-      links: {
-        profiles: 1,
-        locations: addresses.length,
-        sources: origins.length
-      }
+      links: counts
     }
   ];
 
   const links: GraphLink[] = [];
 
-  origins.forEach((origin, index) => {
+  relationItems.forEach((relation, index) => {
     const position = positions[index] ?? { x: ROOT_X, y: ROOT_Y };
-    const nodeId = `source-${origin.originId || index}`;
-    const rawSourceCode = origin.sourceCode?.trim() || '';
+    const nodeId = `relation-${relation.type}-${relation.item.linkId || index}`;
+    const details = buildRelationDetails(relation.item, relation.type);
+
     nodes.push({
       id: nodeId,
-      type: 'source',
-      title: sourceDisplayName(rawSourceCode, index),
-      subtitle: origin.sourceRecordId?.trim() || 'Origen del dato consolidado',
+      type: relation.type,
+      title: resolveRelationTitle(relation.item, relation.type, index),
+      subtitle: resolveRelationIdentifier(relation.item, relation.type),
       x: position.x,
       y: position.y,
-      radius: 26,
-      details: [
-        { label: 'Fuente', value: sourceDisplayName(rawSourceCode, index) },
-        { label: 'Código técnico', value: rawSourceCode || '—' },
-        { label: 'Registro de origen', value: origin.sourceRecordId?.trim() || '—' }
-      ],
-      links: { profiles: 1, locations: 0, sources: 0 }
+      radius: relation.type === 'person' ? 29 : 27,
+      details,
+      links: { persons: 0, vehicles: 0, weapons: 0 }
     });
+
     links.push({
-      id: `profile-source-${origin.originId || index}`,
+      id: `profile-link-${relation.item.linkId || index}`,
       sourceId: profile.profileId,
-      targetId: nodeId
+      targetId: nodeId,
+      type: relation.type,
+      label: humanizeRelationship(relation.item.relationshipCode)
     });
   });
 
   return { nodes, links };
+}
+
+function collectGraphRelations(detail?: SearchResultDetailResponse | null): Array<{
+  type: GraphNodeType;
+  item: SearchResultLinkItemDto;
+}> {
+  if (!detail?.linkGroups?.length) {
+    return [];
+  }
+
+  return detail.linkGroups.flatMap((group) => {
+    const type = resolveGraphNodeType(group.entityType);
+    if (!type) {
+      return [];
+    }
+
+    return (group.items ?? []).map((item) => ({ type, item }));
+  });
+}
+
+function resolveGraphNodeType(entityType?: string | null): GraphNodeType | null {
+  const normalized = normalizeCode(entityType ?? '');
+  if (/(PERSON|PERSONA)/.test(normalized)) return 'person';
+  if (/(VEHICLE|VEHICULO|AUTO|AUTOMOVIL|CARRO)/.test(normalized)) return 'vehicle';
+  if (/(WEAPON|ARMA|FIREARM)/.test(normalized)) return 'weapon';
+  return null;
+}
+
+function buildRelationDetails(item: SearchResultLinkItemDto, type: GraphNodeType): GraphNodeDetail[] {
+  const evidence = [...(item.identifiers ?? []), ...(item.attributes ?? [])];
+  const details = evidence
+    .filter((entry) => entry.value?.trim())
+    .slice(0, 10)
+    .map((entry) => ({
+      label: humanizeCode(entry.code || 'Dato'),
+      value: entry.value!.trim()
+    }));
+
+  if (type === 'vehicle') {
+    const plate = resolveRelationValue(item, ['PLACA', 'PLACAS', 'PLATE', 'PLATENUMBER', 'LICENSEPLATE']);
+    if (plate && !details.some((detail) => normalizeCode(detail.label) === 'PLACA')) {
+      details.unshift({ label: 'Placa', value: plate });
+    }
+  }
+
+  const relationship = humanizeRelationship(item.relationshipCode);
+  if (relationship !== 'Vínculo relacionado') {
+    details.push({ label: 'Relación', value: relationship });
+  }
+
+  return details.length ? details : [{ label: 'Vínculo', value: relationship }];
+}
+
+function resolveRelationTitle(item: SearchResultLinkItemDto, type: GraphNodeType, index: number): string {
+  if (type === 'person') {
+    const fullName = resolveRelationValue(item, ['NOMBRECOMPLETO', 'FULLNAME', 'NAME']);
+    const nameParts = [
+      resolveRelationValue(item, ['NOMBRE', 'NOMBRES', 'FIRSTNAME']),
+      resolveRelationValue(item, ['APELLIDOPATERNO', 'LASTNAME', 'SURNAME']),
+      resolveRelationValue(item, ['APELLIDOMATERNO', 'SECONDLASTNAME'])
+    ].filter(Boolean);
+    return fullName || nameParts.join(' ') || `Persona vinculada ${index + 1}`;
+  }
+
+  if (type === 'vehicle') {
+    const make = resolveRelationValue(item, ['MARCA', 'MAKE']);
+    const model = resolveRelationValue(item, ['MODELO', 'MODEL']);
+    return [make, model].filter(Boolean).join(' ') || 'Vehículo vinculado';
+  }
+
+  return resolveRelationValue(item, ['TIPODEARMA', 'TIPOARMA', 'WEAPONTYPE', 'MARCA']) || 'Arma vinculada';
+}
+
+function resolveRelationIdentifier(item: SearchResultLinkItemDto, type: GraphNodeType): string {
+  if (type === 'vehicle') {
+    const vin = resolveRelationValue(item, ['VIN', 'NIV']);
+    const plate = resolveRelationValue(item, ['PLACA', 'PLACAS', 'PLATE', 'PLATENUMBER', 'LICENSEPLATE']);
+    if (vin) return `VIN/NIV: ${vin}`;
+    if (plate) return `Placa: ${plate}`;
+    return 'Vehículo sin VIN/NIV o placa disponible';
+  }
+
+  if (type === 'weapon') {
+    const serial = resolveRelationValue(item, ['SERIE', 'SERIALNUMBER', 'MATRICULA', 'REGISTRATIONNUMBER']);
+    return serial ? `Serie: ${serial}` : 'Arma sin serie disponible';
+  }
+
+  const personId = resolveRelationValue(item, ['CURP', 'RFC', 'CUIP']);
+  return personId || 'Persona vinculada';
+}
+
+function resolveRelationValue(item: SearchResultLinkItemDto, codes: string[]): string {
+  const wanted = new Set(codes.map(normalizeCode));
+  const evidence = [...(item.identifiers ?? []), ...(item.attributes ?? [])];
+  const match = evidence.find((entry) => wanted.has(normalizeCode(entry.code ?? '')) && entry.value?.trim());
+  if (match?.value?.trim()) {
+    return match.value.trim();
+  }
+
+  if (wanted.has('PLACA') || wanted.has('PLATE') || wanted.has('LICENSEPLATE')) {
+    return [item.placa, item.plate, item.licensePlate, item.plateNumber].find((value) => value?.trim())?.trim() || '';
+  }
+
+  return '';
+}
+
+function humanizeRelationship(value?: string | null): string {
+  const normalized = value?.trim();
+  return normalized ? humanizeCode(normalized) : 'Vínculo relacionado';
 }
 
 function createRelatedPositions(count: number): Array<{ x: number; y: number }> {
@@ -1123,24 +1299,6 @@ function createRelatedPositions(count: number): Array<{ x: number; y: number }> 
   }
 
   return positions;
-}
-
-function collectOrigins(profile: ConsolidatedProfileResponse): ConsolidatedProfileOriginDto[] {
-  const seen = new Set<string>();
-  const origins: ConsolidatedProfileOriginDto[] = [];
-
-  const add = (origin: ConsolidatedProfileOriginDto) => {
-    const key = [origin.originId, origin.sourceCode, origin.sourceRecordId].filter(Boolean).join('|');
-    if (!key || seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-    origins.push(origin);
-  };
-
-  (profile.data ?? []).forEach((datum) => (datum.origins ?? []).forEach(add));
-  (profile.addresses ?? []).forEach((address) => (address.origins ?? []).forEach(add));
-  return origins;
 }
 
 function mapAddressesForPanel(addresses: ConsolidatedProfileAddressDto[]): GraphAddressViewModel[] {
@@ -1254,7 +1412,7 @@ function createPlaceholderNode(id: string, title: string, message = 'Consultando
     y: ROOT_Y,
     radius: 35,
     details: [{ label: 'Estado', value: message }],
-    links: { profiles: 1, locations: 0, sources: 0 }
+    links: { persons: 0, vehicles: 0, weapons: 0 }
   };
 }
 

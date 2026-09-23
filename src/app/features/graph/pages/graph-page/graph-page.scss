@@ -2169,3 +2169,70 @@
     bottom: 12px;
   }
 }
+
+
+/* Selector de razonamiento: controla Qwen3 por petición sin exponer la cadena interna. */
+.graph-ai-composer__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.graph-ai-composer__tools > small {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(153, 168, 190, 0.52);
+  font-size: 7.5px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-ai-composer__thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(153, 168, 190, 0.16);
+  border-radius: 999px;
+  background: rgba(153, 168, 190, 0.05);
+  color: rgba(205, 219, 232, 0.72);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.graph-ai-composer__thinking:hover:not(:disabled) {
+  border-color: rgba(73, 182, 255, 0.34);
+  background: rgba(73, 182, 255, 0.08);
+  color: #d9f1ff;
+}
+
+.graph-ai-composer__thinking--active {
+  border-color: rgba(73, 182, 255, 0.46);
+  background: rgba(73, 182, 255, 0.13);
+  color: #8bd4ff;
+  box-shadow: 0 0 0 2px rgba(73, 182, 255, 0.05);
+}
+
+.graph-ai-composer__thinking:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.graph-ai-message__mode--thinking {
+  background: rgba(159, 122, 234, 0.1);
+  color: #c8adff;
+}
+
+
+/* Vínculos reales por entidad. */
+.graph-edge__label { fill: rgba(220,232,243,.66); font-size: 7.5px; font-weight: 800; paint-order: stroke; stroke: rgba(7,15,28,.88); stroke-width: 3px; stroke-linejoin: round; pointer-events:none; }
+.graph-ai { bottom: 16px; top: auto; width: min(390px, calc(100% - 32px)); height: min(560px, calc(100% - 32px)); }
+.graph-ai--positioned { bottom:auto; }
+@media (max-width:980px) { .graph-ai { top:auto; bottom:10px; height:min(560px, calc(100% - 20px)); } .graph-ai--positioned { bottom:auto; } }
+@media (max-width:520px) { .graph-ai { top:auto; bottom:6px; height:min(78%, 540px); } .graph-ai--maximized { height:auto; } }

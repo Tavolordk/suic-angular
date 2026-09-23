@@ -64,6 +64,7 @@ export class IntelligenceApiService {
     profile: ConsolidatedProfileResponse,
     question: string,
     history: IntelligenceChatHistoryMessage[],
+    thinking: boolean,
     selectedNode?: IntelligenceNodeContext | null,
     graph?: IntelligenceGraphPayload | null
   ): Observable<IntelligenceChatStreamEvent> {
@@ -72,7 +73,8 @@ export class IntelligenceApiService {
       question,
       selectedNode: selectedNode ?? null,
       graph: graph ?? null,
-      history: history.slice(-8)
+      history: history.slice(-8),
+      thinking
     };
 
     return new Observable<IntelligenceChatStreamEvent>((subscriber) => {

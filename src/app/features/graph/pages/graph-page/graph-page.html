@@ -37,7 +37,8 @@
             @for (filter of filters; track filter.type) {
             <button type="button" class="graph-filter" [class.graph-filter--active]="isFilterActive(filter.type)"
                 [class.graph-filter--person]="filter.type === 'person'"
-                [class.graph-filter--weapon]="filter.type === 'source'" (click)="toggleFilter(filter.type)">
+                [class.graph-filter--vehicle]="filter.type === 'vehicle'"
+                [class.graph-filter--weapon]="filter.type === 'weapon'" (click)="toggleFilter(filter.type)">
                 @switch (filter.type) {
                 @case ('person') {
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -46,12 +47,18 @@
                     <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                 </svg>
                 }
-                @case ('source') {
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
-                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-                        }
+                @case ('vehicle') {
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 17h14M6.5 17l-1-5 2-4h9l2 4-1 5M8 17v2M16 17v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <circle cx="8" cy="14" r="1" fill="currentColor"></circle>
+                    <circle cx="16" cy="14" r="1" fill="currentColor"></circle>
+                </svg>
+                }
+                @case ('weapon') {
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M3 11h11l2-3h4l1 3-1 3h-5l-2-2H9v5H6v-5H3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                }
                 }
 
                 {{ filter.label }}
@@ -86,12 +93,16 @@
                         <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                     </svg>
                     }
-                    @case ('source') {
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
-                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-                        }
+                    @case ('vehicle') {
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M5 17h14M6.5 17l-1-5 2-4h9l2 4-1 5M8 17v2M16 17v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    }
+                    @case ('weapon') {
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 11h11l2-3h4l1 3-1 3h-5l-2-2H9v5H6v-5H3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    }
                     }
 
                     <span>{{ getNodeTypeLabel(selectedNode().type) }}</span>
@@ -177,23 +188,24 @@
                                     stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                                 <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2.2"></circle>
                             </svg>
-                            Perfil
+                            Personas
                         </span>
 
-                        <strong>{{ selectedNode().links.profiles }}</strong>
+                        <strong>{{ selectedNode().links.persons }}</strong>
                     </div>
 
                     <div class="graph-link-chip graph-link-chip--vehicle">
                         <span>
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M12 21s7-5.4 7-12a7 7 0 1 0-14 0c0 6.6 7 12 7 12z" stroke="currentColor"
+                                <path d="M5 17h14M6.5 17l-1-5 2-4h9l2 4-1 5M8 17v2M16 17v2" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                <circle cx="12" cy="9" r="2.2" stroke="currentColor" stroke-width="2"></circle>
+                                <circle cx="8" cy="14" r="1" fill="currentColor"></circle>
+                                <circle cx="16" cy="14" r="1" fill="currentColor"></circle>
                             </svg>
-                            Direcciones registradas
+                            Vehículos
                         </span>
 
-                        <strong>{{ selectedNode().links.locations }}</strong>
+                        <strong>{{ selectedNode().links.vehicles }}</strong>
                     </div>
 
                     <div class="graph-link-chip graph-link-chip--weapon">
@@ -202,10 +214,10 @@
                                 <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                             </svg>
-                            Fuentes
+                            Armas
                         </span>
 
-                        <strong>{{ selectedNode().links.sources }}</strong>
+                        <strong>{{ selectedNode().links.weapons }}</strong>
                     </div>
                 </div>
             </section>
@@ -309,6 +321,10 @@
                         [attr.opacity]="getLinkOpacity(link)" [attr.stroke-width]="getLinkStrokeWidth(link)"
                         [style.--intro-delay]="introMode() === 'individual' ? getIntroLinkDelay(linkIndex) + 'ms' : null"
                         [style.--edge-target-opacity]="getLinkOpacity(link)" class="graph-edge"></line>
+                    <text class="graph-edge__label"
+                        [attr.x]="(getNodeById(link.sourceId).x + getNodeById(link.targetId).x) / 2"
+                        [attr.y]="(getNodeById(link.sourceId).y + getNodeById(link.targetId).y) / 2 - 7"
+                        text-anchor="middle">{{ link.label }}</text>
 
                     @if (introAnimating() && introMode() === 'individual') {
                     <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
@@ -355,10 +371,16 @@
                             <circle cx="12" cy="7" r="4" stroke="white" stroke-width="2.2"></circle>
                         </svg>
                         }
-                        @case ('source') {
-                        <svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="color: white">
-                            <ellipse cx="12" cy="5" rx="7" ry="3" stroke="currentColor" stroke-width="2"></ellipse>
-                            <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        @case ('vehicle') {
+                        <svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M5 17h14M6.5 17l-1-5 2-4h9l2 4-1 5M8 17v2M16 17v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <circle cx="8" cy="14" r="1" fill="white"></circle>
+                            <circle cx="16" cy="14" r="1" fill="white"></circle>
+                        </svg>
+                        }
+                        @case ('weapon') {
+                        <svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 11h11l2-3h4l1 3-1 3h-5l-2-2H9v5H6v-5H3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                         </svg>
                         }
                         }
@@ -397,13 +419,18 @@
                 </div>
 
                 <div>
+                    <span class="legend-dot legend-dot--vehicle"></span>
+                    Vehículo
+                </div>
+
+                <div>
                     <span class="legend-dot legend-dot--weapon"></span>
-                    Fuentes
+                    Arma
                 </div>
 
                 <small class="graph-legend__note">
-                    <i class="fa-solid fa-location-dot"></i>
-                    Direcciones en el panel de detalle
+                    <i class="fa-solid fa-circle-info"></i>
+                    Los vehículos muestran VIN/NIV o placa cuando el vínculo lo informa.
                 </small>
             </section>
 
@@ -475,6 +502,9 @@
                                 <strong>{{ message.role === 'user' ? 'Tú' : 'IA local' }}</strong>
                                 @if (message.role === 'assistant' && message.mode === 'local-llm') {
                                 <span class="graph-ai-message__mode"><i class="fa-solid fa-microchip"></i>{{ message.model || 'modelo local' }}</span>
+                                @if (message.thinking) {
+                                <span class="graph-ai-message__mode graph-ai-message__mode--thinking"><i class="fa-solid fa-brain"></i>razonamiento</span>
+                                }
                                 }
                                 @if (message.role === 'assistant' && message.mode === 'deterministic-fallback') {
                                 <span class="graph-ai-message__mode graph-ai-message__mode--fallback"><i class="fa-solid fa-shield-halved"></i>exacto local</span>
@@ -483,7 +513,7 @@
                             @if (message.role === 'assistant' && message.streaming && !message.text) {
                             <div class="graph-ai-thinking" role="status" aria-label="La IA está preparando la respuesta">
                                 <span class="graph-ai-thinking__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-                                <em>Revisando los datos y las fuentes…</em>
+                                <em>{{ message.thinking ? 'Razonando sobre los datos y las fuentes…' : 'Revisando los datos y las fuentes…' }}</em>
                             </div>
                             } @else {
                             <p>{{ message.text }}@if (message.streaming) {<span class="graph-ai-typing-caret" aria-hidden="true"></span>}</p>
@@ -516,6 +546,19 @@
             </div>
 
             <footer class="graph-ai-composer">
+                <div class="graph-ai-composer__tools">
+                    <button type="button"
+                        class="graph-ai-composer__thinking"
+                        [class.graph-ai-composer__thinking--active]="aiThinkingEnabled()"
+                        [attr.aria-pressed]="aiThinkingEnabled()"
+                        [disabled]="isAiLoading()"
+                        [title]="aiThinkingEnabled() ? 'Razonamiento activado: Qwen analizará internamente antes de responder' : 'Razonamiento desactivado: respuesta directa'"
+                        (click)="toggleAiThinking()">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>Razonar</span>
+                    </button>
+                    <small>{{ aiThinkingEnabled() ? 'Mayor precisión · el razonamiento interno no se muestra' : 'Respuesta directa' }}</small>
+                </div>
                 <div class="graph-ai-composer__box">
                     <textarea #aiComposer rows="1" [value]="aiQuestion()" (input)="setAiQuestion($event)" (keydown)="onAiComposerKeydown($event)" placeholder="Escribe tu pregunta..."></textarea>
                     @if (isAiLoading()) {

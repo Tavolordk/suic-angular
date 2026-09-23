@@ -2,6 +2,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  HostListener,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
@@ -854,6 +855,11 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   toggleProfile(): void {
     this.profileOpen.update((open) => !open);
+  }
+
+  @HostListener('document:click')
+  closeProfileOnOutsideClick(): void {
+    this.profileOpen.set(false);
   }
 
   logout(): void {

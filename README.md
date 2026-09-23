@@ -83,3 +83,36 @@ docker compose up -d --force-recreate
 ```
 
 No es necesario reconstruir Angular ni generar otro TAR por un cambio de IP, host o puerto.
+
+## Desarrollo accesible desde la red local
+
+El servidor de desarrollo queda configurado para escuchar en `0.0.0.0:4202` y usar un proxy de mismo origen:
+
+- `/gateway/**` -> `http://10.241.67.8:3650`
+- `/intelligence/**` -> `http://10.241.67.8:3651`
+
+Arranque:
+
+```powershell
+npm install
+npm start
+```
+
+Desde otra PC de la misma red abre:
+
+```text
+http://IP_DE_ESTA_PC:4202
+```
+
+En Windows puedes obtener la IP con `ipconfig` y buscar la direccion IPv4 del adaptador conectado a la misma red.
+Si Windows Defender Firewall bloquea el puerto 4202, abre PowerShell como administrador y ejecuta:
+
+```powershell
+New-NetFirewallRule -DisplayName "Angular LAN 4202" -Direction Inbound -Protocol TCP -LocalPort 4202 -Action Allow -Profile Private
+```
+
+Esta apertura esta pensada para una red local de confianza. Para eliminar la regla:
+
+```powershell
+Remove-NetFirewallRule -DisplayName "Angular LAN 4202"
+```

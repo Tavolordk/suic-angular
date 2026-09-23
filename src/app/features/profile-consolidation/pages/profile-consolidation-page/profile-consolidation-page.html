@@ -21,7 +21,7 @@
                     </div>
                 </div>
 
-                <div class="profile-user">
+                <div class="profile-user" (click)="$event.stopPropagation()">
                     <button type="button" class="profile-user__button" aria-label="Perfil de usuario"
                         [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">
                         <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">

@@ -1,0 +1,18 @@
+{
+  "/gateway/**": {
+    "target": "http://10.237.3.42:8081",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/gateway": ""
+    }
+  },
+  "/intelligence/**": {
+    "target": "http://10.241.67.8:3651",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/intelligence": ""
+    }
+  }
+}

@@ -9,44 +9,52 @@ import {
     ViewChild,
     inject
 } from '@angular/core';
-import type { Root } from 'react-dom/client';
+
+import { createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+
+import {
+    FigmaOrbitalBackgroundReact
+} from './figma-orbital-background.react';
 
 @Component({
     selector: 'app-figma-orbital-background',
     standalone: true,
     template: `
-    <div #reactHost class="figma-orbital-background__host"></div>
-  `,
+        <div #reactHost class="figma-orbital-background__host"></div>
+    `,
     styles: [
         `
-      :host {
-        position: absolute;
-        inset: 0;
-        display: block;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-      }
+        :host {
+            position: absolute;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
 
-      .figma-orbital-background__host {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-      }
+        .figma-orbital-background__host {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
 
-      .figma-orbital-background__host canvas {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-      }
-    `
+        .figma-orbital-background__host canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        `
     ]
 })
-export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy {
+export class FigmaOrbitalBackgroundComponent
+    implements AfterViewInit, OnDestroy {
+
     @ViewChild('reactHost', { static: true })
     private readonly reactHost?: ElementRef<HTMLDivElement>;
 
@@ -69,7 +77,7 @@ export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy
         }
 
         this.ngZone.runOutsideAngular(() => {
-            void this.mountReactBackground(host);
+            this.mountReactBackground(host);
         });
     }
 
@@ -86,19 +94,15 @@ export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy
         });
     }
 
-    private async mountReactBackground(host: HTMLDivElement): Promise<void> {
-        const [{ createElement }, { createRoot }, { FigmaOrbitalBackgroundReact }] =
-            await Promise.all([
-                import('react'),
-                import('react-dom/client'),
-                import('./figma-orbital-background.react')
-            ]);
-
+    private mountReactBackground(host: HTMLDivElement): void {
         if (this.destroyed) {
             return;
         }
 
         this.reactRoot = createRoot(host);
-        this.reactRoot.render(createElement(FigmaOrbitalBackgroundReact));
+
+        this.reactRoot.render(
+            createElement(FigmaOrbitalBackgroundReact)
+        );
     }
 }

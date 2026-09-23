@@ -65,6 +65,7 @@ export interface IntelligenceChatRequest {
   selectedNode?: IntelligenceNodeContext | null;
   graph?: IntelligenceGraphPayload | null;
   history: IntelligenceChatHistoryMessage[];
+  thinking: boolean;
 }
 
 export type IntelligenceChatStreamEvent =
@@ -72,6 +73,7 @@ export type IntelligenceChatStreamEvent =
       type: 'meta';
       mode: 'local-llm' | 'deterministic-fallback';
       model?: string | null;
+      thinking?: boolean;
     }
   | {
       type: 'delta';
@@ -82,6 +84,7 @@ export type IntelligenceChatStreamEvent =
       text: string;
       mode: 'local-llm' | 'deterministic-fallback';
       model?: string | null;
+      thinking?: boolean;
     }
   | {
       type: 'done';
@@ -89,6 +92,7 @@ export type IntelligenceChatStreamEvent =
       model?: string | null;
       evidence: IntelligenceEvidence[];
       disclaimer?: string | null;
+      thinking?: boolean;
     };
 
 export interface IntelligenceLlmHealthResponse {
