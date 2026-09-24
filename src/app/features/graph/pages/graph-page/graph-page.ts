@@ -64,6 +64,10 @@ interface GraphLink {
   targetId: string;
   type: Exclude<GraphNodeType, 'person'> | 'person';
   label: string;
+  externalId: string;
+  status: string;
+  details: GraphNodeDetail[];
+  sourceNames: string[];
 }
 
 interface GraphFilter {
@@ -129,6 +133,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   readonly detailPanelOpen = signal(true);
   readonly selectedNodeId = signal(this.profileId || 'profile');
+  readonly selectedLinkId = signal<string | null>(null);
+  readonly expandedLinkType = signal<GraphNodeType | null>(null);
   readonly zoom = signal(1);
   readonly introAnimating = signal(true);
   readonly isLoading = signal(false);
@@ -242,6 +248,27 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     );
   });
 
+  readonly rootNode = computed(() =>
+    this.nodes()[0] ?? createPlaceholderNode(this.profileId || 'profile', 'Perfil consolidado')
+  );
+
+  readonly selectedLink = computed(() => {
+    const selectedId = this.selectedLinkId();
+    if (!selectedId) {
+      return null;
+    }
+    return this.links().find((link) => link.id === selectedId) ?? null;
+  });
+
+  readonly expandedRelatedNodes = computed(() => {
+    const type = this.expandedLinkType();
+    if (!type) {
+      return [];
+    }
+    const rootId = this.rootNode().id;
+    return this.nodes().filter((node) => node.id !== rootId && node.type === type);
+  });
+
   readonly pendingProfilesLabel = computed(() => {
     const related = Math.max(0, this.nodes().length - 1);
     return `${related} ${related === 1 ? 'elemento relacionado' : 'elementos relacionados'}`;
@@ -299,6 +326,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.addresses.set(mapAddressesForPanel(profile.addresses ?? []));
         this.addressPageIndex.set(0);
         this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+        this.selectedLinkId.set(null);
+        this.expandedLinkType.set(null);
 
         // Fallback determinista inmediato: la pantalla nunca depende de que la API IA esté arriba.
         this.aiSnapshot.set(fallbackSnapshot);
@@ -345,6 +374,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.nodes.set(graph.nodes);
         this.links.set(graph.links);
         this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+        this.selectedLinkId.set(null);
         this.restartIntroAnimation();
         this.refreshRemoteGraphAnalysis();
       },
@@ -834,14 +864,60 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigateByUrl('/lineas-investigacion');
   }
 
-  selectNode(nodeId: string): void {
+  selectNode(nodeId: string, event?: Event): void {
+    event?.stopPropagation();
+
+    if (event instanceof KeyboardEvent && event.key === ' ') {
+      event.preventDefault();
+    }
+
     if (this.suppressNodeClick) {
       return;
     }
 
     this.selectedNodeId.set(nodeId);
+    const rootId = this.rootNode().id;
+    const connectedLink = nodeId === rootId
+      ? undefined
+      : this.links().find((link) => link.sourceId === nodeId || link.targetId === nodeId);
+    this.selectedLinkId.set(connectedLink?.id ?? null);
     this.detailPanelOpen.set(true);
     this.refreshRemoteGraphAnalysis();
+  }
+
+  selectLink(linkId: string, event?: Event): void {
+    event?.stopPropagation();
+    if (this.suppressNodeClick) {
+      return;
+    }
+
+    const link = this.links().find((candidate) => candidate.id === linkId);
+    if (!link) {
+      return;
+    }
+
+    const rootId = this.rootNode().id;
+    const relatedNodeId = link.sourceId === rootId
+      ? link.targetId
+      : link.targetId === rootId
+        ? link.sourceId
+        : link.targetId;
+
+    this.selectedLinkId.set(link.id);
+    this.selectedNodeId.set(relatedNodeId);
+    this.expandedLinkType.set(link.type);
+    this.detailPanelOpen.set(true);
+    this.refreshRemoteGraphAnalysis();
+  }
+
+  showRelatedNodes(type: GraphNodeType): void {
+    this.activeFilters.update((filters) => ({ ...filters, [type]: true }));
+    this.expandedLinkType.update((current) => current === type ? null : type);
+    this.detailPanelOpen.set(true);
+  }
+
+  selectRelatedNode(nodeId: string): void {
+    this.selectNode(nodeId);
   }
 
   toggleDetailPanel(): void {
@@ -863,6 +939,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         );
         if (nextNode) {
           this.selectedNodeId.set(nextNode.id);
+          this.selectedLinkId.set(null);
         }
       }
 
@@ -887,7 +964,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   zoomOut(): void {
-    this.zoom.update((value) => Math.max(0.75, Number((value - 0.1).toFixed(2))));
+    this.zoom.update((value) => Math.max(0.15, Number((value - 0.1).toFixed(2))));
   }
 
   resetZoom(): void {
@@ -984,14 +1061,32 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     return this.isConnectedToSelected(node) ? 1 : 0.42;
   }
 
+  isLinkSelected(link: GraphLink): boolean {
+    return this.selectedLinkId() === link.id;
+  }
+
   getLinkOpacity(link: GraphLink): number {
+    if (this.isLinkSelected(link)) {
+      return 1;
+    }
     const selectedId = this.selectedNodeId();
-    return link.sourceId === selectedId || link.targetId === selectedId ? 0.45 : 0.15;
+    return link.sourceId === selectedId || link.targetId === selectedId ? 0.5 : 0.13;
   }
 
   getLinkStrokeWidth(link: GraphLink): number {
+    if (this.isLinkSelected(link)) {
+      return 4;
+    }
     const selectedId = this.selectedNodeId();
-    return link.sourceId === selectedId || link.targetId === selectedId ? 2 : 1.2;
+    return link.sourceId === selectedId || link.targetId === selectedId ? 2.2 : 1.2;
+  }
+
+  getLinkSourceTitle(link: GraphLink): string {
+    return this.getNodeById(link.sourceId).title;
+  }
+
+  getLinkTargetTitle(link: GraphLink): string {
+    return this.getNodeById(link.targetId).title;
   }
 
   getNodeColor(type: GraphNodeType): string {
@@ -1057,6 +1152,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.addresses.set([]);
     this.addressPageIndex.set(0);
     this.selectedNodeId.set(this.profileId || 'profile');
+    this.selectedLinkId.set(null);
+    this.expandedLinkType.set(null);
   }
 
   private restartIntroAnimation(): void {
@@ -1160,7 +1257,15 @@ function mapProfileToGraph(
       sourceId: profile.profileId,
       targetId: nodeId,
       type: relation.type,
-      label: humanizeRelationship(relation.item.relationshipCode)
+      label: humanizeRelationship(relation.item.relationshipCode),
+      externalId: relation.item.linkId || `vinculo-${index + 1}`,
+      status: relation.item.status?.trim() || 'Sin estatus informado',
+      details: buildLinkDetails(relation.item, relation.type),
+      sourceNames: Array.from(new Set(
+        (relation.item.origins ?? [])
+          .map((origin) => origin.sourceName?.trim() || origin.sourceCode?.trim() || '')
+          .filter(Boolean)
+      ))
     });
   });
 
@@ -1216,6 +1321,26 @@ function buildRelationDetails(item: SearchResultLinkItemDto, type: GraphNodeType
   }
 
   return details.length ? details : [{ label: 'Vínculo', value: relationship }];
+}
+
+function buildLinkDetails(item: SearchResultLinkItemDto, type: GraphNodeType): GraphNodeDetail[] {
+  const details: GraphNodeDetail[] = [];
+  if (item.linkId?.trim()) {
+    details.push({ label: 'ID del vínculo', value: item.linkId.trim() });
+  }
+  if (item.status?.trim()) {
+    details.push({ label: 'Estatus', value: item.status.trim() });
+  }
+
+  const relationship = humanizeRelationship(item.relationshipCode);
+  details.push({ label: 'Tipo de relación', value: relationship });
+
+  const entityDetails = buildRelationDetails(item, type)
+    .filter((detail) => normalizeCode(detail.label) !== 'RELACION')
+    .slice(0, 8);
+  details.push(...entityDetails);
+
+  return details;
 }
 
 function resolveRelationTitle(item: SearchResultLinkItemDto, type: GraphNodeType, index: number): string {

@@ -122,6 +122,54 @@
                     }
                 </div>
 
+                @if (selectedLink(); as link) {
+                <section class="graph-relationship-detail" [style.border-color]="getNodeColor(link.type)">
+                    <header class="graph-relationship-detail__header">
+                        <span class="graph-relationship-detail__icon"
+                            [style.background]="getNodeDetailBackground(link.type)"
+                            [style.color]="getNodeColor(link.type)">
+                            <i class="fa-solid fa-link"></i>
+                        </span>
+                        <div>
+                            <small>Vínculo seleccionado</small>
+                            <strong>{{ link.label }}</strong>
+                        </div>
+                    </header>
+
+                    <div class="graph-relationship-detail__route">
+                        <span>
+                            <small>Desde</small>
+                            <strong>{{ getLinkSourceTitle(link) }}</strong>
+                        </span>
+                        <i class="fa-solid fa-arrow-right-long"></i>
+                        <span>
+                            <small>Hacia</small>
+                            <strong>{{ getLinkTargetTitle(link) }}</strong>
+                        </span>
+                    </div>
+
+                    <div class="graph-relationship-detail__fields">
+                        @for (detail of link.details; track detail.label + detail.value) {
+                        <div>
+                            <span>{{ detail.label }}</span>
+                            <strong>{{ detail.value }}</strong>
+                        </div>
+                        }
+                    </div>
+
+                    @if (link.sourceNames.length > 0) {
+                    <footer class="graph-relationship-detail__sources">
+                        <small>Fuentes</small>
+                        <div>
+                            @for (sourceName of link.sourceNames; track sourceName) {
+                            <span>{{ sourceName }}</span>
+                            }
+                        </div>
+                    </footer>
+                    }
+                </section>
+                }
+
                 @if (selectedNode().type === 'person' && addresses().length > 0) {
                 <section class="graph-addresses">
                     <header class="graph-addresses__header">
@@ -179,9 +227,11 @@
                 }
 
                 <div class="graph-detail__links">
-                    <p>Vínculos</p>
+                    <p>Vínculos del perfil</p>
 
-                    <div class="graph-link-chip graph-link-chip--person">
+                    <button type="button" class="graph-link-chip graph-link-chip--person"
+                        [class.graph-link-chip--expanded]="expandedLinkType() === 'person'"
+                        (click)="showRelatedNodes('person')">
                         <span>
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor"
@@ -190,11 +240,12 @@
                             </svg>
                             Personas
                         </span>
+                        <strong>{{ rootNode().links.persons }}</strong>
+                    </button>
 
-                        <strong>{{ selectedNode().links.persons }}</strong>
-                    </div>
-
-                    <div class="graph-link-chip graph-link-chip--vehicle">
+                    <button type="button" class="graph-link-chip graph-link-chip--vehicle"
+                        [class.graph-link-chip--expanded]="expandedLinkType() === 'vehicle'"
+                        (click)="showRelatedNodes('vehicle')">
                         <span>
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M5 17h14M6.5 17l-1-5 2-4h9l2 4-1 5M8 17v2M16 17v2" stroke="currentColor"
@@ -204,11 +255,12 @@
                             </svg>
                             Vehículos
                         </span>
+                        <strong>{{ rootNode().links.vehicles }}</strong>
+                    </button>
 
-                        <strong>{{ selectedNode().links.vehicles }}</strong>
-                    </div>
-
-                    <div class="graph-link-chip graph-link-chip--weapon">
+                    <button type="button" class="graph-link-chip graph-link-chip--weapon"
+                        [class.graph-link-chip--expanded]="expandedLinkType() === 'weapon'"
+                        (click)="showRelatedNodes('weapon')">
                         <span>
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M3 12h9m0 0 2-4h5l1 4-1 4h-5l-2-4zm0 0v4H9v-4" stroke="currentColor"
@@ -216,9 +268,51 @@
                             </svg>
                             Armas
                         </span>
+                        <strong>{{ rootNode().links.weapons }}</strong>
+                    </button>
 
-                        <strong>{{ selectedNode().links.weapons }}</strong>
-                    </div>
+                    @if (expandedLinkType()) {
+                    <section class="graph-related-browser">
+                        <header>
+                            <div>
+                                <span>Nodos disponibles</span>
+                                <strong>{{ expandedRelatedNodes().length }}</strong>
+                            </div>
+                            <small>Selecciona uno para resaltarlo y ver su vínculo</small>
+                        </header>
+
+                        <div class="graph-related-browser__list">
+                            @for (node of expandedRelatedNodes(); track node.id) {
+                            <button type="button" class="graph-related-node"
+                                [class.graph-related-node--active]="isSelected(node)"
+                                [style.--related-color]="getNodeColor(node.type)"
+                                (click)="selectRelatedNode(node.id)">
+                                <span class="graph-related-node__icon" [style.background]="getSoftBackground(node.type)"
+                                    [style.color]="getNodeColor(node.type)">
+                                    @switch (node.type) {
+                                    @case ('person') {
+                                    <i class="fa-solid fa-user"></i>
+                                    }
+                                    @case ('vehicle') {
+                                    <i class="fa-solid fa-car-side"></i>
+                                    }
+                                    @case ('weapon') {
+                                    <i class="fa-solid fa-gun"></i>
+                                    }
+                                    }
+                                </span>
+                                <span class="graph-related-node__copy">
+                                    <strong>{{ node.title }}</strong>
+                                    <small>{{ node.subtitle }}</small>
+                                </span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            } @empty {
+                            <div class="graph-related-browser__empty">No hay nodos de este tipo en el vínculo actual.</div>
+                            }
+                        </div>
+                    </section>
+                    }
                 </div>
             </section>
         </aside>
@@ -316,15 +410,22 @@
                     </circle>
 
                     @for (link of visibleLinks(); track link.id; let linkIndex = $index) {
-                    <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
-                        [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
-                        [attr.opacity]="getLinkOpacity(link)" [attr.stroke-width]="getLinkStrokeWidth(link)"
-                        [style.--intro-delay]="introMode() === 'individual' ? getIntroLinkDelay(linkIndex) + 'ms' : null"
-                        [style.--edge-target-opacity]="getLinkOpacity(link)" class="graph-edge"></line>
-                    <text class="graph-edge__label"
-                        [attr.x]="(getNodeById(link.sourceId).x + getNodeById(link.targetId).x) / 2"
-                        [attr.y]="(getNodeById(link.sourceId).y + getNodeById(link.targetId).y) / 2 - 7"
-                        text-anchor="middle">{{ link.label }}</text>
+                    <g class="graph-edge-group" [class.graph-edge-group--selected]="isLinkSelected(link)"
+                        (pointerdown)="$event.stopPropagation()" (click)="selectLink(link.id, $event)">
+                        <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
+                            [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
+                            class="graph-edge__hit-area"></line>
+                        <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
+                            [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
+                            [attr.opacity]="getLinkOpacity(link)" [attr.stroke-width]="getLinkStrokeWidth(link)"
+                            [style.--intro-delay]="introMode() === 'individual' ? getIntroLinkDelay(linkIndex) + 'ms' : null"
+                            [style.--edge-target-opacity]="getLinkOpacity(link)"
+                            [style.stroke]="isLinkSelected(link) ? getNodeColor(link.type) : null" class="graph-edge"></line>
+                        <text class="graph-edge__label" [class.graph-edge__label--selected]="isLinkSelected(link)"
+                            [attr.x]="(getNodeById(link.sourceId).x + getNodeById(link.targetId).x) / 2"
+                            [attr.y]="(getNodeById(link.sourceId).y + getNodeById(link.targetId).y) / 2 - 7"
+                            text-anchor="middle">{{ link.label }}</text>
+                    </g>
 
                     @if (introAnimating() && introMode() === 'individual') {
                     <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
@@ -344,8 +445,13 @@
                         [attr.opacity]="getNodeOpacity(node)"
                         [style.--intro-node-delay]="introMode() === 'individual' ? getIntroNodeDelay(node) + 'ms' : null"
                         [style.--node-target-opacity]="getNodeOpacity(node)"
-                        (click)="selectNode(node.id)"
-                        >
+                        role="button" tabindex="0"
+                        [attr.aria-label]="'Seleccionar nodo ' + node.title + (node.subtitle ? ' ' + node.subtitle : '')"
+                        (pointerdown)="$event.stopPropagation()"
+                        (click)="selectNode(node.id, $event)"
+                        (keydown.enter)="selectNode(node.id, $event)"
+                        (keydown.space)="selectNode(node.id, $event)">
+                        <circle class="graph-node__hit-area" [attr.r]="node.radius + 12"></circle>
                         @if (isSelected(node)) {
                         <circle class="graph-node__pulse" [attr.r]="node.radius + 4" fill="none"
                             [attr.stroke]="getNodeColor(node.type)"></circle>
@@ -443,7 +549,7 @@
                     {{ zoom() * 100 | number:'1.0-0' }}%
                 </button>
 
-                <button type="button" aria-label="Alejar" (click)="zoomOut()">
+                <button type="button" aria-label="Alejar, mínimo 15 por ciento" title="Zoom mínimo: 15%" (click)="zoomOut()">
                     -
                 </button>
             </section>

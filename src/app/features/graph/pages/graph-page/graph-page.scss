@@ -626,6 +626,19 @@
 .graph-node {
   cursor: pointer;
   transition: opacity 0.35s ease;
+  outline: none;
+}
+
+.graph-node:focus-visible .graph-node__circle {
+  stroke: rgba(255, 255, 255, 0.98);
+  stroke-width: 2.5;
+}
+
+.graph-node__hit-area {
+  fill: rgba(255, 255, 255, 0.001);
+  stroke: transparent;
+  pointer-events: all;
+  cursor: pointer;
 }
 
 .graph-node__circle {
@@ -2236,3 +2249,339 @@
 .graph-ai--positioned { bottom:auto; }
 @media (max-width:980px) { .graph-ai { top:auto; bottom:10px; height:min(560px, calc(100% - 20px)); } .graph-ai--positioned { bottom:auto; } }
 @media (max-width:520px) { .graph-ai { top:auto; bottom:6px; height:min(78%, 540px); } .graph-ai--maximized { height:auto; } }
+
+
+/* Interacción avanzada de vínculos y navegación de nodos. */
+.graph-relationship-detail {
+  margin: 0 16px 16px;
+  padding: 12px;
+  border: 1px solid rgba(153, 168, 190, 0.2);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(153, 168, 190, 0.075), rgba(8, 16, 30, 0.72));
+}
+
+.graph-relationship-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.graph-relationship-detail__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.graph-relationship-detail__header > div {
+  min-width: 0;
+}
+
+.graph-relationship-detail__header small,
+.graph-relationship-detail__header strong {
+  display: block;
+}
+
+.graph-relationship-detail__header small {
+  color: rgba(153, 168, 190, 0.52);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.graph-relationship-detail__header strong {
+  margin-top: 2px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-relationship-detail__route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+  padding: 9px;
+  border: 1px solid rgba(153, 168, 190, 0.1);
+  border-radius: 10px;
+  background: rgba(8, 16, 30, 0.48);
+}
+
+.graph-relationship-detail__route > span {
+  min-width: 0;
+}
+
+.graph-relationship-detail__route small,
+.graph-relationship-detail__route strong {
+  display: block;
+}
+
+.graph-relationship-detail__route small {
+  color: rgba(153, 168, 190, 0.46);
+  font-size: 7.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.graph-relationship-detail__route strong {
+  margin-top: 2px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.83);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-relationship-detail__route > i {
+  color: rgba(153, 168, 190, 0.48);
+  font-size: 9px;
+}
+
+.graph-relationship-detail__fields {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.graph-relationship-detail__fields > div {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(153, 168, 190, 0.085);
+}
+
+.graph-relationship-detail__fields > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.graph-relationship-detail__fields span {
+  color: rgba(153, 168, 190, 0.48);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.graph-relationship-detail__fields strong {
+  overflow-wrap: anywhere;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.graph-relationship-detail__sources {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(153, 168, 190, 0.09);
+}
+
+.graph-relationship-detail__sources > small {
+  color: rgba(153, 168, 190, 0.46);
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.graph-relationship-detail__sources > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.graph-relationship-detail__sources span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(153, 168, 190, 0.09);
+  color: rgba(220, 232, 243, 0.72);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.graph-detail__links .graph-link-chip {
+  width: 100%;
+  border-style: solid;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+
+.graph-detail__links .graph-link-chip:hover,
+.graph-detail__links .graph-link-chip--expanded {
+  filter: brightness(1.15);
+  transform: translateX(2px);
+}
+
+.graph-detail__links .graph-link-chip--expanded {
+  box-shadow: inset 3px 0 0 currentColor;
+}
+
+.graph-related-browser {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(153, 168, 190, 0.12);
+  border-radius: 13px;
+  background: rgba(153, 168, 190, 0.035);
+}
+
+.graph-related-browser > header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.graph-related-browser > header span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.graph-related-browser > header strong {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(153, 168, 190, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 9px;
+}
+
+.graph-related-browser > header small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(153, 168, 190, 0.46);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.graph-related-browser__list {
+  display: grid;
+  gap: 5px;
+  max-height: 310px;
+  margin-top: 9px;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(153, 168, 190, 0.25) transparent;
+}
+
+.graph-related-node {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid rgba(153, 168, 190, 0.1);
+  border-radius: 10px;
+  background: rgba(8, 16, 30, 0.48);
+  color: rgba(255, 255, 255, 0.74);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.graph-related-node:hover,
+.graph-related-node--active {
+  border-color: var(--related-color, rgba(255, 255, 255, 0.35));
+  background: rgba(255, 255, 255, 0.055);
+  transform: translateX(2px);
+}
+
+.graph-related-node--active {
+  box-shadow: inset 3px 0 0 var(--related-color, #fff);
+}
+
+.graph-related-node__icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.graph-related-node__copy {
+  min-width: 0;
+}
+
+.graph-related-node__copy strong,
+.graph-related-node__copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-related-node__copy strong {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 9.5px;
+}
+
+.graph-related-node__copy small {
+  margin-top: 2px;
+  color: rgba(153, 168, 190, 0.58);
+  font-size: 8px;
+}
+
+.graph-related-node > i {
+  color: rgba(153, 168, 190, 0.38);
+  font-size: 8px;
+}
+
+.graph-related-browser__empty {
+  padding: 12px 8px;
+  color: rgba(153, 168, 190, 0.52);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.graph-edge-group {
+  cursor: pointer;
+}
+
+.graph-edge__hit-area {
+  stroke: rgba(255, 255, 255, 0.001);
+  stroke-width: 18;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.graph-edge-group:hover .graph-edge {
+  opacity: 0.82 !important;
+  stroke-width: 3px;
+}
+
+.graph-edge-group--selected .graph-edge {
+  filter: url('#glow-sm');
+  stroke-dasharray: 9 3;
+}
+
+.graph-edge__label--selected {
+  fill: rgba(255, 255, 255, 0.98) !important;
+  font-size: 8.5px !important;
+  font-weight: 900 !important;
+}
+
+@media (max-width: 720px) {
+  .graph-relationship-detail__route {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-relationship-detail__route > i {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+}
