@@ -205,6 +205,10 @@
   height: 24px;
 }
 
+.investigation-sidebar__button i {
+  font-size: 19px;
+}
+
 .investigation-content {
   flex: 1 1 auto;
   min-width: 0;

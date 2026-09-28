@@ -65,12 +65,17 @@
       </a>
 
       <a class="investigation-sidebar__button investigation-sidebar__button--active"
-        [routerLink]="routes.investigations" title="Líneas de investigación" aria-label="Líneas de investigación">
+        [routerLink]="routes.investigationLines" title="Líneas de investigación" aria-label="Líneas de investigación">
         <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="2"></circle>
           <path d="M8.5 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
           <circle cx="18" cy="12" r="2.5" stroke="currentColor" stroke-width="2"></circle>
         </svg>
+      </a>
+
+      <a class="investigation-sidebar__button" [routerLink]="routes.investigations"
+        title="Investigaciones" aria-label="Investigaciones">
+        <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
       </a>
     </aside>
 

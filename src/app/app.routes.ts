@@ -59,7 +59,16 @@ export const routes: Routes = [
       import('./features/person-detail/pages/person-detail-page/person-detail-page').then(
         (m) => m.PersonDetailPage
       )
-  }, {
+  },
+  {
+    path: 'investigaciones',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/investigations/pages/investigations-page/investigations-page').then(
+        (m) => m.InvestigationsPage
+      )
+  },
+  {
     path: 'lineas-investigacion',
     canActivate: [authGuard],
     loadComponent: () =>

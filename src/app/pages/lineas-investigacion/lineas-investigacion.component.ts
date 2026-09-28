@@ -190,7 +190,8 @@ export class LineasInvestigacionComponent implements OnInit, OnDestroy {
     search: '/busqueda',
     history: '/historial',
     saved: '/guardados',
-    investigations: '/lineas-investigacion',
+    investigationLines: '/lineas-investigacion',
+    investigations: '/investigaciones',
     graph: '/grafo',
   } as const;
 

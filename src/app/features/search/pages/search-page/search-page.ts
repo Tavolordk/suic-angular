@@ -22,7 +22,7 @@ import {
   ValidationErrors,
   Validators
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import {
@@ -31,6 +31,10 @@ import {
 } from '../../../../core/infrastructure/search-api/search-api.models';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../data-access/search-state.service';
+import {
+  InvestigationLinkedSearch,
+  InvestigationWorkspaceService
+} from '../../../investigations/data-access/investigation-workspace.service';
 import { PersonSearchFormValue } from '../../domain/person-search.models';
 import {
   buildPersonSearchRequest,
@@ -96,15 +100,18 @@ interface QuickSearchItem {
 export class SearchPage implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
   private readonly searchState = inject(SearchStateService);
+  private readonly investigationWorkspace = inject(InvestigationWorkspaceService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
   private readonly restoredPage = this.searchState.page();
 
   readonly accountNumber = this.authService.accountNumber;
   readonly primaryProfile = this.authService.primaryProfile;
+  readonly investigationContext = this.investigationWorkspace.activeContext;
 
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
@@ -340,6 +347,8 @@ export class SearchPage implements OnInit, OnDestroy {
   );
 
   ngOnInit(): void {
+    this.restoreInvestigationContextFromRoute();
+
     if (!this.isBrowser) {
       return;
     }
@@ -441,6 +450,7 @@ export class SearchPage implements OnInit, OnDestroy {
             this.pageSize(),
             formValue
           );
+          this.investigationWorkspace.recordSuccessfulSearch(formValue, page);
         },
         error: (error: unknown) => {
           this.hasSearched.set(false);
@@ -539,6 +549,32 @@ export class SearchPage implements OnInit, OnDestroy {
     this.closeProfile();
     this.activeSidebarPanel.set(null);
     void this.router.navigateByUrl('/lineas-investigacion');
+  }
+
+  goToInvestigations(): void {
+    this.closeProfile();
+    this.activeSidebarPanel.set(null);
+    this.backToInvestigation();
+  }
+
+  backToInvestigation(): void {
+    const context = this.investigationContext();
+    if (!context) {
+      void this.router.navigateByUrl('/investigaciones');
+      return;
+    }
+
+    void this.router.navigate(['/investigaciones'], {
+      queryParams: {
+        investigationId: context.investigationId,
+        tab: 'searches'
+      }
+    });
+  }
+
+  detachInvestigationContext(): void {
+    this.investigationWorkspace.clearContext();
+    void this.router.navigate(['/busqueda']);
   }
 
   closeSidebarPanel(): void {
@@ -666,6 +702,81 @@ export class SearchPage implements OnInit, OnDestroy {
       default:
         return 'search-result-tag--person';
     }
+  }
+
+  private restoreInvestigationContextFromRoute(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const investigationId = params.get('investigationId');
+    const linkedSearchId = params.get('linkedSearchId');
+
+    if (!investigationId && !linkedSearchId) {
+      this.investigationWorkspace.clearContext();
+    }
+
+    if (investigationId) {
+      this.investigationWorkspace.beginSearch({
+        investigationId,
+        investigationFolio: params.get('investigationFolio') || this.investigationContext()?.investigationFolio || 'Investigación',
+        investigationName: params.get('investigationName') || this.investigationContext()?.investigationName || 'Investigación',
+        lineId: params.get('lineId') || undefined,
+        lineTitle: params.get('lineTitle') || undefined,
+        pivotNode: params.get('pivotNode') || undefined
+      });
+
+      if (!linkedSearchId) {
+        this.clearSearch();
+      }
+    }
+
+    if (!linkedSearchId) {
+      return;
+    }
+
+    const linkedSearch = this.investigationWorkspace.findSearch(linkedSearchId);
+    if (!linkedSearch) {
+      this.errorMessage.set('No se encontró la búsqueda vinculada a la investigación.');
+      return;
+    }
+
+    this.restoreLinkedSearch(linkedSearch);
+  }
+
+  private restoreLinkedSearch(search: InvestigationLinkedSearch): void {
+    this.investigationWorkspace.resumeSearch(search);
+    this.selectedEntity.set('personas');
+    this.personForm.reset(this.emptyPersonFormValue());
+    this.personForm.patchValue(search.criteria);
+    this.searchPanelExpanded.set(false);
+    this.errorMessage.set(null);
+
+    if (!search.backendSearchId) {
+      this.searchPanelExpanded.set(true);
+      return;
+    }
+
+    this.beginSearching();
+    this.searchApi
+      .getResults(search.backendSearchId, 1, this.pageSize())
+      .pipe(finalize(() => this.endSearching()))
+      .subscribe({
+        next: (page) => {
+          this.applyPage(page);
+          this.hasSearched.set(true);
+          this.searchState.saveSearch(
+            buildPersonSearchRequest(search.criteria),
+            page,
+            this.pageSize(),
+            search.criteria
+          );
+        },
+        error: () => {
+          this.hasSearched.set(false);
+          this.searchPanelExpanded.set(true);
+          this.errorMessage.set(
+            'Los criterios de la búsqueda fueron recuperados. El resultado anterior ya no está disponible; puedes ejecutarla nuevamente.'
+          );
+        }
+      });
   }
 
   private beginSearching(): void {

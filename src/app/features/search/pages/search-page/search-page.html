@@ -132,6 +132,12 @@
                         stroke-linecap="round"></path>
                 </svg>
             </button>
+
+            <button type="button" class="search-sidebar__button"
+                title="Investigaciones" aria-label="Abrir investigaciones"
+                (click)="goToInvestigations()">
+                <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+            </button>
         </aside>
 
         <div class="search-sidebar-overlay" *ngIf="activeSidebarPanel()" (click)="closeSidebarPanel()"></div>
@@ -191,6 +197,30 @@
         </section>
 
         <main class="search-content" [class.search-content--panel-open]="activeSidebarPanel()">
+            @if (investigationContext(); as context) {
+            <section class="search-investigation-context" aria-label="Contexto de investigación">
+                <div class="search-investigation-context__icon">
+                    <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+                </div>
+                <div class="search-investigation-context__body">
+                    <span>Búsqueda vinculada</span>
+                    <strong>{{ context.investigationName }}</strong>
+                    <small>
+                        {{ context.investigationFolio }}
+                        @if (context.lineTitle) { <span> · {{ context.lineTitle }}</span> }
+                        @if (context.pivotNode) { <span> · Pivote: {{ context.pivotNode }}</span> }
+                    </small>
+                </div>
+                <div class="search-investigation-context__actions">
+                    <button type="button" (click)="backToInvestigation()">
+                        <i class="fa-solid fa-arrow-left"></i> Volver a investigación
+                    </button>
+                    <button type="button" class="search-investigation-context__detach" (click)="detachInvestigationContext()" title="Continuar como búsqueda general">
+                        <i class="fa-solid fa-link-slash"></i> Desvincular
+                    </button>
+                </div>
+            </section>
+            }
             <section class="search-title-card">
                 <div>
                     <h1>Búsqueda</h1>

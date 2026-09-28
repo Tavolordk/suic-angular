@@ -35,6 +35,11 @@ export class Sidebar {
       path: '/lineas-investigacion',
       icon: 'fa-solid fa-diagram-project',
       label: 'Líneas de investigación'
+    },
+    {
+      path: '/investigaciones',
+      icon: 'fa-solid fa-folder-tree',
+      label: 'Investigaciones'
     }
   ];
 }

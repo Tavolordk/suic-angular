@@ -1,0 +1,660 @@
+<section class="investigations-shell">
+  <header class="investigations-topbar">
+    <div class="investigations-topbar__content">
+      <div class="investigations-topbar__logo">
+        <img src="seguridad-logo.png" alt="Logo SSPC" />
+      </div>
+
+      <p class="investigations-topbar__title">Sistema Plataforma México</p>
+
+      <div class="investigations-topbar__actions">
+        <div class="investigations-clock">
+          <i class="fa-regular fa-clock" aria-hidden="true"></i>
+          <div>
+            <strong>{{ currentTime() | date:'HH:mm:ss' }}</strong>
+            <small>{{ currentDateLabel() }}</small>
+          </div>
+        </div>
+
+        <div class="investigations-profile" (click)="keepProfileOpen($event)">
+          <button type="button" class="investigations-profile__button" [attr.aria-expanded]="profileOpen()"
+            [attr.aria-label]="'Abrir perfil de ' + accountNumber()" (click)="toggleProfile($event)">
+            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+          </button>
+
+          @if (profileOpen()) {
+          <div class="investigations-profile-menu">
+            <div class="investigations-profile-menu__header">
+              <span class="investigations-profile-menu__avatar"><i class="fa-solid fa-user"></i></span>
+              <div>
+                <strong>{{ accountNumber() || 'Usuario SPM' }}</strong>
+                <span>{{ primaryProfile() || role() }}</span>
+              </div>
+            </div>
+            <button type="button" (click)="logout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+              Cerrar sesión
+            </button>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="investigations-main">
+    <aside class="investigations-sidebar" aria-label="Navegación principal">
+      <button type="button" class="investigations-sidebar__button" title="Búsqueda general"
+        aria-label="Búsqueda general" (click)="goToSearch()">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+      <button type="button" class="investigations-sidebar__button" title="Historial de búsquedas"
+        aria-label="Historial de búsquedas" (click)="goToSearch()">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+      </button>
+      <button type="button" class="investigations-sidebar__button" title="Búsquedas guardadas"
+        aria-label="Búsquedas guardadas" (click)="goToSearch()">
+        <i class="fa-regular fa-bookmark"></i>
+      </button>
+      <a class="investigations-sidebar__button" routerLink="/lineas-investigacion" title="Líneas de investigación"
+        aria-label="Líneas de investigación">
+        <i class="fa-solid fa-diagram-project"></i>
+      </a>
+      <button type="button" class="investigations-sidebar__button investigations-sidebar__button--active"
+        title="Investigaciones" aria-label="Investigaciones" (click)="goToList()">
+        <i class="fa-solid fa-folder-tree"></i>
+      </button>
+      @if (canCreate()) {
+      <button type="button" class="investigations-sidebar__button investigations-sidebar__button--new"
+        title="Crear investigación" aria-label="Crear investigación" (click)="openCreateDialog()">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+      }
+    </aside>
+
+    <main class="investigations-content suic-scrollbar">
+      @if (screen() === 'list') {
+      <section class="investigations-view">
+        <header class="investigations-hero">
+          <div>
+            <span class="investigations-eyebrow">Espacios de trabajo</span>
+            <h1>Investigaciones</h1>
+            <p>Consulta las investigaciones donde participas y continúa el trabajo de tu equipo.</p>
+          </div>
+
+          <div class="investigations-hero__actions">
+            <label class="investigations-role">
+              <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+              <span>Vista de permisos</span>
+              <select [value]="role()" (change)="updateRole($event)" aria-label="Vista de permisos">
+                <option>Administrador</option>
+                <option>Investigador</option>
+                <option>Solo búsqueda</option>
+              </select>
+            </label>
+
+            @if (canCreate()) {
+            <button type="button" class="investigations-button investigations-button--primary"
+              (click)="openCreateDialog()">
+              <i class="fa-solid fa-plus"></i>
+              Nueva investigación
+            </button>
+            }
+          </div>
+        </header>
+
+        <section class="investigations-toolbar">
+          <label class="investigations-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" placeholder="Buscar por nombre o folio" [value]="searchTerm()"
+              (input)="updateSearch($event)" />
+          </label>
+
+          <label class="investigations-filter">
+            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+            <select [value]="statusFilter()" (change)="updateStatusFilter($event)" aria-label="Filtrar por estado">
+              <option value="all">Todas las investigaciones</option>
+              <option value="Activa">Activas</option>
+              <option value="En revisión">En revisión</option>
+              <option value="Finalizada">Finalizadas</option>
+            </select>
+          </label>
+        </section>
+
+        <div class="investigations-section-title">
+          <div>
+            <i class="fa-solid fa-briefcase" aria-hidden="true"></i>
+            <h2>Mis espacios activos</h2>
+          </div>
+          <span>{{ visibleInvestigations().length }} {{ visibleInvestigations().length === 1 ? 'investigación' :
+            'investigaciones' }}</span>
+        </div>
+
+        @if (visibleInvestigations().length) {
+        <div class="investigations-grid">
+          @for (item of visibleInvestigations(); track item.id) {
+          <article class="investigation-card">
+            <div class="investigation-card__header">
+              <div>
+                <span class="investigation-card__folio"><i class="fa-solid fa-hashtag"></i>{{ item.folio }}</span>
+                <h2>{{ item.name }}</h2>
+              </div>
+              <span class="status-pill" [class.status-pill--review]="item.status === 'En revisión'"
+                [class.status-pill--finished]="item.status === 'Finalizada'">
+                {{ item.status }}
+              </span>
+            </div>
+
+            <p class="investigation-card__description">{{ item.description }}</p>
+
+            <div class="investigation-card__metrics">
+              @for (metric of item.metrics; track metric.label) {
+              <div class="investigation-metric">
+                <i [class]="metric.icon"></i>
+                <div><strong>{{ metric.value }}</strong><span>{{ metric.label }}</span></div>
+              </div>
+              }
+            </div>
+
+            <footer class="investigation-card__footer">
+              <div class="participant-stack" aria-label="Participantes">
+                @for (participant of item.participants; track participant) {
+                <span>{{ participant }}</span>
+                }
+              </div>
+
+              <button type="button"
+                class="investigations-button investigations-button--primary investigations-button--small"
+                (click)="openInvestigation(item)">
+                Abrir espacio
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </footer>
+          </article>
+          }
+        </div>
+        } @else {
+        <section class="investigations-empty">
+          <span class="investigations-empty__icon"><i class="fa-solid fa-folder-open"></i></span>
+          <h2>Sin investigaciones asignadas</h2>
+          <p>Este perfil puede realizar búsquedas generales, pero no tiene espacios colaborativos disponibles con los
+            permisos seleccionados.</p>
+          <button type="button" class="investigations-button investigations-button--primary" (click)="goToSearch()">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Ir a búsqueda general
+          </button>
+        </section>
+        }
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Vista frontend · Datos de
+          demostración · Cambios de Investigaciones persistidos localmente</p>
+      </section>
+      }
+
+      @if (screen() === 'workspace' && selectedInvestigation(); as investigation) {
+      <section class="investigations-view">
+        <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
+          <button type="button" (click)="goToList()"><i class="fa-solid fa-folder-tree"></i> Investigaciones</button>
+          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+          <span>{{ investigation.folio }}</span>
+        </nav>
+
+        <header class="investigations-hero investigations-hero--workspace">
+          <div>
+            <span class="investigations-eyebrow">{{ investigation.folio }} · Creada por {{ investigation.createdBy
+              }}</span>
+            <h1>{{ investigation.name }}</h1>
+            <p>{{ investigation.description }}</p>
+            <div class="workspace-summary">
+              @for (metric of investigation.metrics; track metric.label) {
+              <span><i [class]="metric.icon"></i><strong>{{ metric.value }}</strong> {{ metric.label }}</span>
+              }
+            </div>
+          </div>
+
+          <div class="investigations-hero__actions investigations-hero__actions--vertical">
+            <span class="status-pill">{{ investigation.status }}</span>
+            @if (canInvestigate()) {
+            <button type="button" class="investigations-button investigations-button--primary" (click)="newSearch()">
+              <i class="fa-solid fa-magnifying-glass-plus"></i>
+              Nueva búsqueda
+            </button>
+            }
+          </div>
+        </header>
+
+        <div class="workspace-tabs" role="tablist" aria-label="Contenido de la investigación">
+          <button type="button" role="tab" [class.workspace-tabs__active]="activeTab() === 'lines'"
+            [attr.aria-selected]="activeTab() === 'lines'" (click)="setTab('lines')">
+            <i class="fa-solid fa-diagram-project"></i>Líneas de investigación
+          </button>
+          <button type="button" role="tab" [class.workspace-tabs__active]="activeTab() === 'searches'"
+            [attr.aria-selected]="activeTab() === 'searches'" (click)="setTab('searches')">
+            <i class="fa-solid fa-magnifying-glass"></i>Búsquedas
+          </button>
+          <button type="button" role="tab" [class.workspace-tabs__active]="activeTab() === 'members'"
+            [attr.aria-selected]="activeTab() === 'members'" (click)="setTab('members')">
+            <i class="fa-solid fa-user-group"></i>Participantes
+          </button>
+        </div>
+
+        @if (activeTab() === 'lines') {
+        <div class="workspace-layout">
+          <section>
+            <div class="investigations-section-title investigations-section-title--flat">
+              <div><i class="fa-solid fa-code-branch"></i>
+                <h2>Líneas del espacio</h2>
+              </div>
+              <span>{{ investigation.lines.length }} líneas</span>
+            </div>
+
+            @if (investigation.lines.length) {
+            <div class="workspace-lines">
+              @for (line of investigation.lines; track line.id) {
+              <article class="workspace-line-card">
+                <button type="button" class="workspace-line-card__graph" (click)="openLine(line)"
+                  [attr.aria-label]="'Abrir grafo de ' + line.title">
+                  <span class="mini-graph__node mini-graph__node--root"><i class="fa-solid fa-user"></i></span>
+                  <span class="mini-graph__node mini-graph__node--vehicle"><i class="fa-solid fa-car-side"></i></span>
+                  <span class="mini-graph__node mini-graph__node--person"><i class="fa-solid fa-user"></i></span>
+                  <span class="mini-graph__edge mini-graph__edge--one"></span>
+                  <span class="mini-graph__edge mini-graph__edge--two"></span>
+                </button>
+
+                <div class="workspace-line-card__content">
+                  <div class="workspace-line-card__header">
+                    <div>
+                      <span class="investigation-card__folio">{{ line.id.toUpperCase() }} · {{ line.category }}</span>
+                      <h2>{{ line.title }}</h2>
+                    </div>
+                    <span class="status-pill">{{ line.status }}</span>
+                  </div>
+                  <p>{{ line.description }}</p>
+                  <div class="line-tags">
+                    <span><i class="fa-solid fa-circle-nodes"></i>{{ line.entities }} entidades</span>
+                    <span><i class="fa-solid fa-code-branch"></i>{{ line.closedBranches }} ramas cerradas</span>
+                  </div>
+                  <footer>
+                    <span>Creada por {{ line.createdBy }} · {{ line.updated }}</span>
+                    <button type="button"
+                      class="investigations-button investigations-button--primary investigations-button--small"
+                      (click)="openLine(line)">Abrir línea <i class="fa-solid fa-arrow-right"></i></button>
+                  </footer>
+                </div>
+              </article>
+              }
+            </div>
+            } @else {
+            <section class="workspace-placeholder">
+              <i class="fa-solid fa-diagram-project"></i>
+              <h3>Esta investigación aún no tiene líneas</h3>
+              <p>Cuando el backend asocie la primera consolidación, aparecerá aquí como línea de investigación.</p>
+            </section>
+            }
+          </section>
+
+          <aside class="workspace-side">
+            <section class="workspace-side-card">
+              <header><i class="fa-solid fa-user-group"></i>
+                <h3>Equipo</h3>
+              </header>
+              @if (investigation.members.length) {
+              @for (member of investigation.members; track member.name) {
+              <div class="member-row">
+                <span class="member-row__avatar">{{ member.initials }}</span>
+                <div><strong>{{ member.name }}</strong><small>{{ member.role }}</small></div>
+              </div>
+              }
+              } @else {
+              <p class="workspace-side-card__empty">Participantes pendientes de servicio.</p>
+              }
+              <button type="button" class="investigations-link-button" (click)="setTab('members')">Ver
+                participantes</button>
+            </section>
+
+            <section class="workspace-side-card">
+              <header><i class="fa-solid fa-wave-square"></i>
+                <h3>Actividad reciente</h3>
+              </header>
+              @if (investigation.activity.length) {
+              @for (activity of investigation.activity; track activity.text) {
+              <div class="activity-row">
+                <span><i [class]="activity.icon"></i></span>
+                <div><strong>{{ activity.text }}</strong><small>{{ activity.meta }}</small></div>
+              </div>
+              }
+              } @else {
+              <p class="workspace-side-card__empty">Sin actividad registrada en la vista previa.</p>
+              }
+            </section>
+          </aside>
+        </div>
+        }
+
+        @if (activeTab() === 'searches') {
+        <section class="linked-searches-panel">
+          <header class="linked-searches-panel__header">
+            <div>
+              <span class="investigations-eyebrow">Trazabilidad de consultas</span>
+              <h2>Búsquedas vinculadas</h2>
+              <p>Las consultas ejecutadas desde esta investigación se conservan aquí para poder revisarlas o volver a
+                ejecutarlas.</p>
+            </div>
+            @if (canInvestigate()) {
+            <button type="button"
+              class="investigations-button investigations-button--primary investigations-button--small"
+              (click)="newSearch()">
+              <i class="fa-solid fa-magnifying-glass-plus"></i>Nueva búsqueda
+            </button>
+            }
+          </header>
+
+          @if (linkedSearches().length) {
+          <div class="linked-searches-list">
+            @for (search of linkedSearches(); track search.id) {
+            <article class="linked-search-card" (click)="openLinkedSearch(search)">
+              <span class="linked-search-card__icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <div class="linked-search-card__body">
+                <div class="linked-search-card__topline">
+                  <div>
+                    <span class="investigation-card__folio">{{ search.backendSearchId }}</span>
+                    <h3>{{ search.label }}</h3>
+                  </div>
+                  <span class="status-pill" [class.status-pill--review]="search.isPartial">{{ search.isPartial ?
+                    'Parcial' : 'Completada' }}</span>
+                </div>
+                <p>{{ searchCriteriaSummary(search) }}</p>
+                <div class="linked-search-card__meta">
+                  <span><i class="fa-solid fa-users-viewfinder"></i>{{ search.totalResults }} resultados</span>
+                  <span><i class="fa-regular fa-clock"></i>{{ search.updatedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  @if (search.lineTitle) {
+                  <span><i class="fa-solid fa-code-branch"></i>{{ search.lineTitle }}</span>
+                  }
+                  @if (search.pivotNode) {
+                  <span><i class="fa-solid fa-share-nodes"></i>Pivote desde {{ search.pivotNode }}</span>
+                  }
+                </div>
+              </div>
+              <div class="linked-search-card__actions">
+                <button type="button"
+                  class="investigations-button investigations-button--primary investigations-button--small"
+                  (click)="openLinkedSearch(search); $event.stopPropagation()">
+                  Abrir <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button type="button" class="linked-search-card__remove" title="Desvincular búsqueda"
+                  aria-label="Desvincular búsqueda" (click)="deleteLinkedSearch(search, $event)">
+                  <i class="fa-solid fa-link-slash"></i>
+                </button>
+              </div>
+            </article>
+            }
+          </div>
+          } @else {
+          <div class="workspace-placeholder workspace-placeholder--wide">
+            <span><i class="fa-solid fa-magnifying-glass"></i></span>
+            <h2>Aún no hay búsquedas vinculadas</h2>
+            <p>Inicia una búsqueda desde este espacio. Al ejecutarla con el servicio real de búsqueda quedará registrada
+              aquí automáticamente.</p>
+            @if (canInvestigate()) {
+            <button type="button" class="investigations-button investigations-button--primary" (click)="newSearch()">
+              <i class="fa-solid fa-plus"></i>Nueva búsqueda para esta investigación
+            </button>
+            }
+          </div>
+          }
+        </section>
+        }
+
+        @if (activeTab() === 'members') {
+        <section class="members-panel">
+          <header>
+            <div><span class="investigations-eyebrow">Control de acceso</span>
+              <h2>Participantes</h2>
+            </div>
+            @if (canCreate()) {
+            <button type="button"
+              class="investigations-button investigations-button--primary investigations-button--small"
+              (click)="addMember()"><i class="fa-solid fa-user-plus"></i>Agregar participante</button>
+            }
+          </header>
+
+          @for (member of investigation.members; track member.name) {
+          <article class="member-detail-row">
+            <span class="member-detail-row__avatar">{{ member.initials }}</span>
+            <div><strong>{{ member.name }}</strong><span>{{ member.role }}</span><small>{{ member.description }}</small>
+            </div>
+          </article>
+          } @empty {
+          <div class="workspace-placeholder"><i class="fa-solid fa-users-slash"></i>
+            <h3>Sin participantes cargados</h3>
+          </div>
+          }
+        </section>
+        }
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Investigaciones, participantes,
+          ramas y búsquedas vinculadas se conservan localmente para pruebas. La búsqueda de personas utiliza el servicio
+          real ya integrado en SPM.</p>
+      </section>
+      }
+
+      @if (screen() === 'line' && selectedInvestigation(); as investigation) {
+      <section class="investigations-view">
+        <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
+          <button type="button" (click)="goToList()"><i class="fa-solid fa-folder-tree"></i> Investigaciones</button>
+          <i class="fa-solid fa-chevron-right"></i>
+          <button type="button" (click)="goToWorkspace()">{{ investigation.name }}</button>
+          <i class="fa-solid fa-chevron-right"></i>
+          <span>{{ selectedLine()?.id || 'Línea' }}</span>
+        </nav>
+
+        <header class="investigations-hero investigations-hero--workspace">
+          <div>
+            <span class="investigations-eyebrow">{{ investigation.folio }} · {{ selectedLine()?.id || 'Línea de
+              investigación' }}</span>
+            <h1>{{ selectedLine()?.title || 'Línea de investigación' }}</h1>
+            <p>El equipo amplía el grafo a partir de los vínculos encontrados y conserva la trazabilidad de cada
+              decisión.</p>
+          </div>
+          <div class="investigations-hero__actions investigations-hero__actions--vertical">
+            <span class="status-pill">{{ selectedLine()?.status || 'En desarrollo' }}</span>
+            @if (canInvestigate()) {
+            <button type="button" class="investigations-button investigations-button--primary" (click)="pivot()">
+              <i class="fa-solid fa-code-branch"></i>Seguir Investigación
+            </button>
+            }
+          </div>
+        </header>
+
+        <div class="investigations-section-title investigations-section-title--flat">
+          <div><i class="fa-solid fa-circle-nodes"></i>
+            <h2>Grafo compartido</h2>
+          </div>
+          <span>Selecciona un nodo para revisar su responsable</span>
+        </div>
+
+        <section class="shared-graph">
+          <header>
+            <strong><i class="fa-solid fa-diagram-project"></i> Grafo de investigación · 4 entidades visibles</strong>
+            <span><i class="fa-solid fa-circle graph-key graph-key--person"></i> Persona <i
+                class="fa-solid fa-circle graph-key graph-key--vehicle"></i> Vehículo <i
+                class="fa-regular fa-circle graph-key graph-key--closed"></i> Rama cerrada</span>
+          </header>
+
+          <div class="shared-graph__area">
+            <svg class="shared-graph__edges" viewBox="0 0 1000 410" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="490" y1="180" x2="780" y2="105"></line>
+              <line x1="490" y1="180" x2="770" y2="300"></line>
+              <line class="shared-graph__edge--closed" x1="490" y1="180" x2="200" y2="95"></line>
+            </svg>
+
+            <button type="button" class="graph-node graph-node--root"
+              [class.graph-node--selected]="selectedNode() === 'root'" (click)="selectNode('root')">
+              <span><i class="fa-solid fa-user"></i></span><strong>Perfil A</strong><small>Persona · Entidad
+                principal</small><em>Consolidado por M. López</em>
+            </button>
+            <button type="button" class="graph-node graph-node--vehicle"
+              [class.graph-node--selected]="selectedNode() === 'vehicle'" (click)="selectNode('vehicle')">
+              <span><i class="fa-solid fa-car-side"></i></span><strong>Vehículo 01</strong><small>Vínculo
+                consolidado</small><em>Por J. Rivera</em>
+            </button>
+            <button type="button" class="graph-node graph-node--person"
+              [class.graph-node--selected]="selectedNode() === 'person'" (click)="selectNode('person')">
+              <span><i class="fa-solid fa-user-clock"></i></span><strong>Persona B</strong><small>Vínculo por
+                revisar</small><em>Rama abierta</em>
+            </button>
+            <button type="button" class="graph-node graph-node--closed"
+              [class.graph-node--selected]="selectedNode() === 'closed'" (click)="selectNode('closed')">
+              <span><i class="fa-solid fa-car-rear"></i></span><strong>Vehículo 03</strong><small>Rama
+                cerrada</small><em>No admite nuevos pivotes</em>
+            </button>
+          </div>
+        </section>
+
+        <section class="graph-detail-grid">
+          <article>
+            <span class="graph-detail-grid__icon"><i [class]="selectedNodeDetail().icon"></i></span>
+            <div><small>Nodo seleccionado</small>
+              <h3>{{ selectedNodeDetail().title }}</h3>
+              <p>{{ selectedNodeDetail().trace }}</p>
+            </div>
+          </article>
+          <article>
+            <span class="graph-detail-grid__icon"><i class="fa-solid fa-code-branch"></i></span>
+            <div><small>Rama</small>
+              <h3>{{ branchClosed() ? 'Cerrada' : 'Abierta' }}</h3>
+              <p>{{ branchClosed() ? 'Los integrantes pueden revisar el vínculo, pero no expandir esta rama.' : 'Se
+                pueden revisar y consolidar nuevos vínculos.' }}</p>
+              @if (canInvestigate()) {
+              <button type="button" class="investigations-link-button" (click)="toggleBranch()">{{ branchClosed() ?
+                'Reabrir esta rama' : 'Cerrar esta rama' }}</button>
+              }
+            </div>
+          </article>
+          <article>
+            <span class="graph-detail-grid__icon"><i class="fa-solid fa-fingerprint"></i></span>
+            <div><small>Trazabilidad</small>
+              <h3>Quién, cuándo y desde dónde</h3>
+              <p>La línea conserva atribución por usuario y referencia al historial de la búsqueda.</p>
+            </div>
+          </article>
+        </section>
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Cerrar o reabrir una rama actualiza
+          la línea y se conserva localmente; no elimina nodos ni evidencia.</p>
+      </section>
+      }
+    </main>
+  </div>
+
+  @if (createDialogOpen()) {
+  <div class="investigation-dialog-backdrop" (click)="closeCreateDialog()">
+    <section class="investigation-dialog" role="dialog" aria-modal="true" aria-labelledby="create-investigation-title"
+      (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="investigations-eyebrow">Nuevo espacio de trabajo</span>
+          <h2 id="create-investigation-title">Crear investigación</h2>
+        </div>
+        <button type="button" aria-label="Cerrar" (click)="closeCreateDialog()"><i
+            class="fa-solid fa-xmark"></i></button>
+      </header>
+
+      <label class="dialog-field">
+        <span>Nombre de la investigación</span>
+        <div><i class="fa-solid fa-folder-tree"></i><input type="text" placeholder="Nombre descriptivo"
+            [value]="draftName()" (input)="updateDraftName($event)" /></div>
+      </label>
+
+      <label class="dialog-field">
+        <span>Objetivo breve</span>
+        <div class="dialog-field__textarea"><i class="fa-solid fa-bullseye"></i><textarea rows="3"
+            placeholder="Describe el objetivo de trabajo" [value]="draftDescription()"
+            (input)="updateDraftDescription($event)"></textarea></div>
+      </label>
+
+      <div class="dialog-field">
+        <span>Folio</span>
+        <div class="dialog-notice"><i class="fa-solid fa-database"></i> Para pruebas se genera un folio local temporal.
+          Cuando exista el servicio, este valor deberá sustituirse por el folio de BD.</div>
+      </div>
+
+      <div class="dialog-field">
+        <span>Participantes iniciales</span>
+        <div class="participant-options">
+          @for (participant of ['M. López', 'J. Rivera', 'G. Ruiz', 'V. Torres']; track participant) {
+          <label>
+            <input type="checkbox" [checked]="selectedParticipants().has(participant)"
+              (change)="toggleParticipant(participant, $event)" />
+            <span><i class="fa-solid fa-user"></i>{{ participant }}</span>
+          </label>
+          }
+        </div>
+        <small>Para pruebas, estos participantes se guardan localmente dentro del navegador.</small>
+      </div>
+
+      <footer>
+        <button type="button" class="investigations-button" (click)="closeCreateDialog()">Cancelar</button>
+        <button type="button" class="investigations-button investigations-button--primary" (click)="createPreview()">
+          <i class="fa-solid fa-folder-plus"></i>Crear investigación
+        </button>
+      </footer>
+    </section>
+  </div>
+  }
+
+  @if (memberDialogOpen()) {
+  <div class="investigation-dialog-backdrop" (click)="closeMemberDialog()">
+    <section class="investigation-dialog investigation-dialog--compact" role="dialog" aria-modal="true"
+      aria-labelledby="add-member-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="investigations-eyebrow">Equipo de trabajo</span>
+          <h2 id="add-member-title">Agregar participante</h2>
+        </div>
+        <button type="button" aria-label="Cerrar" (click)="closeMemberDialog()"><i
+            class="fa-solid fa-xmark"></i></button>
+      </header>
+
+      <label class="dialog-field">
+        <span>Usuario</span>
+        <div><i class="fa-solid fa-user-plus"></i>
+          <select [value]="draftMemberName()" (change)="updateDraftMemberName($event)">
+            <option value="">Selecciona un participante</option>
+            @for (memberName of availableMembers; track memberName) {
+            <option [value]="memberName" [disabled]="isMemberInInvestigation(memberName)">{{ memberName }}{{
+              isMemberInInvestigation(memberName) ? ' · Ya asignado' : '' }}</option>
+            }
+          </select>
+        </div>
+      </label>
+
+      <label class="dialog-field">
+        <span>Rol dentro de la investigación</span>
+        <div><i class="fa-solid fa-user-shield"></i>
+          <select [value]="draftMemberRole()" (change)="updateDraftMemberRole($event)">
+            <option value="Investigador">Investigador</option>
+            <option value="Administrador">Administrador</option>
+            <option value="Consulta">Solo consulta</option>
+          </select>
+        </div>
+      </label>
+
+      <div class="dialog-notice"><i class="fa-solid fa-circle-info"></i> Para esta versión de frontend, la asignación se
+        conserva en almacenamiento local. Después puede sustituirse por el servicio de usuarios/permisos.</div>
+
+      <footer>
+        <button type="button" class="investigations-button" (click)="closeMemberDialog()">Cancelar</button>
+        <button type="button" class="investigations-button investigations-button--primary" (click)="saveMember()">
+          <i class="fa-solid fa-user-check"></i>Agregar participante
+        </button>
+      </footer>
+    </section>
+  </div>
+  }
+
+  @if (toastMessage()) {
+  <div class="investigations-toast" role="status" aria-live="polite">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>{{ toastMessage() }}</span>
+  </div>
+  }
+</section>
