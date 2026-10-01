@@ -53,6 +53,7 @@ export interface IntelligenceAnswerRequest {
 export type IntelligenceAnswerApiResponse = IntelligenceAnswer;
 
 export type IntelligenceChatRole = 'user' | 'assistant';
+export type IntelligenceChatMode = 'quick' | 'auto' | 'deep';
 
 export interface IntelligenceChatHistoryMessage {
   role: IntelligenceChatRole;
@@ -66,6 +67,7 @@ export interface IntelligenceChatRequest {
   graph?: IntelligenceGraphPayload | null;
   history: IntelligenceChatHistoryMessage[];
   thinking: boolean;
+  mode: IntelligenceChatMode;
 }
 
 export type IntelligenceChatStreamEvent =

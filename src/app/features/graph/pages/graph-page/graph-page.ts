@@ -14,7 +14,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import {
-  GraphAnalysisApiResponse,
   IntelligenceChatHistoryMessage,
   IntelligenceGraphPayload
 } from '../../../../core/intelligence/intelligence-api.models';
@@ -194,7 +193,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly isAiLoading = signal(false);
   readonly aiThinkingEnabled = signal(true);
   readonly aiServiceStatus = signal<'checking' | 'online' | 'fallback'>('checking');
-  readonly aiGraphAnalysis = signal<GraphAnalysisApiResponse | null>(null);
 
   readonly nodeIndex = computed(
     () => new Map(this.nodes().map((node) => [node.id, node] as const))
@@ -347,8 +345,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.restartIntroAnimation();
 
         // Llamadas NUEVAS e independientes; no modifican ni repiten los endpoints de negocio.
-        this.refreshRemoteProfileAnalysis(profile);
-        this.refreshRemoteGraphAnalysis();
+        // La API 3.1.1 concentra el análisis generativo en /chat/stream.
+        // El snapshot determinista ya se calculó arriba; aquí sólo validamos disponibilidad del LLM.
         this.refreshLocalLlmHealth();
         this.loadRelationshipGraph(profile);
       },
@@ -376,7 +374,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
         this.selectedLinkId.set(null);
         this.restartIntroAnimation();
-        this.refreshRemoteGraphAnalysis();
       },
       error: () => {
         // El perfil raíz sigue disponible aunque el endpoint de detalle no responda.
@@ -573,7 +570,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.aiChatSubscription?.unsubscribe();
     this.aiChatSubscription = this.intelligenceApi
-      .streamChat(profile, question, history, thinking, selectedNode, graph)
+      .streamChat(profile, question, history, thinking, selectedNode, graph, 'auto')
       .subscribe({
         next: (event) => {
           if (event.type === 'meta') {
@@ -751,37 +748,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private refreshRemoteProfileAnalysis(profile: ConsolidatedProfileResponse): void {
-    this.intelligenceApi.analyzeProfile(profile).subscribe({
-      next: (snapshot) => {
-        this.aiSnapshot.set(snapshot);
-        this.aiErrorMessage.set(null);
-      },
-      error: () => {
-        this.aiServiceStatus.set('fallback');
-        this.aiErrorMessage.set(
-          'No fue posible conectar con la API de inteligencia configurada. El perfil funciona normalmente y usa el análisis local como respaldo.'
-        );
-      }
-    });
-  }
-
-  private refreshRemoteGraphAnalysis(): void {
-    if (!this.loadedProfile()) {
-      return;
-    }
-
-    this.intelligenceApi.analyzeGraph(this.currentAiGraphPayload()).subscribe({
-      next: (analysis) => {
-        this.aiGraphAnalysis.set(analysis);
-      },
-      error: () => {
-        // El grafo visual continúa funcionando; sólo se pierde esta descripción complementaria.
-        this.aiGraphAnalysis.set(null);
-      }
-    });
-  }
-
   private refreshLocalLlmHealth(): void {
     this.intelligenceApi.checkLlmHealth().subscribe({
       next: (health) => {
@@ -882,7 +848,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       : this.links().find((link) => link.sourceId === nodeId || link.targetId === nodeId);
     this.selectedLinkId.set(connectedLink?.id ?? null);
     this.detailPanelOpen.set(true);
-    this.refreshRemoteGraphAnalysis();
   }
 
   selectLink(linkId: string, event?: Event): void {
@@ -907,7 +872,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.selectedNodeId.set(relatedNodeId);
     this.expandedLinkType.set(link.type);
     this.detailPanelOpen.set(true);
-    this.refreshRemoteGraphAnalysis();
   }
 
   showRelatedNodes(type: GraphNodeType): void {
@@ -1145,7 +1109,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.aiSnapshot.set(null);
     this.aiAnswer.set(null);
     this.aiMessages.set([]);
-    this.aiGraphAnalysis.set(null);
     this.aiServiceStatus.set('fallback');
     this.nodes.set([createPlaceholderNode(this.profileId || 'profile', 'No fue posible cargar el perfil', message)]);
     this.links.set([]);

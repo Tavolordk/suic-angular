@@ -10,7 +10,7 @@ declare global {
 }
 
 export const DEFAULT_GATEWAY_URL = 'http://10.237.3.42:8081';
-export const DEFAULT_INTELLIGENCE_API_URL = 'http://127.0.0.1:8080';
+export const DEFAULT_INTELLIGENCE_API_URL = 'http://127.0.0.1:3651';
 
 function normalizeBaseUrl(value: string): string {
   return value.trim().replace(/\/+$/, '');

@@ -60,10 +60,18 @@
         aria-label="Líneas de investigación">
         <i class="fa-solid fa-diagram-project"></i>
       </a>
-      <button type="button" class="investigations-sidebar__button investigations-sidebar__button--active"
+      <button type="button" class="investigations-sidebar__button"
+        [class.investigations-sidebar__button--active]="screen() === 'list' || screen() === 'workspace' || (screen() === 'line' && lineReturnScreen() === 'workspace')"
         title="Investigaciones" aria-label="Investigaciones" (click)="goToList()">
         <i class="fa-solid fa-folder-tree"></i>
       </button>
+      @if (role() !== 'Solo búsqueda') {
+      <button type="button" class="investigations-sidebar__button"
+        [class.investigations-sidebar__button--active]="screen() === 'users' || screen() === 'user-lines' || screen() === 'user-saved' || (screen() === 'line' && lineReturnScreen() === 'user-lines')"
+        title="Usuarios del sistema" aria-label="Usuarios del sistema" (click)="goToUsers()">
+        <i class="fa-solid fa-users"></i>
+      </button>
+      }
       @if (canCreate()) {
       <button type="button" class="investigations-sidebar__button investigations-sidebar__button--new"
         title="Crear investigación" aria-label="Crear investigación" (click)="openCreateDialog()">
@@ -188,6 +196,279 @@
 
         <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Vista frontend · Datos de
           demostración · Cambios de Investigaciones persistidos localmente</p>
+      </section>
+      }
+
+      @if (screen() === 'users') {
+      <section class="investigations-view directory-view">
+        <header class="investigations-hero">
+          <div>
+            <span class="investigations-eyebrow">Directorio del sistema</span>
+            <h1>Usuarios</h1>
+            <p>Consulta quiénes pueden participar en las investigaciones de SPM sin modificar sus permisos de origen.</p>
+          </div>
+          <span class="status-pill status-pill--info"><i class="fa-solid fa-eye"></i> Solo lectura</span>
+        </header>
+
+        <section class="directory-origin-note">
+          <span><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+          <div>
+            <strong>Origen: AuthCentral</strong>
+            <p>Las altas, roles y permisos se administran fuera de SPM. Desde aquí sólo se consulta el directorio y, con permisos de Administrador, se asocian participantes a una investigación.</p>
+          </div>
+        </section>
+
+        <section class="investigations-toolbar directory-toolbar">
+          <label class="investigations-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" placeholder="Buscar por nombre o usuario" [value]="userSearchTerm()"
+              (input)="updateUserSearch($event)" aria-label="Buscar usuario" />
+          </label>
+
+          <label class="investigations-filter">
+            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+            <select [value]="userRoleFilter()" (change)="updateUserRoleFilter($event)" aria-label="Filtrar usuarios por rol">
+              <option value="all">Todos los roles</option>
+              <option value="Administrador">Administrador</option>
+              <option value="Investigador">Investigador</option>
+              <option value="Solo búsqueda">Solo búsqueda</option>
+            </select>
+          </label>
+        </section>
+
+        <div class="investigations-section-title">
+          <div>
+            <i class="fa-solid fa-users" aria-hidden="true"></i>
+            <h2>Usuarios disponibles</h2>
+          </div>
+          <span>{{ filteredDirectoryUsers().length }} {{ filteredDirectoryUsers().length === 1 ? 'usuario' : 'usuarios' }}</span>
+        </div>
+
+        <section class="directory-table" aria-label="Directorio de usuarios">
+          <div class="directory-table__head">
+            <span>Usuario</span>
+            <span>Rol en SPM</span>
+            <span>Investigaciones</span>
+            <span>Acciones</span>
+          </div>
+
+          @if (pagedDirectoryUsers().length) {
+          @for (user of pagedDirectoryUsers(); track user.id) {
+          <article class="directory-row">
+            <div class="directory-user">
+              <span class="directory-user__avatar">{{ userInitials(user.name) }}</span>
+              <span>
+                <strong>{{ user.name }}</strong>
+                <small>&#64;{{ user.handle }}</small>
+              </span>
+            </div>
+
+            <span class="directory-role" [class.directory-role--admin]="user.role === 'Administrador'"
+              [class.directory-role--readonly]="user.role === 'Solo búsqueda'">
+              <i [class]="roleIcon(user.role)" aria-hidden="true"></i>
+              {{ user.role }}
+            </span>
+
+            <span class="directory-count">
+              <strong>{{ user.investigations }}</strong>
+              {{ user.investigations === 1 ? 'investigación' : 'investigaciones' }}
+            </span>
+
+            <div class="directory-actions">
+              @if (canCreate()) {
+              <button type="button" class="directory-icon-button" title="Agregar a investigación"
+                aria-label="Agregar a investigación" [disabled]="user.role === 'Solo búsqueda'"
+                (click)="openAssignmentDialog(user)">
+                <i class="fa-solid fa-folder-plus"></i>
+              </button>
+              <button type="button" class="directory-icon-button" title="Líneas de investigación"
+                aria-label="Ver líneas de investigación" (click)="openUserLines(user)">
+                <i class="fa-solid fa-diagram-project"></i>
+              </button>
+              <button type="button" class="directory-icon-button" title="Búsquedas guardadas"
+                aria-label="Ver búsquedas guardadas" (click)="openUserSavedSearches(user)">
+                <i class="fa-regular fa-bookmark"></i>
+              </button>
+              } @else {
+              <span class="directory-readonly"><i class="fa-solid fa-lock"></i> Solo lectura</span>
+              }
+            </div>
+          </article>
+          }
+          } @else {
+          <div class="directory-empty">
+            <i class="fa-solid fa-user-slash"></i>
+            <strong>Sin coincidencias</strong>
+            <span>Prueba otro nombre, usuario o rol.</span>
+          </div>
+          }
+        </section>
+
+        <div class="directory-pagination">
+          <button type="button" class="investigations-button investigations-button--small"
+            [disabled]="usersPage() <= 1" (click)="previousUsersPage()">
+            <i class="fa-solid fa-chevron-left"></i> Anterior
+          </button>
+          <span>Página {{ usersPage() }} de {{ usersTotalPages() }}</span>
+          <button type="button" class="investigations-button investigations-button--small"
+            [disabled]="usersPage() >= usersTotalPages()" (click)="nextUsersPage()">
+            Siguiente <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Directorio de demostración · Sin conexión con AuthCentral</p>
+      </section>
+      }
+
+      @if (screen() === 'user-lines' && selectedDirectoryUser(); as user) {
+      <section class="investigations-view directory-view">
+        <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
+          <button type="button" (click)="goToUsers()"><i class="fa-solid fa-users"></i> Usuarios</button>
+          <i class="fa-solid fa-chevron-right"></i>
+          <span>{{ user.name }}</span>
+        </nav>
+
+        <header class="investigations-hero investigations-hero--workspace">
+          <div>
+            <span class="investigations-eyebrow">Seguimiento del equipo · Administrador</span>
+            <h1>Líneas de investigación</h1>
+            <p>Generadas por {{ user.name }}, con su investigación, perfil raíz y estado actual.</p>
+          </div>
+          <div class="investigations-hero__actions">
+            <button type="button" class="investigations-button investigations-button--small" (click)="goToUsers()">
+              <i class="fa-solid fa-arrow-left"></i> Volver a usuarios
+            </button>
+            <span class="status-pill status-pill--info">{{ selectedUserLineCount() }} {{ selectedUserLineCount() === 1 ? 'línea' : 'líneas' }}</span>
+          </div>
+        </header>
+
+        <section class="investigations-toolbar directory-toolbar directory-toolbar--compact">
+          <label class="investigations-filter">
+            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+            <select [value]="userLineStatusFilter()" (change)="updateUserLineStatusFilter($event)" aria-label="Filtrar líneas por estado">
+              <option value="all">Todas las líneas</option>
+              <option value="active">Activas</option>
+              <option value="closed">Cerradas</option>
+            </select>
+          </label>
+        </section>
+
+        <div class="directory-follow-list">
+          @if (selectedUserLines().length) {
+          @for (line of selectedUserLines(); track line.id) {
+          <article class="directory-follow-card">
+            <div class="directory-follow-card__header">
+              <div>
+                <span class="investigation-card__folio"><i class="fa-solid fa-code-branch"></i>{{ line.id }} · {{ investigationFolio(line.investigationId) }}</span>
+                <h2>{{ line.title }}</h2>
+              </div>
+              <span class="status-pill" [class.status-pill--finished]="line.closed">{{ line.closed ? 'Cerrada' : 'Activa' }}</span>
+            </div>
+
+            <div class="directory-follow-card__meta">
+              <span><i class="fa-solid fa-folder-tree"></i><strong>Investigación:</strong> {{ investigationName(line.investigationId) }}</span>
+              <span><i class="fa-solid fa-bullseye"></i><strong>Raíz:</strong> {{ line.root }}</span>
+              <span><i class="fa-solid fa-address-card"></i><strong>Consolidados:</strong> {{ line.profiles }}</span>
+              <span><i class="fa-regular fa-clock"></i><strong>Actividad:</strong> {{ line.updated }}</span>
+            </div>
+
+            @if (line.closed) {
+            <div class="directory-lock-note">
+              <i class="fa-solid fa-lock"></i>
+              <span>Solo lectura: esta línea no admite nuevos pivotes{{ investigationStatus(line.investigationId) === 'Finalizada' ? ' porque su investigación está finalizada' : '' }}.</span>
+            </div>
+            }
+
+            <footer class="directory-follow-card__actions">
+              <button type="button" class="investigations-button investigations-button--small" (click)="openDirectoryLine(line)">
+                <i class="fa-solid fa-circle-nodes"></i> Ver línea y grafo
+              </button>
+              <button type="button" class="investigations-button investigations-button--small"
+                [disabled]="line.closed && investigationStatus(line.investigationId) === 'Finalizada'"
+                (click)="toggleDirectoryLine(line)">
+                <i [class]="line.closed ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'"></i>
+                {{ line.closed ? 'Reactivar línea' : 'Cerrar línea' }}
+              </button>
+            </footer>
+          </article>
+          }
+          } @else {
+          <section class="investigations-empty directory-follow-empty">
+            <span class="investigations-empty__icon"><i class="fa-solid fa-code-branch"></i></span>
+            <h2>Sin líneas en este estado</h2>
+            <p>Prueba el otro estado o selecciona otro usuario.</p>
+          </section>
+          }
+        </div>
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Datos de demostración · Los cambios de estado sólo se simulan en frontend</p>
+      </section>
+      }
+
+      @if (screen() === 'user-saved' && selectedDirectoryUser(); as user) {
+      <section class="investigations-view directory-view">
+        <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
+          <button type="button" (click)="goToUsers()"><i class="fa-solid fa-users"></i> Usuarios</button>
+          <i class="fa-solid fa-chevron-right"></i>
+          <span>{{ user.name }}</span>
+        </nav>
+
+        <header class="investigations-hero investigations-hero--workspace">
+          <div>
+            <span class="investigations-eyebrow">Seguimiento del equipo · Administrador</span>
+            <h1>Búsquedas guardadas</h1>
+            <p>Guardadas por {{ user.name }} y vinculadas con su investigación y perfil de origen.</p>
+          </div>
+          <div class="investigations-hero__actions">
+            <button type="button" class="investigations-button investigations-button--small" (click)="goToUsers()">
+              <i class="fa-solid fa-arrow-left"></i> Volver a usuarios
+            </button>
+            <span class="status-pill status-pill--info">{{ selectedUserSavedSearches().length }} {{ selectedUserSavedSearches().length === 1 ? 'búsqueda' : 'búsquedas' }}</span>
+          </div>
+        </header>
+
+        <div class="directory-follow-list directory-follow-list--saved">
+          @if (selectedUserSavedSearches().length) {
+          @for (search of selectedUserSavedSearches(); track search.id) {
+          <article class="directory-follow-card">
+            <div class="directory-follow-card__header">
+              <div>
+                <span class="investigation-card__folio"><i class="fa-regular fa-bookmark"></i>{{ search.id }} · {{ search.updated }}</span>
+                <h2>{{ search.query }}</h2>
+              </div>
+              <span class="status-pill status-pill--info">Guardada</span>
+            </div>
+
+            <div class="directory-follow-card__meta">
+              <span><i class="fa-solid fa-folder-tree"></i><strong>Investigación:</strong> {{ investigationFolio(search.investigationId) }} · {{ investigationName(search.investigationId) }}</span>
+              <span><i class="fa-solid fa-user"></i><strong>Usuario:</strong> {{ user.name }}</span>
+            </div>
+
+            <div class="directory-origin-chain">
+              <strong><i class="fa-solid fa-route"></i> Origen</strong>
+              <div>
+                @for (node of search.chain; track $index) {
+                <span>{{ node }}</span>
+                @if (!$last) {
+                <i class="fa-solid fa-chevron-right"></i>
+                }
+                }
+              </div>
+            </div>
+
+            <p class="directory-follow-card__note">La cadena indica el perfil padre directo y la raíz de la línea; no sustituye la traza completa de la búsqueda.</p>
+          </article>
+          }
+          } @else {
+          <section class="investigations-empty directory-follow-empty">
+            <span class="investigations-empty__icon"><i class="fa-regular fa-bookmark"></i></span>
+            <h2>Sin búsquedas guardadas</h2>
+            <p>Este usuario no tiene búsquedas guardadas en los datos de demostración.</p>
+          </section>
+          }
+        </div>
+
+        <p class="investigations-demo-note"><i class="fa-solid fa-circle-info"></i> Datos de demostración · No se muestran resultados reales</p>
       </section>
       }
 
@@ -441,9 +722,13 @@
       @if (screen() === 'line' && selectedInvestigation(); as investigation) {
       <section class="investigations-view">
         <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
+          @if (lineReturnScreen() === 'user-lines') {
+          <button type="button" (click)="goToUsers()"><i class="fa-solid fa-users"></i> Usuarios</button>
+          } @else {
           <button type="button" (click)="goToList()"><i class="fa-solid fa-folder-tree"></i> Investigaciones</button>
+          }
           <i class="fa-solid fa-chevron-right"></i>
-          <button type="button" (click)="goToWorkspace()">{{ investigation.name }}</button>
+          <button type="button" (click)="backFromLine()">{{ lineReturnScreen() === 'user-lines' ? (selectedDirectoryUser()?.name || 'Usuario') : investigation.name }}</button>
           <i class="fa-solid fa-chevron-right"></i>
           <span>{{ selectedLine()?.id || 'Línea' }}</span>
         </nav>
@@ -580,8 +865,8 @@
 
       <div class="dialog-field">
         <span>Participantes iniciales</span>
-        <div class="participant-options">
-          @for (participant of ['M. López', 'J. Rivera', 'G. Ruiz', 'V. Torres']; track participant) {
+        <div class="participant-options suic-scrollbar">
+          @for (participant of availableMembers; track participant) {
           <label>
             <input type="checkbox" [checked]="selectedParticipants().has(participant)"
               (change)="toggleParticipant(participant, $event)" />
@@ -596,6 +881,55 @@
         <button type="button" class="investigations-button" (click)="closeCreateDialog()">Cancelar</button>
         <button type="button" class="investigations-button investigations-button--primary" (click)="createPreview()">
           <i class="fa-solid fa-folder-plus"></i>Crear investigación
+        </button>
+      </footer>
+    </section>
+  </div>
+  }
+
+  @if (assignmentDialogOpen() && assignmentUser(); as user) {
+  <div class="investigation-dialog-backdrop" (click)="closeAssignmentDialog()">
+    <section class="investigation-dialog investigation-dialog--compact" role="dialog" aria-modal="true"
+      aria-labelledby="assign-user-title" (click)="$event.stopPropagation()">
+      <header>
+        <div>
+          <span class="investigations-eyebrow">Directorio de usuarios</span>
+          <h2 id="assign-user-title">Agregar a investigación</h2>
+        </div>
+        <button type="button" aria-label="Cerrar" (click)="closeAssignmentDialog()"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+
+      <div class="assignment-user-card">
+        <span class="directory-user__avatar">{{ userInitials(user.name) }}</span>
+        <div>
+          <strong>{{ user.name }}</strong>
+          <span>&#64;{{ user.handle }} · {{ user.role }}</span>
+        </div>
+      </div>
+
+      <label class="dialog-field">
+        <span>Investigación</span>
+        <div><i class="fa-solid fa-folder-tree"></i>
+          <select [value]="assignmentInvestigationId()" (change)="updateAssignmentInvestigation($event)">
+            @for (item of investigations(); track item.id) {
+            <option [value]="item.id" [disabled]="item.status === 'Finalizada' || isDirectoryUserInInvestigation(item, user.name)">
+              {{ item.folio }} · {{ item.name }}{{ item.status === 'Finalizada' ? ' · Finalizada' : '' }}
+            </option>
+            }
+          </select>
+        </div>
+      </label>
+
+      <div class="dialog-notice" [class.dialog-notice--warning]="!!assignmentBlockedReason()">
+        <i [class]="assignmentBlockedReason() ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-info'"></i>
+        {{ assignmentBlockedReason() || 'La asociación no cambia el rol ni los permisos administrados en AuthCentral.' }}
+      </div>
+
+      <footer>
+        <button type="button" class="investigations-button" (click)="closeAssignmentDialog()">Cancelar</button>
+        <button type="button" class="investigations-button investigations-button--primary"
+          [disabled]="!!assignmentBlockedReason()" (click)="confirmUserAssignment()">
+          <i class="fa-solid fa-user-plus"></i>Agregar participante
         </button>
       </footer>
     </section>

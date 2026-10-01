@@ -18,7 +18,7 @@ const gatewayUrl = (
 const intelligenceApiUrl = (
   process.env['INTELLIGENCE_API_URL'] ||
   process.env['DEFAULT_INTELLIGENCE_API_URL'] ||
-  'http://127.0.0.1:8080'
+  'http://127.0.0.1:3651'
 ).replace(/\/+$/, '');
 
 (globalThis as typeof globalThis & {

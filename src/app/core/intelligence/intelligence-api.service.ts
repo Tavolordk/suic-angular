@@ -1,6 +1,6 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subscriber } from 'rxjs';
+import { Observable, Subscriber, map } from 'rxjs';
 
 import { SKIP_SYSTEM_AUTH } from '../http/http-context.tokens';
 import { ConsolidatedProfileResponse } from '../infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
@@ -11,6 +11,7 @@ import {
   IntelligenceAnswerApiResponse,
   IntelligenceAnswerRequest,
   IntelligenceChatHistoryMessage,
+  IntelligenceChatMode,
   IntelligenceChatRequest,
   IntelligenceChatStreamEvent,
   IntelligenceGraphPayload,
@@ -34,9 +35,24 @@ export class IntelligenceApiService {
   }
 
   checkLlmHealth(): Observable<IntelligenceLlmHealthResponse> {
-    return this.http.get<IntelligenceLlmHealthResponse>(
-      `${this.baseUrl}/health/llm`,
+    return this.http.get<{
+      status: 'ok' | 'degraded';
+      model: string;
+      llmEnabled: boolean;
+      caseLimitBytes?: number;
+    }>(
+      `${this.baseUrl}/health`,
       { context: this.context, withCredentials: false }
+    ).pipe(
+      map((health) => ({
+        status: health.status,
+        runtimeReachable: true,
+        modelAvailable: health.llmEnabled,
+        model: health.model,
+        detail: health.llmEnabled
+          ? 'API de IA local disponible.'
+          : 'El LLM local está deshabilitado.'
+      }))
     );
   }
 
@@ -66,7 +82,8 @@ export class IntelligenceApiService {
     history: IntelligenceChatHistoryMessage[],
     thinking: boolean,
     selectedNode?: IntelligenceNodeContext | null,
-    graph?: IntelligenceGraphPayload | null
+    graph?: IntelligenceGraphPayload | null,
+    mode: IntelligenceChatMode = 'auto'
   ): Observable<IntelligenceChatStreamEvent> {
     const request: IntelligenceChatRequest = {
       profile: this.toProfilePayload(profile),
@@ -74,7 +91,8 @@ export class IntelligenceApiService {
       selectedNode: selectedNode ?? null,
       graph: graph ?? null,
       history: history.slice(-8),
-      thinking
+      thinking,
+      mode
     };
 
     return new Observable<IntelligenceChatStreamEvent>((subscriber) => {
