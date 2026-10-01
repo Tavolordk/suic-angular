@@ -144,6 +144,20 @@ export class IntelligenceApiService {
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
+      const emitBlock = (block: string): void => {
+        const dataLine = block
+          .split('\n')
+          .find((line) => line.startsWith('data:'));
+        if (!dataLine) {
+          return;
+        }
+        const json = dataLine.slice(5).trim();
+        if (!json) {
+          return;
+        }
+        subscriber.next(JSON.parse(json) as IntelligenceChatStreamEvent);
+      };
+
       while (!subscriber.closed) {
         const { value, done } = await reader.read();
         if (done) {
@@ -155,18 +169,14 @@ export class IntelligenceApiService {
         buffer = blocks.pop() ?? '';
 
         for (const block of blocks) {
-          const dataLine = block
-            .split('\n')
-            .find((line) => line.startsWith('data:'));
-          if (!dataLine) {
-            continue;
-          }
-          const json = dataLine.slice(5).trim();
-          if (!json) {
-            continue;
-          }
-          subscriber.next(JSON.parse(json) as IntelligenceChatStreamEvent);
+          emitBlock(block);
         }
+      }
+
+      // Algunos proxies pueden cerrar el stream sin el separador final \n\n.
+      // Procesamos cualquier bloque residual para no perder `done`/`replace`.
+      if (!subscriber.closed && buffer.trim()) {
+        emitBlock(buffer);
       }
 
       if (!subscriber.closed) {

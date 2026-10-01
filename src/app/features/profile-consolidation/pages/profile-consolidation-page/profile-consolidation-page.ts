@@ -27,6 +27,8 @@ import {
 } from '../../domain/profile-consolidation.models';
 import { mapSearchResultDetail } from '../../domain/profile-detail.mapper';
 
+import { Topbar } from '../../../../shared/layout/topbar/topbar';
+import { SearchQuickPanelService } from '../../../../shared/search-quick-panel/search-quick-panel.service';
 type SidebarPanel = 'history' | 'bookmarks' | null;
 type QuickSearchIcon = 'person' | 'curp' | 'vehicle' | 'weapon';
 
@@ -114,7 +116,7 @@ const ADDRESS_FIELD_CODES = new Set([
 @Component({
   selector: 'app-profile-consolidation-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, Topbar],
   templateUrl: './profile-consolidation-page.html',
   styleUrls: [
     './profile-consolidation-page.scss',
@@ -130,6 +132,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly searchApi = inject(SearchApiService);
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
+  private readonly searchQuickPanel = inject(SearchQuickPanelService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
@@ -877,18 +880,34 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   goToHistory(): void {
     this.profileOpen.set(false);
-    this.activeSidebarPanel.set('history');
+    this.activeSidebarPanel.set(null);
+    this.searchQuickPanel.openHistory();
   }
 
   goToSaved(): void {
     this.profileOpen.set(false);
-    this.activeSidebarPanel.set('bookmarks');
+    this.activeSidebarPanel.set(null);
+    this.searchQuickPanel.openSaved();
   }
 
   goToInvestigationLines(): void {
     this.profileOpen.set(false);
     this.activeSidebarPanel.set(null);
     void this.router.navigateByUrl('/lineas-investigacion');
+  }
+
+  goToInvestigations(): void {
+    this.profileOpen.set(false);
+    this.activeSidebarPanel.set(null);
+    void this.router.navigateByUrl('/investigaciones');
+  }
+
+  goToUsers(): void {
+    this.profileOpen.set(false);
+    this.activeSidebarPanel.set(null);
+    void this.router.navigate(['/investigaciones'], {
+      queryParams: { screen: 'users' }
+    });
   }
 
   closeSidebarPanel(): void {

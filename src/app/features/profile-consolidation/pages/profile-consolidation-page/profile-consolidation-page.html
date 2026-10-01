@@ -1,97 +1,7 @@
 <section class="profile-shell">
-    <header class="profile-topbar">
-        <div class="profile-topbar__content">
-            <div class="profile-topbar__logo">
-                <img src="seguridad-logo.png" alt="Logo SSPC" />
-            </div>
+  <app-topbar />
 
-            <p class="profile-topbar__title">Sistema Plataforma México</p>
-
-            <div class="profile-topbar__actions">
-                <div class="profile-clock">
-                    <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"></circle>
-                        <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-                            stroke-linejoin="round"></path>
-                    </svg>
-
-                    <div class="profile-clock__text">
-                        <span>{{ currentTime() | date:'HH:mm:ss' }}</span>
-                        <small>{{ currentDateLabel() }}</small>
-                    </div>
-                </div>
-
-                <div class="profile-user" (click)="$event.stopPropagation()">
-                    <button type="button" class="profile-user__button" aria-label="Perfil de usuario"
-                        [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">
-                        <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
-                            <path
-                                d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
-                                stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                stroke-width="1.75"></path>
-                            <path
-                                d="M14 13.2083C16.5773 13.2083 18.6667 11.119 18.6667 8.54167C18.6667 5.96434 16.5773 3.875 14 3.875C11.4227 3.875 9.33333 5.96434 9.33333 8.54167C9.33333 11.119 11.4227 13.2083 14 13.2083Z"
-                                stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                stroke-width="1.75"></path>
-                        </svg>
-                    </button>
-
-                    @if (profileOpen()) {
-                    <div class="profile-user__dropdown">
-                        <div class="profile-user__summary">
-                            <span class="profile-user__avatar">
-                                <svg fill="none" viewBox="0 0 28 31" aria-hidden="true">
-                                    <path
-                                        d="M22.1667 24.875V22.5417C22.1667 21.304 21.675 20.117 20.7998 19.2418C19.9247 18.3667 18.7377 17.875 17.5 17.875H10.5C9.26232 17.875 8.07534 18.3667 7.20017 19.2418C6.325 20.117 5.83333 21.304 5.83333 22.5417V24.875"
-                                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                        stroke-width="1.75"></path>
-                                    <path
-                                        d="M14 13.2083C16.5773 13.2083 18.6667 11.119 18.6667 8.54167C18.6667 5.96434 16.5773 3.875 14 3.875C11.4227 3.875 9.33333 5.96434 9.33333 8.54167C9.33333 11.119 11.4227 13.2083 14 13.2083Z"
-                                        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                        stroke-width="1.75"></path>
-                                </svg>
-                            </span>
-
-                            <div>
-                                <strong>{{ displayName() }}</strong>
-                                <small>{{ primaryProfile() || 'SSPC · Analista' }}</small>
-                            </div>
-                        </div>
-
-                        <div class="profile-user__meta">
-                            <p>
-                                <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                </svg>
-                                Unidad de Inteligencia
-                            </p>
-
-                            <p>
-                                <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                </svg>
-                                Rol: {{ primaryProfile() || 'Analista de Seguridad' }}
-                            </p>
-                        </div>
-
-                        <button type="button" class="profile-user__logout" (click)="logout()">
-                            <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"></path>
-                            </svg>
-                            Cerrar sesión
-                        </button>
-                    </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <div class="profile-main">
+<div class="profile-main">
         <aside class="profile-sidebar">
             <button type="button" class="profile-sidebar__button" title="Búsqueda principal" (click)="goToResults()">
                 <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
@@ -123,6 +33,16 @@
                     <path d="M8 11l8-4M8 13l8 4" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round"></path>
                 </svg>
+            </button>
+
+            <button type="button" class="profile-sidebar__button" title="Investigaciones"
+                aria-label="Abrir investigaciones" (click)="goToInvestigations()">
+                <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+            </button>
+
+            <button type="button" class="profile-sidebar__button" title="Usuarios del sistema"
+                aria-label="Abrir usuarios del sistema" (click)="goToUsers()">
+                <i class="fa-solid fa-users" aria-hidden="true"></i>
             </button>
         </aside>
 

@@ -41,6 +41,7 @@ import {
   hasSearchTerms
 } from '../../domain/search-request.mapper';
 
+import { Topbar } from '../../../../shared/layout/topbar/topbar';
 type SearchEntity = 'personas' | 'vehiculo' | 'armas';
 type PageSize = 10 | 18;
 type ResultTagType = 'personas' | 'vehiculo' | 'armas';
@@ -93,7 +94,7 @@ interface QuickSearchItem {
 @Component({
   selector: 'app-search-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, Topbar],
   templateUrl: './search-page.html',
   styleUrl: './search-page.scss'
 })
@@ -353,6 +354,8 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
+    this.applyQuickPresetFromRoute();
+
     this.clockInterval = setInterval(() => {
       this.currentTime.set(new Date());
     }, 1000);
@@ -364,6 +367,36 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     this.stopSearchTipRotation();
+  }
+
+  private applyQuickPresetFromRoute(): void {
+    const preset = this.route.snapshot.queryParamMap.get('quickPreset')?.trim();
+    if (!preset) {
+      return;
+    }
+
+    const presets: Record<string, QuickSearchItem | undefined> = {
+      'recent-curp': this.recentSearches[0],
+      'recent-miguel': this.recentSearches[1],
+      'saved-rfc': this.savedSearches[0],
+      'saved-miguel-date': this.savedSearches[1]
+    };
+
+    const item = presets[preset];
+    if (!item) {
+      return;
+    }
+
+    this.investigationWorkspace.clearContext();
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { quickPreset: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+
+    this.runQuickSearch(item);
   }
 
   selectEntity(entity: SearchEntity): void {
@@ -555,6 +588,14 @@ export class SearchPage implements OnInit, OnDestroy {
     this.closeProfile();
     this.activeSidebarPanel.set(null);
     this.backToInvestigation();
+  }
+
+  goToUsers(): void {
+    this.closeProfile();
+    this.activeSidebarPanel.set(null);
+    void this.router.navigate(['/investigaciones'], {
+      queryParams: { screen: 'users' }
+    });
   }
 
   backToInvestigation(): void {

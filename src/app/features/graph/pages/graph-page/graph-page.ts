@@ -583,14 +583,24 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
             this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
           }
 
+          if (event.type === 'reasoning_delta') {
+            // Compatibilidad con APIs anteriores: el razonamiento interno nunca se pinta.
+            // El usuario sólo ve el estado genérico de "Razonando…" hasta que llega la respuesta final.
+          }
+
           if (event.type === 'delta') {
-            this.updateAiMessage(assistantMessage.id, (message) => ({
-              ...message,
-              text: message.text + event.text
-            }));
+            if (event.text) {
+              this.updateAiMessage(assistantMessage.id, (message) => ({
+                ...message,
+                text: message.text + event.text
+              }));
+            }
           }
 
           if (event.type === 'replace') {
+            // El modo directo puede haber mostrado una salida provisional. Si la API
+            // detecta idioma incorrecto o truncamiento, la sustituye de forma atómica
+            // por la respuesta final validada en español.
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
               text: event.text,
@@ -604,6 +614,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           if (event.type === 'done') {
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
+              text: event.text?.trim() || message.text,
               streaming: false,
               evidence: event.evidence ?? [],
               disclaimer: event.disclaimer ?? null,
@@ -613,15 +624,26 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
             }));
 
             const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
-            if (completed) {
+            if (completed?.text.trim()) {
               this.aiAnswer.set({
                 text: completed.text,
                 evidence: completed.evidence,
                 disclaimer: completed.disclaimer ?? undefined
               });
+            } else {
+              this.aiErrorMessage.set('La IA terminó el análisis, pero no devolvió una respuesta final completa.');
             }
 
             this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
+            this.isAiLoading.set(false);
+          }
+
+          if (event.type === 'error') {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              streaming: false
+            }));
+            this.aiErrorMessage.set(event.message || 'La API de IA no pudo completar la respuesta.');
             this.isAiLoading.set(false);
           }
 
@@ -648,6 +670,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         },
         complete: () => {
           if (this.isAiLoading()) {
+            this.updateAiMessage(assistantMessage.id, (message) => ({
+              ...message,
+              streaming: false
+            }));
+            const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
+            if (!completed?.text.trim()) {
+              this.aiErrorMessage.set('La conexión terminó antes de recibir una respuesta de la IA.');
+            }
             this.isAiLoading.set(false);
           }
         }

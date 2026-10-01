@@ -10,10 +10,11 @@ import {
 } from '../../../../core/infrastructure/search-api/search-api.models';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 
+import { Topbar } from '../../../../shared/layout/topbar/topbar';
 @Component({
   selector: 'app-search-result-detail-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, Topbar],
   templateUrl: './search-result-detail-page.html',
   styleUrl: './search-result-detail-page.scss'
 })

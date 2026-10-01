@@ -78,6 +78,10 @@ export type IntelligenceChatStreamEvent =
       thinking?: boolean;
     }
   | {
+      type: 'reasoning_delta';
+      text: string;
+    }
+  | {
       type: 'delta';
       text: string;
     }
@@ -90,11 +94,17 @@ export type IntelligenceChatStreamEvent =
     }
   | {
       type: 'done';
+      text?: string;
+      reasoning?: string;
       mode: 'local-llm' | 'deterministic-fallback';
       model?: string | null;
       evidence: IntelligenceEvidence[];
       disclaimer?: string | null;
       thinking?: boolean;
+    }
+  | {
+      type: 'error';
+      message: string;
     };
 
 export interface IntelligenceLlmHealthResponse {

@@ -4,13 +4,15 @@
             <i class="fa-solid fa-magnifying-glass"></i>
         </a>
 
-        <a routerLink="/dashboard" routerLinkActive="sidebar__item--active" class="sidebar__item">
+        <button type="button" class="sidebar__item" title="Historial de búsquedas" aria-label="Historial de búsquedas"
+            (click)="openHistory()">
             <i class="fa-solid fa-clock-rotate-left"></i>
-        </a>
+        </button>
 
-        <a routerLink="/red/1" routerLinkActive="sidebar__item--active" class="sidebar__item">
+        <button type="button" class="sidebar__item" title="Búsquedas guardadas" aria-label="Búsquedas guardadas"
+            (click)="openSaved()">
             <i class="fa-regular fa-bookmark"></i>
-        </a>
+        </button>
 
         <a routerLink="/lineas-investigacion" routerLinkActive="sidebar__item--active"
             class="sidebar__item" title="Líneas de investigación" aria-label="Líneas de investigación">
@@ -20,6 +22,11 @@
         <a routerLink="/investigaciones" routerLinkActive="sidebar__item--active"
             class="sidebar__item" title="Investigaciones" aria-label="Investigaciones">
             <i class="fa-solid fa-folder-tree"></i>
+        </a>
+
+        <a routerLink="/investigaciones" [queryParams]="{ screen: 'users' }"
+            class="sidebar__item" title="Usuarios del sistema" aria-label="Usuarios del sistema">
+            <i class="fa-solid fa-users"></i>
         </a>
     </nav>
 </aside>

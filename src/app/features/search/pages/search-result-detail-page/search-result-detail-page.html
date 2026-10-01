@@ -1,15 +1,7 @@
 <section class="detail-shell">
-  <header class="detail-topbar">
-    <img src="/login-seguridad-logo.png" alt="Logo SSPC" />
-    <p>Sistema Plataforma México</p>
-    <div class="detail-user">
-      <span>{{ accountNumber() }}</span>
-      <small>{{ primaryProfile() }}</small>
-      <button type="button" (click)="logout()">Cerrar sesión</button>
-    </div>
-  </header>
+  <app-topbar />
 
-  <main class="detail-content">
+<main class="detail-content">
     <button type="button" class="detail-back" (click)="goBack()">
       ← Regresar a resultados
     </button>

@@ -19,6 +19,8 @@ import {
   ConsolidatedProfileResponse,
 } from '../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 
+import { Topbar } from '../../shared/layout/topbar/topbar';
+import { SearchQuickPanelService } from '../../shared/search-quick-panel/search-quick-panel.service';
 type ViewMode = 'list' | 'grid';
 type SortOrder = 'recent' | 'oldest' | 'name';
 
@@ -176,15 +178,25 @@ function buildGraphPreview(config: GraphPreviewConfig): GraphPreview {
 @Component({
   selector: 'app-lineas-investigacion',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, RouterLink],
+  imports: [DatePipe, DecimalPipe, RouterLink, Topbar],
   templateUrl: './lineas-investigacion.component.html',
   styleUrl: './lineas-investigacion.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LineasInvestigacionComponent implements OnInit, OnDestroy {
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
+  private readonly searchQuickPanel = inject(SearchQuickPanelService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
+
+
+  openSearchHistory(): void {
+    this.searchQuickPanel.openHistory();
+  }
+
+  openSavedSearches(): void {
+    this.searchQuickPanel.openSaved();
+  }
 
   readonly routes = {
     search: '/busqueda',

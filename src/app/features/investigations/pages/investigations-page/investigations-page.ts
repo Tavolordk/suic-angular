@@ -18,6 +18,8 @@ import {
   InvestigationWorkspaceService
 } from '../../data-access/investigation-workspace.service';
 
+import { Topbar } from '../../../../shared/layout/topbar/topbar';
+import { SearchQuickPanelService } from '../../../../shared/search-quick-panel/search-quick-panel.service';
 type InvestigationStatus = 'Activa' | 'En revisión' | 'Finalizada';
 type InvestigationRole = 'Administrador' | 'Investigador' | 'Solo búsqueda';
 type InvestigationScreen = 'list' | 'users' | 'user-lines' | 'user-saved' | 'workspace' | 'line';
@@ -340,7 +342,7 @@ const NODE_DETAILS: Record<NodeKey, GraphNodeDetail> = {
 @Component({
   selector: 'app-investigations-page',
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, Topbar],
   templateUrl: './investigations-page.html',
   styleUrl: './investigations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -350,6 +352,7 @@ export class InvestigationsPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
   private readonly investigationWorkspace = inject(InvestigationWorkspaceService);
+  private readonly searchQuickPanel = inject(SearchQuickPanelService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
@@ -525,6 +528,11 @@ export class InvestigationsPage implements OnInit, OnDestroy {
     const params = this.route.snapshot.queryParamMap;
     const investigationId = params.get('investigationId');
     const tab = params.get('tab');
+    const requestedScreen = params.get('screen');
+
+    if (requestedScreen === 'users' && this.role() !== 'Solo búsqueda') {
+      this.screen.set('users');
+    }
 
     if (investigationId && this.investigations().some((item) => item.id === investigationId)) {
       this.selectedInvestigationId.set(investigationId);
@@ -1092,6 +1100,16 @@ export class InvestigationsPage implements OnInit, OnDestroy {
   goToSearch(): void {
     this.investigationWorkspace.clearContext();
     void this.router.navigateByUrl('/busqueda');
+  }
+
+  openSearchHistory(): void {
+    this.profileOpen.set(false);
+    this.searchQuickPanel.openHistory();
+  }
+
+  openSavedSearches(): void {
+    this.profileOpen.set(false);
+    this.searchQuickPanel.openSaved();
   }
 
   toggleProfile(event: Event): void {

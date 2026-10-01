@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { SearchQuickPanelService } from '../../search-quick-panel/search-quick-panel.service';
 
 interface SidebarItem {
   path: string;
@@ -15,6 +16,16 @@ interface SidebarItem {
   styleUrl: './sidebar.scss'
 })
 export class Sidebar {
+  private readonly searchQuickPanel = inject(SearchQuickPanelService);
+
+  openHistory(): void {
+    this.searchQuickPanel.openHistory();
+  }
+
+  openSaved(): void {
+    this.searchQuickPanel.openSaved();
+  }
+
   readonly items: SidebarItem[] = [
     {
       path: '/dashboard',

@@ -2242,8 +2242,6 @@
   color: #c8adff;
 }
 
-
-/* Vínculos reales por entidad. */
 .graph-edge__label { fill: rgba(220,232,243,.66); font-size: 7.5px; font-weight: 800; paint-order: stroke; stroke: rgba(7,15,28,.88); stroke-width: 3px; stroke-linejoin: round; pointer-events:none; }
 .graph-ai { bottom: 16px; top: auto; width: min(390px, calc(100% - 32px)); height: min(560px, calc(100% - 32px)); }
 .graph-ai--positioned { bottom:auto; }

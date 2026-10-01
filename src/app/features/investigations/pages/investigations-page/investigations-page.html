@@ -1,59 +1,18 @@
 <section class="investigations-shell">
-  <header class="investigations-topbar">
-    <div class="investigations-topbar__content">
-      <div class="investigations-topbar__logo">
-        <img src="seguridad-logo.png" alt="Logo SSPC" />
-      </div>
+  <app-topbar />
 
-      <p class="investigations-topbar__title">Sistema Plataforma México</p>
-
-      <div class="investigations-topbar__actions">
-        <div class="investigations-clock">
-          <i class="fa-regular fa-clock" aria-hidden="true"></i>
-          <div>
-            <strong>{{ currentTime() | date:'HH:mm:ss' }}</strong>
-            <small>{{ currentDateLabel() }}</small>
-          </div>
-        </div>
-
-        <div class="investigations-profile" (click)="keepProfileOpen($event)">
-          <button type="button" class="investigations-profile__button" [attr.aria-expanded]="profileOpen()"
-            [attr.aria-label]="'Abrir perfil de ' + accountNumber()" (click)="toggleProfile($event)">
-            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
-          </button>
-
-          @if (profileOpen()) {
-          <div class="investigations-profile-menu">
-            <div class="investigations-profile-menu__header">
-              <span class="investigations-profile-menu__avatar"><i class="fa-solid fa-user"></i></span>
-              <div>
-                <strong>{{ accountNumber() || 'Usuario SPM' }}</strong>
-                <span>{{ primaryProfile() || role() }}</span>
-              </div>
-            </div>
-            <button type="button" (click)="logout()">
-              <i class="fa-solid fa-right-from-bracket"></i>
-              Cerrar sesión
-            </button>
-          </div>
-          }
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <div class="investigations-main">
+<div class="investigations-main">
     <aside class="investigations-sidebar" aria-label="Navegación principal">
       <button type="button" class="investigations-sidebar__button" title="Búsqueda general"
         aria-label="Búsqueda general" (click)="goToSearch()">
         <i class="fa-solid fa-magnifying-glass"></i>
       </button>
       <button type="button" class="investigations-sidebar__button" title="Historial de búsquedas"
-        aria-label="Historial de búsquedas" (click)="goToSearch()">
+        aria-label="Historial de búsquedas" (click)="openSearchHistory()">
         <i class="fa-solid fa-clock-rotate-left"></i>
       </button>
       <button type="button" class="investigations-sidebar__button" title="Búsquedas guardadas"
-        aria-label="Búsquedas guardadas" (click)="goToSearch()">
+        aria-label="Búsquedas guardadas" (click)="openSavedSearches()">
         <i class="fa-regular fa-bookmark"></i>
       </button>
       <a class="investigations-sidebar__button" routerLink="/lineas-investigacion" title="Líneas de investigación"
@@ -70,12 +29,6 @@
         [class.investigations-sidebar__button--active]="screen() === 'users' || screen() === 'user-lines' || screen() === 'user-saved' || (screen() === 'line' && lineReturnScreen() === 'user-lines')"
         title="Usuarios del sistema" aria-label="Usuarios del sistema" (click)="goToUsers()">
         <i class="fa-solid fa-users"></i>
-      </button>
-      }
-      @if (canCreate()) {
-      <button type="button" class="investigations-sidebar__button investigations-sidebar__button--new"
-        title="Crear investigación" aria-label="Crear investigación" (click)="openCreateDialog()">
-        <i class="fa-solid fa-plus"></i>
       </button>
       }
     </aside>

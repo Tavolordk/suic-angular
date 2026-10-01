@@ -1,0 +1,45 @@
+@if (panel.activePanel()) {
+<div class="quick-search-overlay" (click)="close()"></div>
+
+<section class="quick-search-panel" role="dialog" aria-modal="true"
+  [attr.aria-label]="panel.activePanel() === 'history' ? 'Historial de búsquedas' : 'Búsquedas guardadas'"
+  (click)="$event.stopPropagation()">
+  <header class="quick-search-panel__header">
+    <div>
+      <span class="quick-search-panel__eyebrow">
+        {{ panel.activePanel() === 'history' ? 'Historial' : 'Colección' }}
+      </span>
+      <h2>{{ panel.activePanel() === 'history' ? 'Búsquedas recientes' : 'Búsquedas guardadas' }}</h2>
+      <p>Selecciona un registro para volver a cargar sus criterios.</p>
+    </div>
+
+    <button type="button" class="quick-search-panel__close" aria-label="Cerrar panel" (click)="close()">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <div class="quick-search-panel__list">
+    @for (item of items(); track item.preset) {
+    <button type="button" class="quick-search-panel__item" (click)="openItem(item)">
+      <span class="quick-search-panel__icon" aria-hidden="true">
+        @if (item.icon === 'curp') {
+          <i class="fa-regular fa-id-card"></i>
+        } @else {
+          <i class="fa-regular fa-user"></i>
+        }
+      </span>
+
+      <span class="quick-search-panel__content">
+        <span class="quick-search-panel__item-topline">
+          <strong>{{ item.label }}</strong>
+          <small>{{ item.typeLabel }}</small>
+        </span>
+        <span class="quick-search-panel__description">{{ item.description }}</span>
+      </span>
+
+      <i class="fa-solid fa-chevron-right quick-search-panel__chevron" aria-hidden="true"></i>
+    </button>
+    }
+  </div>
+</section>
+}

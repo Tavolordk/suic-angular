@@ -1,11 +1,12 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { SearchQuickPanel } from './shared/search-quick-panel/search-quick-panel';
 
 import { AuthService } from './core/auth/auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, SearchQuickPanel],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

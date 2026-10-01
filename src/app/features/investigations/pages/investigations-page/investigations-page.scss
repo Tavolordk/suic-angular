@@ -276,12 +276,6 @@
   background: #263b4b;
 }
 
-.investigations-sidebar__button--new {
-  margin-top: auto;
-  color: #fff;
-  background: rgba(47, 70, 86, 0.84);
-}
-
 .investigations-content {
   flex: 1 1 auto;
   min-width: 0;
@@ -1628,11 +1622,6 @@
   .investigations-sidebar__button {
     width: 38px;
     height: 38px;
-  }
-
-  .investigations-sidebar__button--new {
-    margin-top: 0;
-    margin-left: auto;
   }
 
   .investigations-content {
