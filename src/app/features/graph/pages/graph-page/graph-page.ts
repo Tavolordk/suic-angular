@@ -119,6 +119,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('aiComposer') private aiComposer?: ElementRef<HTMLTextAreaElement>;
   private aiChatSubscription?: Subscription;
   private aiMessageSequence = 0;
+  private aiRequestSequence = 0;
+  private activeAiRequestId = 0;
   private aiPanelDragPointerId: number | null = null;
   private aiPanelDragStartClientX = 0;
   private aiPanelDragStartClientY = 0;
@@ -550,6 +552,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    const requestId = ++this.aiRequestSequence;
+    this.activeAiRequestId = requestId;
+
     const selectedNode = this.selectedNodeContext();
     const graph = this.currentAiGraphPayload();
     const history = this.currentChatHistory();
@@ -573,6 +578,10 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       .streamChat(profile, question, history, thinking, selectedNode, graph, 'auto')
       .subscribe({
         next: (event) => {
+          if (requestId !== this.activeAiRequestId) {
+            return;
+          }
+
           if (event.type === 'meta') {
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
@@ -589,10 +598,11 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           }
 
           if (event.type === 'delta') {
-            if (event.text) {
+            const deltaText = this.coerceAiText(event.text);
+            if (deltaText) {
               this.updateAiMessage(assistantMessage.id, (message) => ({
                 ...message,
-                text: message.text + event.text
+                text: this.coerceAiText(message.text) + deltaText
               }));
             }
           }
@@ -603,7 +613,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
             // por la respuesta final validada en español.
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
-              text: event.text,
+              text: this.coerceAiText(event.text),
               mode: event.mode,
               model: event.model ?? null,
               thinking: event.thinking ?? message.thinking
@@ -612,29 +622,46 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           }
 
           if (event.type === 'done') {
+            const finalText = this.coerceAiText(event.text).trim();
             this.updateAiMessage(assistantMessage.id, (message) => ({
               ...message,
-              text: event.text?.trim() || message.text,
+              text: finalText || this.coerceAiText(message.text),
               streaming: false,
-              evidence: event.evidence ?? [],
+              evidence: this.normalizeAiEvidence(event.evidence),
               disclaimer: event.disclaimer ?? null,
               mode: event.mode,
               model: event.model ?? null,
               thinking: event.thinking ?? message.thinking
             }));
 
-            const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
-            if (completed?.text.trim()) {
-              this.aiAnswer.set({
-                text: completed.text,
-                evidence: completed.evidence,
-                disclaimer: completed.disclaimer ?? undefined
-              });
+            let completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
+            if (!this.coerceAiText(completed?.text).trim()) {
+              const fallback = this.profileIntelligence.answer(question, profile, selectedNode, graph);
+              this.updateAiMessage(assistantMessage.id, (message) => ({
+                ...message,
+                text: fallback.text,
+                evidence: fallback.evidence,
+                disclaimer: fallback.disclaimer,
+                streaming: false,
+                mode: 'deterministic-fallback',
+                model: null,
+                thinking: false
+              }));
+              completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
+              this.aiServiceStatus.set('fallback');
             } else {
-              this.aiErrorMessage.set('La IA terminó el análisis, pero no devolvió una respuesta final completa.');
+              this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
             }
 
-            this.aiServiceStatus.set(event.mode === 'local-llm' ? 'online' : 'fallback');
+            if (completed && this.coerceAiText(completed.text).trim()) {
+              this.aiAnswer.set({
+                text: this.coerceAiText(completed.text),
+                evidence: completed.evidence ?? [],
+                disclaimer: completed.disclaimer ?? undefined
+              });
+              this.aiErrorMessage.set(null);
+            }
+
             this.isAiLoading.set(false);
           }
 
@@ -650,6 +677,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           this.scrollAiChatToBottom();
         },
         error: () => {
+          if (requestId !== this.activeAiRequestId) {
+            return;
+          }
           const fallback = this.profileIntelligence.answer(question, profile, selectedNode, graph);
           this.updateAiMessage(assistantMessage.id, (message) => ({
             ...message,
@@ -669,17 +699,37 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           this.scrollAiChatToBottom();
         },
         complete: () => {
+          if (requestId !== this.activeAiRequestId) {
+            return;
+          }
           if (this.isAiLoading()) {
-            this.updateAiMessage(assistantMessage.id, (message) => ({
-              ...message,
-              streaming: false
-            }));
-            const completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
-            if (!completed?.text.trim()) {
-              this.aiErrorMessage.set('La conexión terminó antes de recibir una respuesta de la IA.');
+            let completed = this.aiMessages().find((message) => message.id === assistantMessage.id);
+            if (!this.coerceAiText(completed?.text).trim()) {
+              const fallback = this.profileIntelligence.answer(question, profile, selectedNode, graph);
+              this.updateAiMessage(assistantMessage.id, (message) => ({
+                ...message,
+                text: fallback.text,
+                evidence: fallback.evidence,
+                disclaimer: fallback.disclaimer,
+                streaming: false,
+                mode: 'deterministic-fallback',
+                model: null,
+                thinking: false
+              }));
+              this.aiAnswer.set(fallback);
+              this.aiServiceStatus.set('fallback');
+              this.aiErrorMessage.set(null);
+            } else {
+              this.updateAiMessage(assistantMessage.id, (message) => ({
+                ...message,
+                text: this.coerceAiText(message.text),
+                streaming: false
+              }));
             }
             this.isAiLoading.set(false);
           }
+          this.aiChatSubscription = undefined;
+          this.scrollAiChatToBottom();
         }
       });
   }
@@ -696,6 +746,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     if (!this.isAiLoading()) {
       return;
     }
+    this.activeAiRequestId = ++this.aiRequestSequence;
     this.aiChatSubscription?.unsubscribe();
     this.aiChatSubscription = undefined;
     this.aiMessages.update((messages) =>
@@ -713,6 +764,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearAiConversation(): void {
+    this.activeAiRequestId = ++this.aiRequestSequence;
     this.aiChatSubscription?.unsubscribe();
     this.aiChatSubscription = undefined;
     this.aiQuestion.set('');
@@ -739,9 +791,45 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   private currentChatHistory(): IntelligenceChatHistoryMessage[] {
     return this.aiMessages()
-      .filter((message) => !message.streaming && message.text.trim().length > 0)
+      .filter((message) => !message.streaming && this.coerceAiText(message.text).trim().length > 0)
       .slice(-8)
-      .map((message) => ({ role: message.role, content: message.text }));
+      .map((message) => ({ role: message.role, content: this.coerceAiText(message.text) }));
+  }
+
+  private coerceAiText(value: unknown): string {
+    return typeof value === 'string' ? value : value == null ? '' : String(value);
+  }
+
+  private normalizeAiEvidence(value: unknown): IntelligenceEvidence[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.map((item, index) => {
+      const raw = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      const path = this.coerceAiText(raw['path']);
+      const section = this.coerceAiText(raw['section']);
+      const kindRaw = this.coerceAiText(raw['kind']);
+      const validKinds = new Set(['profile', 'data', 'address', 'origin', 'node', 'relation']);
+      const kind = (validKinds.has(kindRaw) ? kindRaw :
+        section === 'addresses' ? 'address' :
+        section === 'sources' ? 'origin' :
+        section === 'relations' ? 'relation' :
+        section === 'vehicles' || section === 'weapons' ? 'node' :
+        'data') as IntelligenceEvidence['kind'];
+
+      const sourceCodes = Array.isArray(raw['sourceCodes'])
+        ? (raw['sourceCodes'] as unknown[]).map((source) => this.coerceAiText(source)).filter(Boolean)
+        : [];
+
+      return {
+        kind,
+        id: this.coerceAiText(raw['id']) || path || `evidence-${index}`,
+        label: this.coerceAiText(raw['label']) || section || path || `Evidencia ${index + 1}`,
+        value: this.coerceAiText(raw['value']),
+        sourceCodes
+      };
+    });
   }
 
   private createAiMessage(

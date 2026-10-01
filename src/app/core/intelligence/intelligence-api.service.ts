@@ -123,7 +123,8 @@ export class IntelligenceApiService {
       const response = await fetch(`${this.baseUrl}/api/v1/intelligence/chat/stream`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
         },
         body: JSON.stringify(request),
         credentials: 'omit',
@@ -145,17 +146,17 @@ export class IntelligenceApiService {
       let buffer = '';
 
       const emitBlock = (block: string): void => {
-        const dataLine = block
+        const data = block
+          .replace(/\r\n/g, '\n')
           .split('\n')
-          .find((line) => line.startsWith('data:'));
-        if (!dataLine) {
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart())
+          .join('\n')
+          .trim();
+        if (!data) {
           return;
         }
-        const json = dataLine.slice(5).trim();
-        if (!json) {
-          return;
-        }
-        subscriber.next(JSON.parse(json) as IntelligenceChatStreamEvent);
+        subscriber.next(JSON.parse(data) as IntelligenceChatStreamEvent);
       };
 
       while (!subscriber.closed) {
@@ -165,6 +166,7 @@ export class IntelligenceApiService {
         }
 
         buffer += decoder.decode(value, { stream: true });
+        buffer = buffer.replace(/\r\n/g, '\n');
         const blocks = buffer.split('\n\n');
         buffer = blocks.pop() ?? '';
 
