@@ -4,13 +4,13 @@ export const DEFAULT_AUTHENTICATED_ROUTE = '/busqueda';
 export const SESSION_TOKEN_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 export const SESSION_REFRESH_BEFORE_EXPIRY_MS = 5 * 60 * 1000;
 
-// A los 5 minutos sin actividad inicia el aviso de cierre automático.
-export const SESSION_INACTIVITY_PROMPT_MS = 5 * 60 * 1000;
-
-// El aviso dura dos minutos. Al llegar a cero se cierra la sesión automáticamente.
+// La sesión se cierra exactamente a los 30 minutos sin actividad.
+// Conservamos una ventana de aviso de 2 minutos, por lo que el modal aparece
+// al minuto 28 y el cierre automático ocurre al llegar al minuto 30.
+export const SESSION_INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 export const SESSION_INACTIVITY_COUNTDOWN_MS = 2 * 60 * 1000;
-export const SESSION_INACTIVITY_LIMIT_MS =
-    SESSION_INACTIVITY_PROMPT_MS + SESSION_INACTIVITY_COUNTDOWN_MS;
+export const SESSION_INACTIVITY_PROMPT_MS =
+    SESSION_INACTIVITY_LIMIT_MS - SESSION_INACTIVITY_COUNTDOWN_MS;
 
 // La última actividad se conserva entre recargas/pestañas. Se limita la escritura
 // para no tocar localStorage por cada evento de mouse, sin perder precisión útil.
@@ -22,7 +22,7 @@ export const SESSION_REFRESH_AFTER_IDLE_MS = 2 * 60 * 1000;
 // Evita disparar renovaciones consecutivas por movimientos repetidos del usuario.
 export const SESSION_MIN_REFRESH_INTERVAL_MS = 30 * 1000;
 
-// Permite iniciar la cuenta regresiva prácticamente al cumplirse los 5 minutos.
+// Permite iniciar la cuenta regresiva prácticamente al cumplirse los 28 minutos.
 // No genera llamadas por sí sola: el refresh conserva su intervalo de 2 minutos.
 export const SESSION_MONITOR_INTERVAL_MS = 1000;
 
