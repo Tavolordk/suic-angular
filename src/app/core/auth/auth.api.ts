@@ -5,6 +5,7 @@ import { AUTH_API_BASE_URL } from '../http/auth-api-base-url.token';
 import {
     AuthCentralApiResponse,
     AuthHttpError,
+    CurrentSessionResponse,
     LoginContactRequest,
     LoginContactResponse,
     RefreshTokenRequest,
@@ -57,6 +58,37 @@ export class AuthApi {
                 map((tokenResponse) => this.toSession(tokenResponse, challenge)),
                 catchError((error: unknown) =>
                     this.handleError(error, 'El código es incorrecto o ya expiró.')
+                )
+            );
+    }
+
+    /** GET /api/v1/auth/sessions/current */
+    currentSession(): Observable<CurrentSessionResponse> {
+        return this.http
+            .get<AuthCentralApiResponse<CurrentSessionResponse> | CurrentSessionResponse | boolean>(
+                `${this.authV1BaseUrl}/sessions/current`
+            )
+            .pipe(
+                map((response) => {
+                    if (typeof response === 'boolean') {
+                        return { active: response };
+                    }
+
+                    if (!response || typeof response !== 'object') {
+                        throw new AuthHttpError('La validación de sesión devolvió una respuesta vacía.', 401);
+                    }
+
+                    if ('success' in response) {
+                        return this.unwrapResponse(
+                            response as AuthCentralApiResponse<CurrentSessionResponse>,
+                            'No fue posible validar la sesión actual.'
+                        );
+                    }
+
+                    return response;
+                }),
+                catchError((error: unknown) =>
+                    this.handleError(error, 'No fue posible validar la sesión actual.')
                 )
             );
     }

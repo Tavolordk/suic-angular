@@ -167,6 +167,26 @@
                         </div>
                     </footer>
                     }
+
+                    <div class="graph-pivot">
+                        <button type="button" class="graph-pivot__button" [disabled]="pivotLoading()"
+                            (click)="pivotSelectedLink()">
+                            <i class="fa-solid" [class.fa-spinner]="pivotLoading()"
+                                [class.fa-spin]="pivotLoading()" [class.fa-code-branch]="!pivotLoading()"></i>
+                            {{ pivotLoading() ? 'Consultando relación...' : 'Expandir desde este vínculo' }}
+                        </button>
+                        <small>Consulta el pivoteo del vínculo y agrega únicamente las relaciones devueltas, sin cargar la red completa.</small>
+                        @if (pivotMessage()) {
+                        <p class="graph-pivot__message graph-pivot__message--success">
+                            <i class="fa-solid fa-circle-check"></i>{{ pivotMessage() }}
+                        </p>
+                        }
+                        @if (pivotError()) {
+                        <p class="graph-pivot__message graph-pivot__message--error">
+                            <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
+                        </p>
+                        }
+                    </div>
                 </section>
                 }
 
@@ -335,6 +355,56 @@
                 Análisis
             </button>
             }
+
+            <section class="graph-explorer" aria-label="Explorador de vínculos">
+                <div class="graph-explorer__filters">
+                    <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'all'"
+                        (click)="setRelationshipView('all')">
+                        Todos <strong>{{ (relationshipTotals().persons + relationshipTotals().vehicles + relationshipTotals().weapons) | number }}</strong>
+                    </button>
+                    <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'person'"
+                        (click)="setRelationshipView('person')">
+                        Personas <strong>{{ relationshipTotals().persons | number }}</strong>
+                    </button>
+                    <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'vehicle'"
+                        (click)="setRelationshipView('vehicle')">
+                        Vehículos <strong>{{ relationshipTotals().vehicles | number }}</strong>
+                    </button>
+                    <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'weapon'"
+                        (click)="setRelationshipView('weapon')">
+                        Armas <strong>{{ relationshipTotals().weapons | number }}</strong>
+                    </button>
+                </div>
+
+                <label class="graph-explorer__search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" [value]="relationshipQuery()" (input)="setRelationshipQuery($event)"
+                        placeholder="Buscar VIN, placa, nombre, CURP, serie..." autocomplete="off" />
+                </label>
+
+                <div class="graph-explorer__pager">
+                    <button type="button" aria-label="Página anterior de vínculos"
+                        [disabled]="relationshipPageIndex() <= 0" (click)="previousRelationshipPage()">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span>
+                        <strong>{{ relationshipPageLabel() }}</strong>
+                        <small>de {{ reportedRelationshipCount() | number }} reportados</small>
+                    </span>
+                    <button type="button" aria-label="Página siguiente de vínculos"
+                        [disabled]="relationshipPageIndex() >= relationshipPageCount() - 1"
+                        (click)="nextRelationshipPage()">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                @if (relationshipsAreTruncated()) {
+                <div class="graph-explorer__notice">
+                    <i class="fa-solid fa-circle-info"></i>
+                    El servicio reporta más vínculos de los que entregó en este lote. Se visualiza únicamente la muestra recibida para mantener el grafo estable.
+                </div>
+                }
+            </section>
 
             <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()"
                 [class.graph-canvas--intro]="introAnimating()"

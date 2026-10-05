@@ -19,6 +19,7 @@ import {
     Observable,
     of,
     shareReplay,
+    switchMap,
     tap,
     throwError,
     timeout
@@ -26,7 +27,12 @@ import {
 
 import { CAPTCHA_LENGTH, CaptchaFacade } from '../captcha/application/captcha.facade';
 import { AuthApi } from './auth.api';
-import { AuthHttpError, LoginContactRequest, LoginContactResponse } from './auth-api.model';
+import {
+    AuthHttpError,
+    CurrentSessionResponse,
+    LoginContactRequest,
+    LoginContactResponse
+} from './auth-api.model';
 import {
     AuthSession,
     LoginPayload,
@@ -76,6 +82,7 @@ export class AuthService {
     private sessionPromptDeadlineAt: number | null = null;
     private sessionRefreshInFlight = false;
     private sessionRefreshRequest$: Observable<AuthSession> | null = null;
+    private sessionValidationRequest$: Observable<AuthSession> | null = null;
     private silentRefreshFailures = 0;
     private activityListenersRegistered = false;
     private lastActivityAt = Date.now();
@@ -490,11 +497,84 @@ export class AuthService {
     }
 
     /**
-     * El backend responde 401 tanto por token vencido como por falta de permisos.
-     * Este swagger no expone un endpoint para validar la sesión, así que la decisión
-     * se toma con la expiración local: si el token sigue vigente, el 401 es de
-     * permisos y se propaga a la pantalla; si ya venció (o no se puede determinar),
-     * se ofrece renovar la sesión con el modal.
+     * Valida la sesión remota antes de ejecutar cualquier endpoint protegido.
+     * Si /sessions/current falla o informa una sesión inactiva, renueva el token
+     * y valida una vez más antes de permitir que continúe la petición original.
+     * Las llamadas concurrentes comparten la misma validación para evitar tormentas
+     * de requests cuando una pantalla carga varios recursos a la vez.
+     */
+    ensureActiveSession(): Observable<AuthSession> {
+        if (this.sessionValidationRequest$) {
+            return this.sessionValidationRequest$;
+        }
+
+        const currentSession = this.storage.readLatestSession();
+        if (!currentSession?.accessToken?.trim()) {
+            return throwError(
+                () => new AuthHttpError('No hay una sesión activa para autorizar la solicitud.', 401)
+            );
+        }
+
+        const validateCurrentSession = (fallbackSession: AuthSession): Observable<AuthSession> =>
+            this.api.currentSession().pipe(
+                map((remoteSession) => {
+                    if (!this.isRemoteSessionActive(remoteSession)) {
+                        throw new AuthHttpError('La sesión ya no se encuentra activa.', 401);
+                    }
+
+                    return this.storage.readLatestSession() ?? fallbackSession;
+                })
+            );
+
+        const request$ = validateCurrentSession(currentSession).pipe(
+            catchError(() =>
+                this.refreshSessionSafely().pipe(
+                    switchMap((refreshedSession) => validateCurrentSession(refreshedSession))
+                )
+            ),
+            finalize(() => {
+                this.sessionValidationRequest$ = null;
+            }),
+            shareReplay({ bufferSize: 1, refCount: false })
+        );
+
+        this.sessionValidationRequest$ = request$;
+        return request$;
+    }
+
+    private isRemoteSessionActive(session: CurrentSessionResponse): boolean {
+        const explicitState = [
+            session.active,
+            session.isActive,
+            session.activa,
+            session.activo,
+            session.sessionActive
+        ].find((value): value is boolean => typeof value === 'boolean');
+
+        if (explicitState !== undefined) {
+            return explicitState;
+        }
+
+        const normalizedStatus = (session.status ?? session.estado)?.trim().toUpperCase();
+        if (normalizedStatus) {
+            if (['INACTIVE', 'INACTIVA', 'EXPIRED', 'EXPIRADA', 'REVOKED', 'REVOCADA', 'CLOSED', 'CERRADA'].includes(normalizedStatus)) {
+                return false;
+            }
+
+            if (['ACTIVE', 'ACTIVA', 'VALID', 'VALIDA', 'VIGENTE', 'OPEN', 'ABIERTA'].includes(normalizedStatus)) {
+                return true;
+            }
+        }
+
+        // Un 2xx con data válida también confirma que el endpoint autenticado reconoció
+        // la sesión, aun cuando el contrato no exponga un booleano explícito.
+        return true;
+    }
+
+    /**
+     * Las peticiones protegidas ya pasan primero por /sessions/current. Si aun así
+     * el recurso responde 401, usamos la expiración local para distinguir un posible
+     * vencimiento ocurrido entre ambas llamadas de un rechazo de autorización.
      */
     resolveUnauthorizedRequest(originalError: unknown): Observable<never> {
         const currentSession = this.session();

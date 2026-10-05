@@ -54,6 +54,21 @@ export interface VerifyContactRequest {
     codigo: string;
 }
 
+
+/** GET /api/v1/auth/sessions/current → estado de la sesión autenticada. */
+export interface CurrentSessionResponse {
+    active?: boolean | null;
+    isActive?: boolean | null;
+    activa?: boolean | null;
+    activo?: boolean | null;
+    sessionActive?: boolean | null;
+    status?: string | null;
+    estado?: string | null;
+    sessionId?: string | null;
+    sid?: string | null;
+    expiresAtUtc?: string | null;
+}
+
 /** POST /api/v1/auth/tokens/refresh → TokenRefreshRequest */
 export interface RefreshTokenRequest {
     refreshToken: string;

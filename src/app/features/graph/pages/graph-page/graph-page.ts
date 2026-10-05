@@ -11,7 +11,7 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { finalize, Subscription } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import {
   IntelligenceChatHistoryMessage,
@@ -25,7 +25,11 @@ import {
 } from '../../../../core/intelligence/profile-intelligence.models';
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
-import { SearchResultDetailResponse, SearchResultLinkItemDto } from '../../../../core/infrastructure/search-api/search-api.models';
+import {
+  SearchPivotResponse,
+  SearchResultDetailResponse,
+  SearchResultLinkItemDto
+} from '../../../../core/infrastructure/search-api/search-api.models';
 import {
   ConsolidatedProfileAddressDto,
   ConsolidatedProfileResponse
@@ -67,12 +71,21 @@ interface GraphLink {
   status: string;
   details: GraphNodeDetail[];
   sourceNames: string[];
+  searchId?: string;
+  resultId?: string;
 }
 
 interface GraphFilter {
   type: GraphNodeType;
   label: string;
 }
+
+interface GraphRelationEntry {
+  type: GraphNodeType;
+  item: SearchResultLinkItemDto;
+}
+
+type GraphRelationshipView = 'all' | GraphNodeType;
 
 
 interface AiChatMessage {
@@ -98,6 +111,8 @@ interface GraphAddressViewModel {
 const ROOT_X = 620;
 const ROOT_Y = 320;
 const ADDRESSES_PER_PAGE = 3;
+const RELATIONSHIPS_PER_PAGE = 100;
+const MAX_GRAPH_NODES = 300;
 
 @Component({
   selector: 'app-graph-page',
@@ -178,6 +193,18 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly addresses = signal<GraphAddressViewModel[]>([]);
   readonly addressPageIndex = signal(0);
 
+  readonly relationshipCatalog = signal<GraphRelationEntry[]>([]);
+  readonly relationshipTotals = signal<GraphNodeLinks>({ persons: 0, vehicles: 0, weapons: 0 });
+  readonly relationshipViewType = signal<GraphRelationshipView>('all');
+  readonly relationshipQuery = signal('');
+  readonly relationshipPageIndex = signal(0);
+  readonly relationshipPageSize = RELATIONSHIPS_PER_PAGE;
+  readonly pivotLoading = signal(false);
+  readonly pivotMessage = signal<string | null>(null);
+  readonly pivotError = signal<string | null>(null);
+  private relationshipSearchId = '';
+  private relationshipResultId = '';
+
   // La IA trabaja sobre el response ya recibido. No cambia contratos ni dispara endpoints existentes.
   readonly loadedProfile = signal<ConsolidatedProfileResponse | null>(null);
   readonly aiPanelOpen = signal(false);
@@ -212,6 +239,62 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       (link) => visibleIds.has(link.sourceId) && visibleIds.has(link.targetId)
     );
   });
+
+  readonly filteredRelationshipCatalog = computed(() => {
+    const viewType = this.relationshipViewType();
+    const query = normalizeSearchText(this.relationshipQuery());
+
+    return this.relationshipCatalog().filter((relation) => {
+      if (viewType !== 'all' && relation.type !== viewType) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return relationSearchText(relation).includes(query);
+    });
+  });
+
+  readonly relationshipPageCount = computed(() =>
+    Math.max(1, Math.ceil(this.filteredRelationshipCatalog().length / this.relationshipPageSize))
+  );
+
+  readonly relationshipPageLabel = computed(() => {
+    const totalLoaded = this.filteredRelationshipCatalog().length;
+    if (!totalLoaded) {
+      return '0 de 0 cargados';
+    }
+
+    const page = Math.min(this.relationshipPageIndex(), this.relationshipPageCount() - 1);
+    const start = page * this.relationshipPageSize + 1;
+    const end = Math.min(totalLoaded, start + this.relationshipPageSize - 1);
+    return `${start.toLocaleString('es-MX')}-${end.toLocaleString('es-MX')} de ${totalLoaded.toLocaleString('es-MX')} cargados`;
+  });
+
+  readonly reportedRelationshipCount = computed(() => {
+    const totals = this.relationshipTotals();
+    switch (this.relationshipViewType()) {
+      case 'person': return totals.persons;
+      case 'vehicle': return totals.vehicles;
+      case 'weapon': return totals.weapons;
+      default: return totals.persons + totals.vehicles + totals.weapons;
+    }
+  });
+
+  readonly loadedRelationshipCount = computed(() => this.filteredRelationshipCatalog().length);
+
+  readonly loadedRelationshipCountForView = computed(() => {
+    const viewType = this.relationshipViewType();
+    return viewType === 'all'
+      ? this.relationshipCatalog().length
+      : this.relationshipCatalog().filter((relation) => relation.type === viewType).length;
+  });
+
+  readonly relationshipsAreTruncated = computed(() =>
+    this.reportedRelationshipCount() > this.loadedRelationshipCountForView()
+  );
 
   readonly addressPageCount = computed(() =>
     Math.max(1, Math.ceil(this.addresses().length / ADDRESSES_PER_PAGE))
@@ -270,8 +353,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   });
 
   readonly pendingProfilesLabel = computed(() => {
-    const related = Math.max(0, this.nodes().length - 1);
-    return `${related} ${related === 1 ? 'elemento relacionado' : 'elementos relacionados'}`;
+    const visible = Math.max(0, this.nodes().length - 1);
+    const total = this.reportedRelationshipCount();
+    return `${visible.toLocaleString('es-MX')} visibles de ${total.toLocaleString('es-MX')} vínculos`;
   });
 
   readonly graphTransform = computed(() =>
@@ -368,20 +452,201 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    this.relationshipSearchId = searchId;
+    this.relationshipResultId = resultId;
+
     this.searchApi.getResultDetail(searchId, resultId).subscribe({
       next: (detail) => {
-        const graph = mapProfileToGraph(profile, detail);
-        this.nodes.set(graph.nodes);
-        this.links.set(graph.links);
-        this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
-        this.selectedLinkId.set(null);
-        this.restartIntroAnimation();
+        this.relationshipCatalog.set(collectGraphRelations(detail));
+        this.relationshipTotals.set(collectRelationshipTotals(detail));
+        this.relationshipViewType.set('all');
+        this.relationshipQuery.set('');
+        this.relationshipPageIndex.set(0);
+        this.pivotMessage.set(null);
+        this.pivotError.set(null);
+        this.renderRelationshipPage(profile);
       },
       error: () => {
         // El perfil raíz sigue disponible aunque el endpoint de detalle no responda.
         // Así el grafo nunca queda sin estado ni bloquea el análisis del perfil consolidado.
       }
     });
+  }
+
+  private renderRelationshipPage(profile = this.loadedProfile()): void {
+    if (!profile) {
+      return;
+    }
+
+    const catalog = this.filteredRelationshipCatalog();
+    const pageCount = Math.max(1, Math.ceil(catalog.length / this.relationshipPageSize));
+    const pageIndex = Math.min(this.relationshipPageIndex(), pageCount - 1);
+    if (pageIndex !== this.relationshipPageIndex()) {
+      this.relationshipPageIndex.set(pageIndex);
+    }
+
+    const start = pageIndex * this.relationshipPageSize;
+    const pageRelations = catalog.slice(start, start + this.relationshipPageSize);
+    const graph = mapProfileToGraph(profile, pageRelations, this.relationshipTotals());
+
+    this.nodes.set(graph.nodes);
+    this.links.set(graph.links);
+    this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+    this.selectedLinkId.set(null);
+    const viewType = this.relationshipViewType();
+    this.expandedLinkType.set(viewType === 'all' ? null : viewType);
+    this.resetZoom();
+    this.restartIntroAnimation();
+  }
+
+  setRelationshipView(type: GraphRelationshipView): void {
+    this.relationshipViewType.set(type);
+    this.relationshipPageIndex.set(0);
+
+    if (type !== 'all') {
+      this.activeFilters.update((filters) => ({ ...filters, [type]: true }));
+      this.expandedLinkType.set(type);
+    } else {
+      this.expandedLinkType.set(null);
+    }
+
+    this.renderRelationshipPage();
+  }
+
+  setRelationshipQuery(event: Event): void {
+    const value = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.relationshipQuery.set(value);
+    this.relationshipPageIndex.set(0);
+    this.renderRelationshipPage();
+  }
+
+  previousRelationshipPage(): void {
+    if (this.relationshipPageIndex() <= 0) {
+      return;
+    }
+
+    this.relationshipPageIndex.update((page) => page - 1);
+    this.renderRelationshipPage();
+  }
+
+  nextRelationshipPage(): void {
+    if (this.relationshipPageIndex() >= this.relationshipPageCount() - 1) {
+      return;
+    }
+
+    this.relationshipPageIndex.update((page) => page + 1);
+    this.renderRelationshipPage();
+  }
+
+  pivotSelectedLink(): void {
+    const link = this.selectedLink();
+    if (!link || this.pivotLoading()) {
+      return;
+    }
+
+    const searchId = link.searchId?.trim() || this.relationshipSearchId;
+    const resultId = link.resultId?.trim() || this.relationshipResultId;
+
+    if (!searchId || !resultId || !link.externalId?.trim()) {
+      this.pivotError.set('El vínculo no contiene los identificadores necesarios para ejecutar el pivoteo.');
+      return;
+    }
+
+    this.pivotLoading.set(true);
+    this.pivotMessage.set(null);
+    this.pivotError.set(null);
+
+    const anchorNodeId = link.targetId;
+
+    this.searchApi
+      .pivotLink(searchId, resultId, link.externalId)
+      .pipe(finalize(() => this.pivotLoading.set(false)))
+      .subscribe({
+        next: (response) => {
+          const pivotDetail = resolvePivotDetail(response);
+          const appended = pivotDetail ? this.appendPivotRelations(anchorNodeId, pivotDetail) : 0;
+          const suffix = appended > 0
+            ? ` Se agregaron ${appended} vínculo${appended === 1 ? '' : 's'} al grafo visible.`
+            : '';
+          this.pivotMessage.set((response.message?.trim() || 'Pivoteo ejecutado correctamente.') + suffix);
+          this.restartIntroAnimation();
+        },
+        error: (error: unknown) => {
+          this.pivotError.set(extractErrorMessage(error));
+        }
+      });
+  }
+
+  private appendPivotRelations(anchorNodeId: string, detail: SearchResultDetailResponse): number {
+    const anchor = this.nodes().find((node) => node.id === anchorNodeId);
+    if (!anchor) {
+      return 0;
+    }
+
+    const existingNodeIds = new Set(this.nodes().map((node) => node.id));
+    const existingLinkIds = new Set(this.links().map((link) => link.externalId));
+    const availableSlots = Math.max(0, MAX_GRAPH_NODES - this.nodes().length);
+    if (availableSlots === 0) {
+      this.pivotMessage.set(`El grafo alcanzó el límite de ${MAX_GRAPH_NODES} nodos visibles.`);
+      return 0;
+    }
+
+    const relations = collectGraphRelations(detail)
+      .filter((relation) => !existingLinkIds.has(relation.item.linkId))
+      .slice(0, Math.min(availableSlots, this.relationshipPageSize));
+
+    if (!relations.length) {
+      return 0;
+    }
+
+    const positions = createPositionsAround(anchor.x, anchor.y, relations.length);
+    const newNodes: GraphNode[] = [];
+    const newLinks: GraphLink[] = [];
+
+    relations.forEach((relation, index) => {
+      const item = relation.item;
+      const safeLinkId = item.linkId?.trim() || `pivot-${Date.now()}-${index}`;
+      const nodeId = `pivot-${anchorNodeId}-${relation.type}-${safeLinkId}`;
+      if (existingNodeIds.has(nodeId)) {
+        return;
+      }
+
+      const position = positions[index] ?? { x: anchor.x, y: anchor.y };
+      newNodes.push({
+        id: nodeId,
+        type: relation.type,
+        title: resolveRelationTitle(item, relation.type, index),
+        subtitle: resolveRelationIdentifier(item, relation.type),
+        x: position.x,
+        y: position.y,
+        radius: relation.type === 'person' ? 29 : 27,
+        details: buildRelationDetails(item, relation.type),
+        links: { persons: 0, vehicles: 0, weapons: 0 }
+      });
+
+      newLinks.push({
+        id: `pivot-link-${anchorNodeId}-${safeLinkId}`,
+        sourceId: anchorNodeId,
+        targetId: nodeId,
+        type: relation.type,
+        label: humanizeRelationship(item.relationshipCode),
+        externalId: safeLinkId,
+        status: item.status?.trim() || 'Sin estatus informado',
+        details: buildLinkDetails(item, relation.type),
+        sourceNames: Array.from(new Set(
+          (item.origins ?? [])
+            .map((origin) => origin.sourceName?.trim() || origin.sourceCode?.trim() || '')
+            .filter(Boolean)
+        )),
+        searchId: detail.searchId,
+        resultId: detail.resultId
+      });
+    });
+
+    this.nodes.update((nodes) => [...nodes, ...newNodes]);
+    this.links.update((links) => [...links, ...newLinks]);
+    this.selectedNodeId.set(anchorNodeId);
+    return newNodes.length;
   }
 
 
@@ -989,12 +1254,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.selectedLinkId.set(link.id);
     this.selectedNodeId.set(relatedNodeId);
     this.expandedLinkType.set(link.type);
+    this.pivotMessage.set(null);
+    this.pivotError.set(null);
     this.detailPanelOpen.set(true);
   }
 
   showRelatedNodes(type: GraphNodeType): void {
-    this.activeFilters.update((filters) => ({ ...filters, [type]: true }));
-    this.expandedLinkType.update((current) => current === type ? null : type);
+    const nextType: GraphRelationshipView = this.relationshipViewType() === type ? 'all' : type;
+    this.setRelationshipView(nextType);
     this.detailPanelOpen.set(true);
   }
 
@@ -1232,6 +1499,13 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.links.set([]);
     this.addresses.set([]);
     this.addressPageIndex.set(0);
+    this.relationshipCatalog.set([]);
+    this.relationshipTotals.set({ persons: 0, vehicles: 0, weapons: 0 });
+    this.relationshipViewType.set('all');
+    this.relationshipQuery.set('');
+    this.relationshipPageIndex.set(0);
+    this.pivotMessage.set(null);
+    this.pivotError.set(null);
     this.selectedNodeId.set(this.profileId || 'profile');
     this.selectedLinkId.set(null);
     this.expandedLinkType.set(null);
@@ -1267,12 +1541,12 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
 function mapProfileToGraph(
   profile: ConsolidatedProfileResponse,
-  detail?: SearchResultDetailResponse | null
+  relationItems: GraphRelationEntry[] = [],
+  reportedCounts?: GraphNodeLinks
 ): {
   nodes: GraphNode[];
   links: GraphLink[];
 } {
-  const relationItems = collectGraphRelations(detail);
   const positions = createRelatedPositions(relationItems.length);
   const profileTitle = resolveProfileTitle(profile);
   const rootDetails = (profile.data ?? [])
@@ -1289,7 +1563,7 @@ function mapProfileToGraph(
     );
   }
 
-  const counts = relationItems.reduce(
+  const counts = reportedCounts ?? relationItems.reduce(
     (acc, relation) => {
       if (relation.type === 'person') acc.persons += 1;
       if (relation.type === 'vehicle') acc.vehicles += 1;
@@ -1346,17 +1620,16 @@ function mapProfileToGraph(
         (relation.item.origins ?? [])
           .map((origin) => origin.sourceName?.trim() || origin.sourceCode?.trim() || '')
           .filter(Boolean)
-      ))
+      )),
+      searchId: profile.searchId?.trim() || undefined,
+      resultId: profile.preconsolidatedResultId?.trim() || undefined
     });
   });
 
   return { nodes, links };
 }
 
-function collectGraphRelations(detail?: SearchResultDetailResponse | null): Array<{
-  type: GraphNodeType;
-  item: SearchResultLinkItemDto;
-}> {
+function collectGraphRelations(detail?: SearchResultDetailResponse | null): GraphRelationEntry[] {
   if (!detail?.linkGroups?.length) {
     return [];
   }
@@ -1369,6 +1642,77 @@ function collectGraphRelations(detail?: SearchResultDetailResponse | null): Arra
 
     return (group.items ?? []).map((item) => ({ type, item }));
   });
+}
+
+function collectRelationshipTotals(detail?: SearchResultDetailResponse | null): GraphNodeLinks {
+  const totals: GraphNodeLinks = { persons: 0, vehicles: 0, weapons: 0 };
+
+  for (const group of detail?.linkGroups ?? []) {
+    const type = resolveGraphNodeType(group.entityType);
+    if (!type) {
+      continue;
+    }
+
+    const count = Math.max(0, Number(group.count ?? group.items?.length ?? 0));
+    if (type === 'person') totals.persons += count;
+    if (type === 'vehicle') totals.vehicles += count;
+    if (type === 'weapon') totals.weapons += count;
+  }
+
+  return totals;
+}
+
+function relationSearchText(relation: GraphRelationEntry): string {
+  const item = relation.item;
+  const values = [
+    relation.type,
+    item.linkId,
+    item.status,
+    item.relationshipCode,
+    item.placa,
+    item.plate,
+    item.licensePlate,
+    item.plateNumber,
+    ...(item.identifiers ?? []).flatMap((entry) => [entry.code, entry.value]),
+    ...(item.attributes ?? []).flatMap((entry) => [entry.code, entry.value]),
+    ...(item.origins ?? []).flatMap((origin) => [origin.sourceCode, origin.sourceName, origin.sourceRecordId])
+  ];
+
+  return normalizeSearchText(values.filter(Boolean).join(' '));
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es-MX')
+    .trim();
+}
+
+function resolvePivotDetail(response: SearchPivotResponse): SearchResultDetailResponse | null {
+  if (response.detail) {
+    return response.detail;
+  }
+
+  if (response.result) {
+    return response.result;
+  }
+
+  if (!response.linkGroups?.length && !response.sourceGroups?.length) {
+    return null;
+  }
+
+  return {
+    contractVersion: response.contractVersion ?? null,
+    searchId: response.pivotSearchId?.trim() || response.searchId?.trim() || 'pivot',
+    resultId: response.pivotResultId?.trim() || response.resultId?.trim() || 'pivot',
+    entityType: response.entityType ?? null,
+    kind: null,
+    status: response.status ?? null,
+    hasConflicts: false,
+    sourceGroups: response.sourceGroups ?? [],
+    linkGroups: response.linkGroups ?? []
+  };
 }
 
 function resolveGraphNodeType(entityType?: string | null): GraphNodeType | null {
@@ -1497,6 +1841,35 @@ function createRelatedPositions(count: number): Array<{ x: number; y: number }> 
       positions.push({
         x: ROOT_X + Math.cos(angle) * radiusX,
         y: ROOT_Y + Math.sin(angle) * radiusY
+      });
+    }
+
+    placed += capacity;
+    ring += 1;
+  }
+
+  return positions;
+}
+
+function createPositionsAround(
+  centerX: number,
+  centerY: number,
+  count: number
+): Array<{ x: number; y: number }> {
+  const positions: Array<{ x: number; y: number }> = [];
+  let placed = 0;
+  let ring = 0;
+
+  while (placed < count) {
+    const capacity = Math.min(count - placed, 8 + ring * 4);
+    const radiusX = 125 + ring * 72;
+    const radiusY = 105 + ring * 58;
+
+    for (let index = 0; index < capacity; index += 1) {
+      const angle = -Math.PI / 2 + (index * Math.PI * 2) / capacity;
+      positions.push({
+        x: centerX + Math.cos(angle) * radiusX,
+        y: centerY + Math.sin(angle) * radiusY
       });
     }
 

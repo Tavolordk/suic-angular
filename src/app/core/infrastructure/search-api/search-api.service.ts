@@ -5,6 +5,7 @@ import { SEARCH_API_BASE_URL } from './search-api.config';
 import {
   ApiResponse,
   SearchRequest,
+  SearchPivotResponse,
   SearchResultDetailResponse,
   SearchResultsPageResponse
 } from './search-api.models';
@@ -59,6 +60,21 @@ export class SearchApiService {
         { headers: this.createHeaders() }
       )
       .pipe(map((response) => this.unwrap(response, 'No fue posible cargar el perfil.')));
+  }
+
+  /** POST /api/search/{searchId}/results/{resultId}/links/{linkId}/pivot - Bearer global. */
+  pivotLink(
+    searchId: string,
+    resultId: string,
+    linkId: string
+  ): Observable<SearchPivotResponse> {
+    return this.http
+      .post<ApiResponse<SearchPivotResponse>>(
+        `${this.apiBaseUrl}/search/${encodeURIComponent(searchId)}/results/${encodeURIComponent(resultId)}/links/${encodeURIComponent(linkId)}/pivot`,
+        {},
+        { headers: this.createHeaders() }
+      )
+      .pipe(map((response) => this.unwrap(response, 'No fue posible pivotear el vínculo seleccionado.')));
   }
 
   private createHeaders(): HttpHeaders {

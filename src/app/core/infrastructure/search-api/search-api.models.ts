@@ -148,3 +148,24 @@ export interface SearchResultDetailResponse {
   sourceGroups?: SearchResultSourceGroupDto[] | null;
   linkGroups?: SearchResultLinkGroupDto[] | null;
 }
+
+/**
+ * Respuesta flexible del pivoteo. El endpoint puede devolver directamente el
+ * detalle del resultado pivoteado o encapsularlo en `result`/`detail` según la
+ * versión del contrato desplegada.
+ */
+export interface SearchPivotResponse {
+  contractVersion?: string | null;
+  searchId?: string | null;
+  resultId?: string | null;
+  pivotSearchId?: string | null;
+  pivotResultId?: string | null;
+  profileId?: string | null;
+  entityType?: string | null;
+  status?: string | null;
+  message?: string | null;
+  sourceGroups?: SearchResultSourceGroupDto[] | null;
+  linkGroups?: SearchResultLinkGroupDto[] | null;
+  result?: SearchResultDetailResponse | null;
+  detail?: SearchResultDetailResponse | null;
+}

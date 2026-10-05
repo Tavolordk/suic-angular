@@ -2583,3 +2583,246 @@
     justify-self: center;
   }
 }
+
+/* Exploración de grafos grandes: el DOM conserva solo una página visual. */
+.graph-explorer {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 24;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(220px, 340px) auto;
+  align-items: center;
+  gap: 9px;
+  width: min(920px, calc(100% - 240px));
+  padding: 9px 10px;
+  border: 1px solid rgba(153, 168, 190, 0.18);
+  border-radius: 16px;
+  background: rgba(7, 15, 28, 0.92);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+  transform: translateX(-50%);
+}
+
+.graph-explorer__filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.graph-explorer__filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(153, 168, 190, 0.12);
+  border-radius: 9px;
+  background: rgba(153, 168, 190, 0.04);
+  color: rgba(210, 223, 235, 0.68);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.graph-explorer__filters button strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 8px;
+}
+
+.graph-explorer__filters button:hover,
+.graph-explorer__filters .graph-explorer__filter--active {
+  border-color: rgba(73, 182, 255, 0.35);
+  background: rgba(73, 182, 255, 0.1);
+  color: #dff5ff;
+}
+
+.graph-explorer__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgba(153, 168, 190, 0.15);
+  border-radius: 10px;
+  background: rgba(153, 168, 190, 0.045);
+  color: rgba(153, 168, 190, 0.6);
+}
+
+.graph-explorer__search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #edf7fd;
+  font: inherit;
+  font-size: 9px;
+}
+
+.graph-explorer__search input::placeholder {
+  color: rgba(153, 168, 190, 0.44);
+}
+
+.graph-explorer__pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 190px;
+}
+
+.graph-explorer__pager button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid rgba(153, 168, 190, 0.14);
+  border-radius: 9px;
+  background: rgba(153, 168, 190, 0.05);
+  color: rgba(220, 232, 243, 0.82);
+  cursor: pointer;
+}
+
+.graph-explorer__pager button:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.graph-explorer__pager span {
+  min-width: 112px;
+  text-align: center;
+}
+
+.graph-explorer__pager strong,
+.graph-explorer__pager small {
+  display: block;
+}
+
+.graph-explorer__pager strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 9px;
+}
+
+.graph-explorer__pager small {
+  margin-top: 2px;
+  color: rgba(153, 168, 190, 0.5);
+  font-size: 7.5px;
+}
+
+.graph-explorer__notice {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -2px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: rgba(252, 176, 37, 0.07);
+  color: rgba(245, 199, 109, 0.86);
+  font-size: 8px;
+  line-height: 1.3;
+}
+
+.graph-floating-card--pending {
+  top: 88px;
+}
+
+.graph-pivot {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(153, 168, 190, 0.09);
+}
+
+.graph-pivot__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(73, 182, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(73, 182, 255, 0.09);
+  color: #a7ddfb;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.graph-pivot__button:hover:not(:disabled) {
+  background: rgba(73, 182, 255, 0.15);
+  color: #e5f7ff;
+}
+
+.graph-pivot__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.graph-pivot > small {
+  color: rgba(153, 168, 190, 0.5);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.graph-pivot__message {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.graph-pivot__message--success {
+  background: rgba(62, 140, 34, 0.1);
+  color: #8dd674;
+}
+
+.graph-pivot__message--error {
+  background: rgba(239, 83, 80, 0.09);
+  color: #efaaa8;
+}
+
+@media (max-width: 1280px) {
+  .graph-explorer {
+    width: min(760px, calc(100% - 190px));
+    grid-template-columns: 1fr auto;
+  }
+
+  .graph-explorer__filters {
+    grid-column: 1 / -1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .graph-explorer {
+    top: 56px;
+    width: calc(100% - 20px);
+    grid-template-columns: 1fr;
+  }
+
+  .graph-explorer__search,
+  .graph-explorer__pager {
+    width: 100%;
+  }
+
+  .graph-explorer__pager {
+    justify-content: space-between;
+  }
+
+  .graph-floating-card--pending {
+    top: 208px;
+  }
+}
