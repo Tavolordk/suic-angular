@@ -330,9 +330,9 @@
             }
 
             @if (!aiPanelOpen()) {
-            <button type="button" class="graph-ai-toggle" (click)="openAiPanel()" title="Abrir asistente IA">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                IA
+            <button type="button" class="graph-ai-toggle" (click)="openAiPanel()" title="Abrir panel de análisis">
+                <i class="fa-solid fa-chart-line"></i>
+                Análisis
             </button>
             }
 
@@ -563,7 +563,7 @@
             [class.graph-ai--maximized]="aiPanelMaximized()"
             [style.left.px]="aiPanelPositioned() ? aiPanelX() : null"
             [style.top.px]="aiPanelPositioned() ? aiPanelY() : null"
-            role="dialog" aria-label="Asistente de análisis del perfil">
+            role="dialog" aria-label="Panel de análisis del perfil">
             <header class="graph-ai__header"
                 [class.graph-ai__header--draggable]="!aiPanelMaximized()"
                 (pointerdown)="startAiPanelDrag($event)"
@@ -571,12 +571,12 @@
                 (pointerup)="endAiPanelDrag($event)"
                 (pointercancel)="endAiPanelDrag($event)">
                 <div class="graph-ai__identity">
-                    <span class="graph-ai__spark"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <span class="graph-ai__spark"><i class="fa-solid fa-chart-line"></i></span>
                     <div>
-                        <strong>Asistente IA</strong>
+                        <strong>Panel de análisis</strong>
                         <small>
                             <span class="graph-ai__status-dot" [class.graph-ai__status-dot--fallback]="aiServiceStatus() === 'fallback'"></span>
-                            {{ aiServiceStatusLabel() }} · privado · sin gateway
+                            {{ aiServiceStatusLabel() }}
                         </small>
                     </div>
                 </div>
@@ -585,41 +585,32 @@
                     <button type="button" aria-label="Limpiar conversación" title="Limpiar conversación" [disabled]="aiMessages().length === 0 && !aiQuestion()" (click)="clearAiConversation()">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
-                    <button type="button" [attr.aria-label]="aiPanelMinimized() ? 'Restaurar asistente IA' : 'Minimizar asistente IA'" [title]="aiPanelMinimized() ? 'Restaurar' : 'Minimizar'" (click)="toggleAiPanelMinimized()">
+                    <button type="button" [attr.aria-label]="aiPanelMinimized() ? 'Restaurar panel de análisis' : 'Minimizar panel de análisis'" [title]="aiPanelMinimized() ? 'Restaurar' : 'Minimizar'" (click)="toggleAiPanelMinimized()">
                         <i class="fa-solid" [class.fa-window-restore]="aiPanelMinimized()" [class.fa-window-minimize]="!aiPanelMinimized()"></i>
                     </button>
-                    <button type="button" [attr.aria-label]="aiPanelMaximized() ? 'Restaurar tamaño del asistente IA' : 'Ampliar asistente IA'" [title]="aiPanelMaximized() ? 'Restaurar tamaño' : 'Ampliar'" (click)="toggleAiPanelMaximized()">
+                    <button type="button" [attr.aria-label]="aiPanelMaximized() ? 'Restaurar tamaño del panel de análisis' : 'Ampliar panel de análisis'" [title]="aiPanelMaximized() ? 'Restaurar tamaño' : 'Ampliar'" (click)="toggleAiPanelMaximized()">
                         <i class="fa-solid" [class.fa-compress]="aiPanelMaximized()" [class.fa-expand]="!aiPanelMaximized()"></i>
                     </button>
-                    <button type="button" aria-label="Cerrar asistente IA" title="Cerrar" (click)="closeAiPanel()"><i class="fa-solid fa-xmark"></i></button>
+                    <button type="button" aria-label="Cerrar panel de análisis" title="Cerrar" (click)="closeAiPanel()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </header>
 
             <div class="graph-ai__body">
-                <section #aiChatViewport class="graph-ai-chat" aria-live="polite" aria-label="Conversación con el asistente IA">
+                <section #aiChatViewport class="graph-ai-chat" aria-live="polite" aria-label="Consultas del panel de análisis">
                     @for (message of aiMessages(); track message.id) {
                     <article class="graph-ai-message" [class.graph-ai-message--user]="message.role === 'user'" [class.graph-ai-message--assistant]="message.role === 'assistant'">
                         <div class="graph-ai-message__avatar">
                             @if (message.role === 'user') {<i class="fa-solid fa-user"></i>}
-                            @else {<i class="fa-solid fa-wand-magic-sparkles"></i>}
+                            @else {<i class="fa-solid fa-clipboard-list"></i>}
                         </div>
                         <div class="graph-ai-message__content">
                             <header>
-                                <strong>{{ message.role === 'user' ? 'Tú' : 'IA local' }}</strong>
-                                @if (message.role === 'assistant' && message.mode === 'local-llm') {
-                                <span class="graph-ai-message__mode"><i class="fa-solid fa-microchip"></i>{{ message.model || 'modelo local' }}</span>
-                                @if (message.thinking && message.streaming && !message.text) {
-                                <span class="graph-ai-message__mode graph-ai-message__mode--thinking"><i class="fa-solid fa-brain"></i>razonando</span>
-                                }
-                                }
-                                @if (message.role === 'assistant' && message.mode === 'deterministic-fallback') {
-                                <span class="graph-ai-message__mode graph-ai-message__mode--fallback"><i class="fa-solid fa-shield-halved"></i>exacto local</span>
-                                }
+                                <strong>{{ message.role === 'user' ? 'Consulta' : 'Análisis' }}</strong>
                             </header>
                             @if (message.role === 'assistant' && message.streaming && !message.text) {
-                            <div class="graph-ai-thinking" role="status" aria-label="La IA está preparando la respuesta">
+                            <div class="graph-ai-thinking" role="status" aria-label="Procesando la consulta">
                                 <span class="graph-ai-thinking__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-                                <em>{{ message.thinking ? 'Razonando sobre los datos y las fuentes…' : 'Generando respuesta…' }}</em>
+                                <em>{{ message.thinking ? 'Analizando la información disponible…' : 'Preparando respuesta…' }}</em>
                             </div>
                             } @else {
                             <p>{{ message.text }}@if (message.streaming) {<span class="graph-ai-typing-caret" aria-hidden="true"></span>}</p>
@@ -627,7 +618,7 @@
 
                             @if (message.role === 'assistant' && !message.streaming && !!message.text && message.evidence && message.evidence.length > 0) {
                             <details class="graph-ai-message__sources">
-                                <summary><i class="fa-solid fa-link"></i>Fuentes usadas ({{ message.evidence.length }})</summary>
+                                <summary><i class="fa-solid fa-link"></i>Fuentes consultadas ({{ message.evidence.length }})</summary>
                                 <div>
                                     @for (item of message.evidence.slice(0, 10); track $index) {
                                     <article>
@@ -658,17 +649,17 @@
                         [class.graph-ai-composer__thinking--active]="aiThinkingEnabled()"
                         [attr.aria-pressed]="aiThinkingEnabled()"
                         [disabled]="isAiLoading()"
-                        [title]="aiThinkingEnabled() ? 'Razonamiento activado: el análisis interno se procesa de forma privada y sólo se muestra la respuesta final' : 'Razonamiento desactivado: respuesta directa'"
+                        [title]="aiThinkingEnabled() ? 'Análisis detallado activado' : 'Análisis detallado desactivado'"
                         (click)="toggleAiThinking()">
-                        <i class="fa-solid fa-brain"></i>
-                        <span>Razonar</span>
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Análisis detallado</span>
                     </button>
-                    <small>{{ aiThinkingEnabled() ? 'Mayor precisión · el análisis interno no se muestra' : 'Respuesta directa · se muestra mientras se genera' }}</small>
+                    <small>{{ aiThinkingEnabled() ? 'Procesamiento ampliado de la información disponible' : 'Procesamiento estándar de la consulta' }}</small>
                 </div>
                 <div class="graph-ai-composer__box">
-                    <textarea #aiComposer rows="1" [value]="aiQuestion()" (input)="setAiQuestion($event)" (keydown)="onAiComposerKeydown($event)" placeholder="Escribe tu pregunta..."></textarea>
+                    <textarea #aiComposer rows="1" [value]="aiQuestion()" (input)="setAiQuestion($event)" (keydown)="onAiComposerKeydown($event)" placeholder="Escribe una consulta sobre el perfil..."></textarea>
                     @if (isAiLoading()) {
-                    <button type="button" class="graph-ai-composer__send graph-ai-composer__send--stop" aria-label="Detener generación" title="Detener" (click)="stopAiGeneration()"><i class="fa-solid fa-stop"></i></button>
+                    <button type="button" class="graph-ai-composer__send graph-ai-composer__send--stop" aria-label="Detener consulta" title="Detener" (click)="stopAiGeneration()"><i class="fa-solid fa-stop"></i></button>
                     } @else {
                     <button type="button" class="graph-ai-composer__send" aria-label="Enviar pregunta" title="Enviar" [disabled]="!loadedProfile() || !aiQuestion().trim()" (click)="askAi()"><i class="fa-solid fa-arrow-up"></i></button>
                     }

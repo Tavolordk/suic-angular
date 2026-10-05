@@ -284,9 +284,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   });
   readonly aiServiceStatusLabel = computed(() => {
     switch (this.aiServiceStatus()) {
-      case 'online': return 'Qwen local listo';
-      case 'fallback': return 'Modo exacto local';
-      default: return 'Conectando IA local';
+      case 'online': return 'Servicio disponible';
+      case 'fallback': return 'Análisis disponible';
+      default: return 'Verificando servicio';
     }
   });
 
@@ -670,7 +670,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
               ...message,
               streaming: false
             }));
-            this.aiErrorMessage.set(event.message || 'La API de IA no pudo completar la respuesta.');
+            this.aiErrorMessage.set('No fue posible completar la consulta. Intenta nuevamente.');
             this.isAiLoading.set(false);
           }
 
@@ -693,7 +693,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           this.aiAnswer.set(fallback);
           this.aiServiceStatus.set('fallback');
           this.aiErrorMessage.set(
-            'La API de IA local no respondió. Se usó el analizador determinista del navegador; los datos del perfil siguen disponibles.'
+            'No fue posible completar el análisis en línea. Se generó un resultado con la información disponible del perfil.'
           );
           this.isAiLoading.set(false);
           this.scrollAiChatToBottom();
@@ -755,7 +755,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           ? {
               ...message,
               streaming: false,
-              text: message.text || 'Generación detenida por el usuario.'
+              text: message.text || 'Consulta detenida por el usuario.'
             }
           : message
       )

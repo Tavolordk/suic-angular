@@ -1,6 +1,6 @@
 {
   "/gateway/**": {
-    "target": "http://10.241.67.8:3650",
+    "target": "http://10.237.3.42:8081",
     "secure": false,
     "changeOrigin": true,
     "pathRewrite": {
