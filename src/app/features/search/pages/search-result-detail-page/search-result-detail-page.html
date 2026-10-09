@@ -120,7 +120,7 @@
 
         <article class="link-group" *ngFor="let group of linkGroups()">
           <div class="link-group__header">
-            <h3>{{ group.entityType || 'Entidad relacionada' }}</h3>
+            <h3>{{ linkGroupLabel(group.entityType, group.count) }}</h3>
             <span>{{ group.count }} relación(es)</span>
           </div>
 

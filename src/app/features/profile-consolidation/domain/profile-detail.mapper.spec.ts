@@ -442,3 +442,52 @@ describe('mapSearchResultDetail', () => {
   });
 
 });
+
+describe('preconsolidación Vehicle', () => {
+  it('presenta la marca, modelo e identificadores de un vehículo y mantiene sus vínculos de persona', () => {
+    const detail: SearchResultDetailResponse = {
+      searchId: '11111111-1111-1111-1111-111111111111',
+      resultId: '22222222-2222-2222-2222-222222222222',
+      entityType: 'Vehicle',
+      status: 'Completed',
+      hasConflicts: false,
+      sourceGroups: [{
+        sourceCode: 'REPUVE',
+        records: [{
+          identifiers: [
+            { evidenceId: 'ev1', code: 'vehiculo.VIN', value: '1FMGGU0D75' },
+            { evidenceId: 'ev2', code: 'vehiculo.placa', value: 'MJE519' }
+          ],
+          attributes: [
+            { evidenceId: 'ev3', code: 'marca', value: 'FORD' },
+            { evidenceId: 'ev4', code: 'modelo', value: 'EXPEDITION' }
+          ]
+        }]
+      }],
+      linkGroups: [{ entityType: 'Person', count: 1, items: [{ linkId: 'link-person-1' }] }]
+    };
+    const profile = mapSearchResultDetail(detail);
+    expect(profile.profileName).toBe('FORD EXPEDITION');
+    expect(profile.profileSubtitle).toContain('Perfil de vehículo');
+    expect(profile.sources.length).toBe(1);
+    expect(profile.links[0].kind).toBe('person');
+  });
+});
+
+describe('etiquetas en español para expedientes de investigación', () => {
+  it.each([
+    [1, 'Expediente de investigación'],
+    [7, 'Expedientes de investigación']
+  ])('muestra la etiqueta adecuada para %i vínculo(s)', (count, label) => {
+    const detail = createDetail();
+    detail.linkGroups = [{ entityType: 'InvestigationFile', count, items: [] }];
+
+    const result = mapSearchResultDetail(detail);
+    expect(result.links[0]).toEqual(expect.objectContaining({
+      entityType: 'InvestigationFile',
+      label,
+      count,
+      kind: 'other'
+    }));
+  });
+});

@@ -4,6 +4,7 @@ import {
   SearchResultsPageResponse
 } from '../../../core/infrastructure/search-api/search-api.models';
 import { PersonSearchFormValue } from '../domain/person-search.models';
+import { VehicleSearchFormValue } from '../domain/vehicle-search.models';
 
 /** Contexto para volver del listado derivado al nodo de origen. */
 export interface PivotSearchContext {
@@ -20,6 +21,7 @@ export class SearchStateService {
   readonly page = signal<SearchResultsPageResponse | null>(null);
   readonly pageSize = signal<10 | 18>(10);
   readonly formValue = signal<PersonSearchFormValue | null>(null);
+  readonly vehicleFormValue = signal<VehicleSearchFormValue | null>(null);
   readonly savedResultIds = signal<ReadonlySet<string>>(new Set<string>());
   readonly pivotContext = signal<PivotSearchContext | null>(null);
 
@@ -33,6 +35,16 @@ export class SearchStateService {
     this.page.set(page);
     this.pageSize.set(pageSize);
     this.formValue.set(formValue);
+    this.vehicleFormValue.set(null);
+    this.pivotContext.set(null);
+  }
+
+  saveVehicleSearch(request: SearchRequest, page: SearchResultsPageResponse, pageSize: 10 | 18, formValue: VehicleSearchFormValue): void {
+    this.request.set(request);
+    this.page.set(page);
+    this.pageSize.set(pageSize);
+    this.formValue.set(null);
+    this.vehicleFormValue.set({ ...formValue });
     this.pivotContext.set(null);
   }
 
@@ -40,6 +52,7 @@ export class SearchStateService {
   savePivotResults(page: SearchResultsPageResponse, context: PivotSearchContext): void {
     this.request.set(null);
     this.formValue.set(null);
+    this.vehicleFormValue.set(null);
     this.page.set(page);
     this.pageSize.set(18);
     this.pivotContext.set(context);
@@ -68,6 +81,7 @@ export class SearchStateService {
     this.request.set(null);
     this.page.set(null);
     this.formValue.set(null);
+    this.vehicleFormValue.set(null);
     this.pivotContext.set(null);
   }
 }

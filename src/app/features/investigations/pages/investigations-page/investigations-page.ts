@@ -1077,7 +1077,11 @@ export class InvestigationsPage implements OnInit, OnDestroy {
   }
 
   searchCriteriaSummary(search: InvestigationLinkedSearch): string {
-    const criteria = search.criteria;
+    if (search.entity === 'vehiculo') {
+      const criteria = search.criteria as { vin?: string; placa?: string };
+      return [criteria.vin && `VIN ${criteria.vin}`, criteria.placa && `Placa ${criteria.placa}`].filter(Boolean).join(' · ') || 'Identificadores de vehículo';
+    }
+    const criteria = search.criteria as import('../../../search/domain/person-search.models').PersonSearchFormValue;
     const parts = [
       criteria.nombres,
       criteria.apellidoPaterno,

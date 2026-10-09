@@ -136,7 +136,7 @@
             <div class="profile-content__scroll">
                 <section class="profile-header-card">
                     <div>
-                        <h1>Perfil consolidado</h1>
+                        <h1>{{ profileEntity() === 'Vehicle' ? (accepted() ? 'Perfil consolidado de vehículo' : 'Preconsolidación de vehículo') : 'Perfil consolidado' }}</h1>
                         <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                     </div>
 
@@ -376,7 +376,7 @@
                             <button type="button" class="accordion-card__button">
                                 <span>
                                     <i class="fa-regular fa-user"></i>
-                                    Datos personales
+                                    {{ selectedDataLabel() }}
                                 </span>
 
                                 <i class="fa-solid fa-chevron-up"></i>
@@ -385,7 +385,7 @@
                             @if (selectedPersonalFields().length === 0) {
                             <div class="accordion-card__empty">
                                 <i class="fa-solid fa-circle-info"></i>
-                                Sin datos personales seleccionados
+                                Sin datos seleccionados
                             </div>
                             } @else {
                             <div class="selected-fields-carousel">
@@ -611,7 +611,7 @@
                                 <i class="fa-solid fa-arrow-left"></i> Volver al grafo de origen
                             </button>
                             }
-                            <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
+                            <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId(), entityType: profileEntity() }"
                                 class="graph-button">
                                 <i class="fa-solid fa-share-nodes"></i>
                                 Visualizar grafo
@@ -665,7 +665,7 @@
                     <i class="fa-solid fa-arrow-left"></i> Volver al grafo de origen
                 </button>
                 }
-                <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
+                <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId(), entityType: profileEntity() }"
                     (click)="closeSaveSuccessModal()">
                     <i class="fa-solid fa-share-nodes"></i>
                     Visualizar grafo

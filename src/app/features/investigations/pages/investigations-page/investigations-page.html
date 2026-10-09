@@ -599,7 +599,7 @@
                 </div>
                 <p>{{ searchCriteriaSummary(search) }}</p>
                 <div class="linked-search-card__meta">
-                  <span><i class="fa-solid fa-users-viewfinder"></i>{{ search.totalResults }} resultados</span>
+                  <span><i class="fa-solid" [class.fa-car]="search.entity === 'vehiculo'" [class.fa-users-viewfinder]="search.entity !== 'vehiculo'"></i>{{ search.totalResults }} resultados</span>
                   <span><i class="fa-regular fa-clock"></i>{{ search.updatedAt | date:'dd/MM/yyyy HH:mm' }}</span>
                   @if (search.lineTitle) {
                   <span><i class="fa-solid fa-code-branch"></i>{{ search.lineTitle }}</span>

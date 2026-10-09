@@ -36,6 +36,8 @@ import {
   InvestigationWorkspaceService
 } from '../../../investigations/data-access/investigation-workspace.service';
 import { PersonSearchFormValue } from '../../domain/person-search.models';
+import { VehicleSearchFormValue } from '../../domain/vehicle-search.models';
+import { buildVehicleSearchRequest, normalizeVehicleSearch } from '../../domain/vehicle-search-request.mapper';
 import {
   buildPersonSearchRequest,
   hasSearchTerms
@@ -70,8 +72,10 @@ interface ResultTag {
 
 interface SearchResult {
   id: string;
-  entity: 'personas';
+  entity: 'personas' | 'vehiculo';
   name: string;
+  vin?: string;
+  placa?: string;
   alias?: string;
   curp?: string;
   rfc?: string;
@@ -118,7 +122,7 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
-  readonly selectedEntity = signal<SearchEntity>('personas');
+  readonly selectedEntity = signal<SearchEntity>(this.restoredPage?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo' : 'personas');
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
   readonly searchTipIndex = signal(0);
@@ -159,11 +163,7 @@ export class SearchPage implements OnInit, OnDestroy {
 
   readonly entityOptions: EntityOption[] = [
     { key: 'personas', label: 'Personas' },
-    {
-      key: 'vehiculo',
-      label: 'Vehículo',
-      disabled: true
-    },
+    { key: 'vehiculo', label: 'Vehículo' },
     {
       key: 'armas',
       label: 'Armas',
@@ -237,12 +237,8 @@ export class SearchPage implements OnInit, OnDestroy {
   });
 
   readonly vehicleForm = this.fb.nonNullable.group({
-    niv: [''],
-    placa: [''],
-    noMotor: [''],
-    marca: [''],
-    modelo: [''],
-    color: ['']
+    vin: [this.searchState.vehicleFormValue()?.vin ?? ''],
+    placa: [this.searchState.vehicleFormValue()?.placa ?? '']
   });
 
   readonly weaponForm = this.fb.nonNullable.group({
@@ -420,7 +416,7 @@ export class SearchPage implements OnInit, OnDestroy {
 
   clearSearch(): void {
     this.personForm.reset(this.emptyPersonFormValue());
-    this.vehicleForm.reset();
+    this.vehicleForm.reset({ vin: '', placa: '' });
     this.weaponForm.reset();
     this.searchState.clear();
     this.searchAttempted.set(false);
@@ -433,30 +429,30 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.selectedEntity() !== 'personas') {
-      this.errorMessage.set(
-        'La integración disponible corresponde al tipo de entidad Persona.'
-      );
-      this.searchPanelExpanded.set(true);
+    if (this.selectedEntity() === 'armas') {
+      this.errorMessage.set('La búsqueda de armas todavía no está habilitada.');
       return;
     }
 
+    const isVehicle = this.selectedEntity() === 'vehiculo';
     this.searchAttempted.set(true);
     this.errorMessage.set(null);
-    this.personForm.markAllAsTouched();
-
-    if (this.personForm.invalid) {
+    const activeForm = isVehicle ? this.vehicleForm : this.personForm;
+    activeForm.markAllAsTouched();
+    if (activeForm.invalid) {
       this.searchPanelExpanded.set(true);
       return;
     }
 
-    const formValue = this.normalizePersonForm();
-    const request = buildPersonSearchRequest(formValue);
+    const vehicleValue = isVehicle ? normalizeVehicleSearch(this.vehicleForm.getRawValue()) : null;
+    const formValue = isVehicle ? null : this.normalizePersonForm();
+    if (vehicleValue) this.vehicleForm.patchValue(vehicleValue, { emitEvent: false });
+    const request = vehicleValue ? buildVehicleSearchRequest(vehicleValue) : buildPersonSearchRequest(formValue!);
 
     if (!hasSearchTerms(request)) {
-      this.errorMessage.set(
-        'Captura al menos un nombre, apellido, fecha de nacimiento, celular, correo o identificador.'
-      );
+      this.errorMessage.set(isVehicle
+        ? 'Captura al menos el VIN/NIV o la placa del vehículo.'
+        : 'Captura al menos un nombre, apellido, fecha de nacimiento, celular, correo o identificador.');
       this.searchPanelExpanded.set(true);
       return;
     }
@@ -479,13 +475,13 @@ export class SearchPage implements OnInit, OnDestroy {
           this.applyPage(page);
           this.hasSearched.set(true);
           this.searchPanelExpanded.set((page.items?.length ?? 0) === 0);
-          this.searchState.saveSearch(
-            request,
-            page,
-            this.pageSize(),
-            formValue
-          );
-          this.investigationWorkspace.recordSuccessfulSearch(formValue, page);
+          if (vehicleValue) {
+            this.searchState.saveVehicleSearch(request, page, this.pageSize(), vehicleValue);
+            this.investigationWorkspace.recordSuccessfulSearch(vehicleValue, page, 'vehiculo');
+          } else {
+            this.searchState.saveSearch(request, page, this.pageSize(), formValue!);
+            this.investigationWorkspace.recordSuccessfulSearch(formValue!, page);
+          }
         },
         error: (error: unknown) => {
           this.hasSearched.set(false);
@@ -693,6 +689,16 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
+  uppercaseVehicleField(event: Event, field: string): void {
+    if (field !== 'vin' && field !== 'placa') return;
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    const normalized = input.value.replace(/\s+/g, '').toLocaleUpperCase('es-MX');
+    if (input.value !== normalized) input.value = normalized;
+    const control = this.vehicleForm.controls[field];
+    if (control.value !== normalized) control.setValue(normalized, { emitEvent: false });
+  }
+
   shouldShowContactError(): boolean {
     const control = this.personForm.controls.contacto;
     return control.invalid && (control.touched || this.searchAttempted());
@@ -730,7 +736,8 @@ export class SearchPage implements OnInit, OnDestroy {
     void this.router.navigate(['/perfil-consolidado'], {
       queryParams: {
         searchId: currentSearchId,
-        resultId: result.id
+        resultId: result.id,
+        entityType: result.entity === 'vehiculo' ? 'Vehicle' : 'Person'
       }
     });
   }
@@ -796,9 +803,15 @@ export class SearchPage implements OnInit, OnDestroy {
 
   private restoreLinkedSearch(search: InvestigationLinkedSearch): void {
     this.investigationWorkspace.resumeSearch(search);
-    this.selectedEntity.set('personas');
-    this.personForm.reset(this.emptyPersonFormValue());
-    this.personForm.patchValue(search.criteria);
+    const isVehicle = search.entity === 'vehiculo';
+    this.selectedEntity.set(isVehicle ? 'vehiculo' : 'personas');
+    if (isVehicle) {
+      this.vehicleForm.reset({ vin: '', placa: '' });
+      this.vehicleForm.patchValue(search.criteria as VehicleSearchFormValue);
+    } else {
+      this.personForm.reset(this.emptyPersonFormValue());
+      this.personForm.patchValue(search.criteria as PersonSearchFormValue);
+    }
     this.searchPanelExpanded.set(false);
     this.errorMessage.set(null);
 
@@ -815,12 +828,13 @@ export class SearchPage implements OnInit, OnDestroy {
         next: (page) => {
           this.applyPage(page);
           this.hasSearched.set(true);
-          this.searchState.saveSearch(
-            buildPersonSearchRequest(search.criteria),
-            page,
-            this.pageSize(),
-            search.criteria
-          );
+          if (isVehicle) {
+            const form = normalizeVehicleSearch(search.criteria as VehicleSearchFormValue);
+            this.searchState.saveVehicleSearch(buildVehicleSearchRequest(form), page, this.pageSize(), form);
+          } else {
+            const form = search.criteria as PersonSearchFormValue;
+            this.searchState.saveSearch(buildPersonSearchRequest(form), page, this.pageSize(), form);
+          }
         },
         error: () => {
           this.hasSearched.set(false);
@@ -886,6 +900,9 @@ export class SearchPage implements OnInit, OnDestroy {
 
   private applyPage(page: SearchResultsPageResponse): void {
     this.searchId.set(page.searchId);
+    // Algunas respuestas paginadas omiten entityType. En tal caso preservar la selección.
+    if (page.entityType?.toLowerCase() === 'vehicle') this.selectedEntity.set('vehiculo');
+    else if (page.entityType?.toLowerCase() === 'person') this.selectedEntity.set('personas');
     this.results.set(this.mapResults(page.items ?? []));
     this.totalResultsCount.set(page.counts.totalItems);
     this.currentPage.set(page.pagination.page);
@@ -896,16 +913,25 @@ export class SearchPage implements OnInit, OnDestroy {
     this.isPartialResult.set(page.execution.isPartial);
   }
 
+  private isVehicleResults(): boolean {
+    return this.selectedEntity() === 'vehiculo';
+  }
+
   private mapResults(items: SearchResultItemDto[]): SearchResult[] {
     const savedIds = this.searchState.savedResultIds();
 
-    return items.map((item) => ({
+    const vehicle = this.isVehicleResults();
+    return items.map((item, index) => ({
       id: item.resultId,
-      entity: 'personas',
-      name: item.card?.name?.value?.trim() || 'Sin nombre disponible',
-      alias: item.card?.alias?.value?.trim() || undefined,
-      curp: item.card?.curp?.value?.trim() || undefined,
-      rfc: item.card?.rfc?.value?.trim() || undefined,
+      entity: vehicle ? 'vehiculo' : 'personas',
+      name: vehicle
+        ? (readVehicleCardField(item.card, ['name', 'marca', 'make', 'modelo', 'model']) || `Vehículo · resultado ${index + 1}`)
+        : (item.card?.name?.value?.trim() || 'Sin nombre disponible'),
+      vin: vehicle ? readVehicleCardField(item.card, ['vin', 'niv', 'vehicleIdentificationNumber']) : undefined,
+      placa: vehicle ? readVehicleCardField(item.card, ['placa', 'plate', 'licensePlate', 'plateNumber']) : undefined,
+      alias: !vehicle ? item.card?.alias?.value?.trim() || undefined : undefined,
+      curp: !vehicle ? item.card?.curp?.value?.trim() || undefined : undefined,
+      rfc: !vehicle ? item.card?.rfc?.value?.trim() || undefined : undefined,
       tags: this.mapTags(item),
       saved: savedIds.has(item.resultId),
       status: item.status?.trim() || undefined,
@@ -1051,6 +1077,20 @@ export class SearchPage implements OnInit, OnDestroy {
 
     return null;
   }
+}
+
+/** La tarjeta del Swagger es orientada a Person. Si el motor entrega campos Vehicle extra,
+ * se muestran sin asumir que existen; el detalle siempre proviene del endpoint real. */
+function readVehicleCardField(card: SearchResultItemDto['card'] | null | undefined, codes: string[]): string | undefined {
+  if (!card) return undefined;
+  const record = card as unknown as Record<string, unknown>;
+  for (const code of codes) {
+    const entry = record[code];
+    const value = typeof entry === 'string' ? entry :
+      entry && typeof entry === 'object' ? (entry as { value?: unknown }).value : null;
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
 }
 
 function normalizeUppercaseSearchText(value: string): string {

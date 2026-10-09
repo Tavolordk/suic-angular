@@ -79,6 +79,15 @@ export class SearchResultDetailPage implements OnInit {
     void this.router.navigateByUrl('/login');
   }
 
+  linkGroupLabel(entityType: string | null | undefined, count: number): string {
+    const type = entityType?.trim() || '';
+    const normalized = type.replace(/[\s_-]+/g, '').toLowerCase();
+    if (normalized === 'investigationfile' || normalized === 'investigationfiles') {
+      return count === 1 ? 'Expediente de investigación' : 'Expedientes de investigación';
+    }
+    return type || 'Entidad relacionada';
+  }
+
   evidenceLabel(evidence: SearchResultEvidenceDto): string {
     return evidence.code?.trim() || 'Dato';
   }

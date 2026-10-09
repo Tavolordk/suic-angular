@@ -144,7 +144,7 @@
                 </span>
                 <div class="search-pivot-context__body">
                     <strong>Búsqueda a partir de un nodo</strong>
-                    <span>Persona de origen: {{ context.nodeTitle }}</span>
+                    <span>Nodo de origen: {{ context.nodeTitle }}</span>
                     <small>Estos perfiles se obtuvieron al explorar sus vínculos. Puedes abrir cualquier tarjeta para consultar su perfil consolidado.</small>
                 </div>
                 <button type="button" class="search-pivot-context__back" (click)="backToPivotGraph()">
@@ -303,12 +303,8 @@
 
                         <div class="search-form__grid" *ngSwitchCase="'vehiculo'">
                             <label class="search-field" *ngFor="let field of [
-                                { control: 'niv', label: 'NIV', placeholder: 'Ej. 1HGCM82633A004352' },
-                                { control: 'placa', label: 'PLACA', placeholder: 'Ej. ABC-123-A' },
-                                { control: 'noMotor', label: 'NÚMERO DE MOTOR', placeholder: 'Ej. MOTOR123456' },
-                                { control: 'marca', label: 'MARCA', placeholder: 'Ej. HONDA' },
-                                { control: 'modelo', label: 'MODELO', placeholder: 'Ej. CIVIC 2024' },
-                                { control: 'color', label: 'COLOR', placeholder: 'Ej. BLANCO' }
+                                { control: 'vin', label: 'VIN / NIV', placeholder: 'Ej. 1FMGGU0D75' },
+                                { control: 'placa', label: 'PLACA', placeholder: 'Ej. MJE519' }
                             ]">
                                 <span class="search-field__label">{{ field.label }}</span>
                                 <span class="search-field__control">
@@ -317,7 +313,8 @@
                                             <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
                                         </svg>
                                     </span>
-                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder" />
+                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder"
+                                        (input)="uppercaseVehicleField($event, field.control)" autocomplete="off" />
                                 </span>
                             </label>
                         </div>
@@ -338,7 +335,8 @@
                                             <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
                                         </svg>
                                     </span>
-                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder" />
+                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder"
+                                        />
                                 </span>
                             </label>
                         </div>
@@ -384,7 +382,7 @@
 
             <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
-                    <p>Consulta por CURP, RFC, nombre, fecha de nacimiento, celular o correo</p>
+                    <p>{{ selectedEntity() === 'vehiculo' ? 'Consulta por VIN/NIV, placa o ambos identificadores' : 'Consulta por CURP, RFC, nombre, fecha de nacimiento, celular o correo' }}</p>
                 </div>
 
                 <div class="search-empty-card">
@@ -394,7 +392,7 @@
 
             <section class="search-feedback" *ngIf="canShowNoResults()">
                 <strong>Sin coincidencias</strong>
-                <p>El servicio no devolvió perfiles para los criterios capturados.</p>
+                <p>El servicio no devolvió {{ selectedEntity() === 'vehiculo' ? 'vehículos' : 'personas' }} para los identificadores o criterios capturados.</p>
             </section>
 
             <section class="search-results" *ngIf="canShowResults()">
@@ -502,7 +500,7 @@
 
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
-                        [style.animation-delay.ms]="i * 35" title="Abrir detalle del perfil" tabindex="0"
+                        [style.animation-delay.ms]="i * 35" [title]="result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : 'Abrir detalle del perfil'" tabindex="0"
                         (click)="openResultDetail(result)" (keydown.enter)="openResultDetail(result)">
                         <div class="search-result-card__header">
                             <div class="search-result-card__tags" *ngIf="result.tags.length > 0">
@@ -559,6 +557,17 @@
                         </div>
 
                         <div class="search-result-card__data">
+                            <ng-container *ngIf="result.entity === 'vehiculo'; else personResultFields">
+                                <span class="search-result-card__label search-result-card__label--name"><i class="fa-solid fa-car" aria-hidden="true"></i> Vehículo:</span>
+                                <span class="search-result-card__value">{{ result.name }}</span>
+                                <span class="search-result-card__label">VIN / NIV:</span>
+                                <span class="search-result-card__value" [class.search-result-card__value--empty]="!result.vin">{{ result.vin || 'Consultar detalle' }}</span>
+                                <span class="search-result-card__label">Placa:</span>
+                                <span class="search-result-card__value" [class.search-result-card__value--empty]="!result.placa">{{ result.placa || 'Consultar detalle' }}</span>
+                                <span class="search-result-card__label">Fuentes:</span>
+                                <span class="search-result-card__value">{{ result.sources.length ? result.sources.join(', ') : 'Sin fuentes resumidas' }}</span>
+                            </ng-container>
+                            <ng-template #personResultFields>
                             <span class="search-result-card__label search-result-card__label--name">
                                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                     <path
@@ -599,6 +608,7 @@
                                 [class.search-result-card__value--empty]="!result.rfc">
                                 {{ result.rfc || '—' }}
                             </span>
+                            </ng-template>
                         </div>
                     </article>
                 </div>

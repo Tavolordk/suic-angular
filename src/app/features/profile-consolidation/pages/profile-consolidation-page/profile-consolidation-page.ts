@@ -144,6 +144,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.route.snapshot.queryParamMap.get('searchId')?.trim() ?? '';
   readonly resultId =
     this.route.snapshot.queryParamMap.get('resultId')?.trim() ?? '';
+  readonly routeEntityType = this.route.snapshot.queryParamMap.get('entityType')?.trim() || ''; 
 
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
@@ -168,6 +169,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
   readonly profileName = signal('Perfil sin nombre disponible');
   readonly profileSubtitle = signal('Perfil de persona');
+  readonly profileEntity = signal<'Person' | 'Vehicle'>('Person');
+  readonly selectedDataLabel = computed(() => this.profileEntity() === 'Vehicle' ? 'Datos del vehículo' : 'Datos personales');
   readonly profileStatus = signal('');
   readonly hasConflicts = signal(false);
   readonly relatedFileCount = signal(0);
@@ -440,13 +443,21 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (detail) => {
-          const viewModel = mapSearchResultDetail(detail);
+          // Algunas respuestas de detalle no incluyen entityType. Mantener el contexto
+          // de la tarjeta para rotular correctamente vehículos sin inventar evidencias.
+          const normalizedDetail = {
+            ...detail,
+            entityType: detail.entityType || this.routeEntityType ||
+              (this.searchState.page()?.searchId === this.searchId ? this.searchState.page()?.entityType : null)
+          };
+          const viewModel = mapSearchResultDetail(normalizedDetail);
 
           this.sources.set(viewModel.sources);
           this.selectedSourceId.set(viewModel.sources[0]?.id ?? '');
           this.links.set(viewModel.links);
           this.activeLinkGroupId.set(null);
           this.photos.set(viewModel.photos);
+          this.profileEntity.set(normalizedDetail.entityType?.toLowerCase() === 'vehicle' ? 'Vehicle' : 'Person');
           this.profileName.set(viewModel.profileName);
           this.profileSubtitle.set(viewModel.profileSubtitle);
           this.profileStatus.set(viewModel.status);
@@ -1045,6 +1056,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.photos.set([]);
     this.relatedFileCount.set(0);
     this.additionalObjectCount.set(0);
+    this.profileEntity.set('Person');
     this.profileName.set('Perfil sin nombre disponible');
     this.profileSubtitle.set('Perfil de persona');
     this.profileStatus.set('');

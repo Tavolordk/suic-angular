@@ -2,6 +2,7 @@ import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { SearchResultsPageResponse } from '../../../core/infrastructure/search-api/search-api.models';
 import { PersonSearchFormValue } from '../../search/domain/person-search.models';
+import { VehicleSearchFormValue } from '../../search/domain/vehicle-search.models';
 
 export interface InvestigationSearchContext {
   investigationId: string;
@@ -17,9 +18,9 @@ export interface InvestigationLinkedSearch {
   investigationId: string;
   investigationFolio: string;
   investigationName: string;
-  entity: 'personas';
+  entity: 'personas' | 'vehiculo';
   label: string;
-  criteria: PersonSearchFormValue;
+  criteria: PersonSearchFormValue | VehicleSearchFormValue;
   backendSearchId: string;
   totalResults: number;
   executionStatus: string;
@@ -78,7 +79,7 @@ export class InvestigationWorkspaceService {
     });
   }
 
-  recordSuccessfulSearch(formValue: PersonSearchFormValue, page: SearchResultsPageResponse): InvestigationLinkedSearch | null {
+  recordSuccessfulSearch(formValue: PersonSearchFormValue | VehicleSearchFormValue, page: SearchResultsPageResponse, entity: 'personas' | 'vehiculo' = 'personas'): InvestigationLinkedSearch | null {
     const context = this.activeContext();
     if (!context) {
       return null;
@@ -93,8 +94,8 @@ export class InvestigationWorkspaceService {
       investigationId: context.investigationId,
       investigationFolio: context.investigationFolio,
       investigationName: context.investigationName,
-      entity: 'personas',
-      label: this.buildLabel(formValue),
+      entity,
+      label: entity === 'vehiculo' ? this.buildVehicleLabel(formValue as VehicleSearchFormValue) : this.buildLabel(formValue as PersonSearchFormValue),
       criteria: { ...formValue },
       backendSearchId: page.searchId,
       totalResults: page.counts.totalItems,
@@ -125,6 +126,11 @@ export class InvestigationWorkspaceService {
       [investigationId]: (all[investigationId] ?? []).filter((item) => item.id !== searchId),
     }));
     this.persistSearches();
+  }
+
+  private buildVehicleLabel(value: VehicleSearchFormValue): string {
+    const entries = [value.vin && `VIN ${value.vin}`, value.placa && `Placa ${value.placa}`].filter(Boolean);
+    return entries.join(' · ') || 'Búsqueda de vehículo';
   }
 
   private buildLabel(value: PersonSearchFormValue): string {

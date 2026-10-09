@@ -184,10 +184,11 @@ export function mapSearchResultDetail(
     .map(mapLinkGroup)
     .filter((group) => group.count > 0 || group.items.length > 0);
   const photos = mapPhotos(evidence, sourceGroups);
-  const profileName = resolveProfileName(evidence);
-  const identifier = findFirstValue(evidence, IDENTIFIER_CODES);
+  const isVehicle = normalizeCode(detail.entityType || '') === 'VEHICLE';
+  const profileName = isVehicle ? resolveVehicleName(evidence) : resolveProfileName(evidence);
+  const identifier = findFirstValue(evidence, isVehicle ? ['VIN', 'NIV', 'PLACA', 'PLACAS', 'PLATE'] : IDENTIFIER_CODES);
   const entityLabel = humanizeEntityType(detail.entityType || 'Person');
-  const status = translateGeneralStatus(detail.status?.trim() || '');
+  const status = detail.status?.trim() ? translateGeneralStatus(detail.status.trim()) : '';
   const subtitleParts = [identifier, entityLabel, status].filter(Boolean);
   const relatedFileCount = sources.reduce(
     (total, source) => total + source.fields.filter((field) => field.isFile).length,
@@ -689,6 +690,14 @@ function mapPhotos(
     }));
 }
 
+function resolveVehicleName(evidence: SearchResultEvidenceDto[]): string {
+  const brand = findFirstValue(evidence, ['MARCA', 'MAKE']);
+  const model = findFirstValue(evidence, ['MODELO', 'MODEL']);
+  const plate = findFirstValue(evidence, ['PLACA', 'PLACAS', 'PLATE', 'LICENSEPLATE', 'PLATENUMBER']);
+  const vin = findFirstValue(evidence, ['VIN', 'NIV', 'VEHICLEIDENTIFICATIONNUMBER']);
+  return [brand, model].filter(Boolean).join(' ') || (plate ? `Vehículo · ${plate}` : vin ? `Vehículo · ${vin}` : 'Vehículo sin identificador disponible');
+}
+
 function resolveProfileName(evidence: SearchResultEvidenceDto[]): string {
   const completeName = findFirstValue(evidence, NAME_CODES);
   if (completeName) {
@@ -936,6 +945,12 @@ function resolveLinkKind(entityType: string): ProfileLinkKind {
 }
 
 function resolveLinkLabel(entityType: string, count: number): string {
+  // El contrato conserva entityType=InvestigationFile; solo se traduce su etiqueta visual.
+  const normalizedType = normalizeCode(entityType);
+  if (normalizedType === 'INVESTIGATIONFILE' || normalizedType === 'INVESTIGATIONFILES') {
+    return count === 1 ? 'Expediente de investigación' : 'Expedientes de investigación';
+  }
+
   const kind = resolveLinkKind(entityType);
   const singular = count === 1;
 

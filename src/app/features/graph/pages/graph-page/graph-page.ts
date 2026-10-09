@@ -155,6 +155,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private aiPanelDragStartX = 0;
   private aiPanelDragStartY = 0;
 
+  readonly rootTypeHint: GraphNodeType | undefined =
+    this.route.snapshot.queryParamMap.get('entityType')?.toLowerCase() === 'vehicle' ? 'vehicle' : undefined;
+
   readonly profileId =
     this.route.snapshot.queryParamMap.get('profileId')?.trim() ||
     this.route.snapshot.queryParamMap.get('investigationId')?.trim() ||
@@ -441,7 +444,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.consolidatedProfilesApi.getProfile(this.profileId).subscribe({
       next: (profile) => {
-        const graph = mapProfileToGraph(profile);
+        const graph = mapProfileToGraph(profile, [], undefined, this.rootTypeHint);
         const fallbackSnapshot = this.profileIntelligence.analyze(profile);
         this.loadedProfile.set(profile);
         this.nodes.set(graph.nodes);
@@ -530,7 +533,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     const start = pageIndex * this.relationshipPageSize;
     const pageRelations = catalog.slice(start, start + this.relationshipPageSize);
-    const graph = mapProfileToGraph(profile, pageRelations, this.relationshipTotals());
+    const graph = mapProfileToGraph(profile, pageRelations, this.relationshipTotals(), this.rootTypeHint);
 
     const expandedGraph = this.appendPivotBranches(graph);
     this.nodes.set(expandedGraph.nodes);
@@ -1709,13 +1712,15 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 function mapProfileToGraph(
   profile: ConsolidatedProfileResponse,
   relationItems: GraphRelationEntry[] = [],
-  reportedCounts?: GraphNodeLinks
+  reportedCounts?: GraphNodeLinks,
+  rootTypeHint?: GraphNodeType
 ): {
   nodes: GraphNode[];
   links: GraphLink[];
 } {
   const positions = createRelatedPositions(relationItems.length);
-  const profileTitle = resolveProfileTitle(profile);
+  const rootType = rootTypeHint ?? resolveConsolidatedRootType(profile);
+  const profileTitle = resolveProfileTitle(profile, rootType);
   const rootDetails = (profile.data ?? [])
     .filter((datum) => datum.value?.trim())
     .map((datum) => ({
@@ -1743,10 +1748,10 @@ function mapProfileToGraph(
   const nodes: GraphNode[] = [
     {
       id: profile.profileId,
-      type: 'person',
+      type: rootType,
       title: profileTitle,
       subtitle:
-        findDataValue(profile, ['CURP', 'RFC', 'CUIP']) || `Versión ${profile.versionNumber}`,
+        findDataValue(profile, rootType === 'vehicle' ? ['VIN', 'NIV', 'PLACA', 'PLACAS'] : ['CURP', 'RFC', 'CUIP']) || `Versión ${profile.versionNumber}`,
       x: ROOT_X,
       y: ROOT_Y,
       radius: 35,
@@ -2041,7 +2046,24 @@ function formatAddressLabel(address: ConsolidatedProfileAddressDto): string {
     .join(', ') || 'Dirección consolidada';
 }
 
-function resolveProfileTitle(profile: ConsolidatedProfileResponse): string {
+/** ConsolidatedProfileResponse no declara entityType: inferir solo por evidencias
+ * de identidad del perfil, no por la presencia de vínculos con vehículos. */
+function resolveConsolidatedRootType(profile: ConsolidatedProfileResponse): GraphNodeType {
+  const version = normalizeCode(profile.contractVersion ?? '');
+  if (version.includes('VEHICLE')) return 'vehicle';
+  if (version.includes('PERSON')) return 'person';
+  if (findDataValue(profile, ['CURP', 'RFC', 'CUIP'])) return 'person';
+  if (findDataValue(profile, ['VIN', 'NIV', 'PLACA', 'PLACAS', 'LICENSEPLATE'])) return 'vehicle';
+  return 'person'; // Tipo no confirmado por el contrato; compatibilidad existente.
+}
+
+function resolveProfileTitle(profile: ConsolidatedProfileResponse, rootType = resolveConsolidatedRootType(profile)): string {
+  if (rootType === 'vehicle') {
+    const brand = findDataValue(profile, ['MARCA', 'MAKE']);
+    const model = findDataValue(profile, ['MODELO', 'MODEL']);
+    return [brand, model].filter(Boolean).join(' ') || findDataValue(profile, ['PLACA', 'VIN', 'NIV']) || `Vehículo ${profile.profileId.slice(0, 8)}`;
+  }
+
   const directName = findDataValue(profile, ['NOMBRECOMPLETO', 'FULLNAME']);
   if (directName) {
     return directName;
@@ -2057,7 +2079,11 @@ function resolveProfileTitle(profile: ConsolidatedProfileResponse): string {
 function findDataValue(profile: ConsolidatedProfileResponse, codes: string[]): string {
   const wanted = new Set(codes.map(normalizeCode));
   return (
-    (profile.data ?? []).find((datum) => wanted.has(normalizeCode(datum.code ?? '')))?.value?.trim() ??
+    (profile.data ?? []).find((datum) => {
+      const path = (datum.code ?? '').replace(/\[[\"']?([^\]\"']+)[\"']?\]/g, '.$1');
+      const leaf = path.split(/[./\\:]+/).filter(Boolean).at(-1) ?? '';
+      return wanted.has(normalizeCode(leaf));
+    })?.value?.trim() ??
     ''
   );
 }
