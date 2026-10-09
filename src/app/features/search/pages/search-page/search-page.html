@@ -137,6 +137,22 @@
                 </div>
             </section>
             }
+            @if (pivotContext(); as context) {
+            <section class="search-pivot-context" aria-label="Resultados de búsqueda por pivoteo">
+                <span class="search-pivot-context__icon" aria-hidden="true">
+                    <i class="fa-solid fa-code-branch"></i>
+                </span>
+                <div class="search-pivot-context__body">
+                    <strong>Búsqueda a partir de un nodo</strong>
+                    <span>Persona de origen: {{ context.nodeTitle }}</span>
+                    <small>Estos perfiles se obtuvieron al explorar sus vínculos. Puedes abrir cualquier tarjeta para consultar su perfil consolidado.</small>
+                </div>
+                <button type="button" class="search-pivot-context__back" (click)="backToPivotGraph()">
+                    <i class="fa-solid fa-arrow-left"></i> Volver al grafo
+                </button>
+            </section>
+            }
+
             <section class="search-title-card">
                 <div>
                     <h1>Búsqueda</h1>

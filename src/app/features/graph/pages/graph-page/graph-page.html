@@ -122,6 +122,23 @@
                     }
                 </div>
 
+                @if (selectedPivotLink()) {
+                <section class="graph-pivot" aria-label="Buscar desde la persona seleccionada">
+                    <button type="button" class="graph-pivot__button" [disabled]="pivotLoading()"
+                        (click)="pivotSelectedNode()">
+                        <i class="fa-solid" [class.fa-spinner]="pivotLoading()"
+                            [class.fa-spin]="pivotLoading()" [class.fa-magnifying-glass]="!pivotLoading()"></i>
+                        {{ pivotLoading() ? 'Buscando personas relacionadas...' : 'Buscar a partir de este nodo' }}
+                    </button>
+                    <small>Busca perfiles de esta persona vinculada y muestra los resultados en tarjetas. No modifica el grafo actual.</small>
+                    @if (pivotError()) {
+                    <p class="graph-pivot__message graph-pivot__message--error" role="alert">
+                        <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
+                    </p>
+                    }
+                </section>
+                }
+
                 @if (selectedLink(); as link) {
                 <section class="graph-relationship-detail" [style.border-color]="getNodeColor(link.type)">
                     <header class="graph-relationship-detail__header">
@@ -168,29 +185,10 @@
                     </footer>
                     }
 
-                    <div class="graph-pivot">
-                        <button type="button" class="graph-pivot__button" [disabled]="pivotLoading()"
-                            (click)="pivotSelectedLink()">
-                            <i class="fa-solid" [class.fa-spinner]="pivotLoading()"
-                                [class.fa-spin]="pivotLoading()" [class.fa-code-branch]="!pivotLoading()"></i>
-                            {{ pivotLoading() ? 'Consultando relación...' : 'Expandir desde este vínculo' }}
-                        </button>
-                        <small>Consulta el pivoteo del vínculo y agrega únicamente las relaciones devueltas, sin cargar la red completa.</small>
-                        @if (pivotMessage()) {
-                        <p class="graph-pivot__message graph-pivot__message--success">
-                            <i class="fa-solid fa-circle-check"></i>{{ pivotMessage() }}
-                        </p>
-                        }
-                        @if (pivotError()) {
-                        <p class="graph-pivot__message graph-pivot__message--error">
-                            <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
-                        </p>
-                        }
-                    </div>
                 </section>
                 }
 
-                @if (selectedNode().type === 'person' && addresses().length > 0) {
+                @if (selectedNode().id === rootNode().id && addresses().length > 0) {
                 <section class="graph-addresses">
                     <header class="graph-addresses__header">
                         <div>
@@ -624,6 +622,39 @@
                 </button>
             </section>
         </main>
+
+        @if (pivotNoResults(); as notice) {
+        <div class="graph-pivot-empty-overlay" (click)="dismissPivotNoResults()">
+            <section class="graph-pivot-empty" role="dialog" aria-modal="true"
+                aria-labelledby="graph-pivot-empty-title" aria-describedby="graph-pivot-empty-description"
+                (click)="$event.stopPropagation()">
+                <button type="button" class="graph-pivot-empty__close" aria-label="Cerrar aviso"
+                    (click)="dismissPivotNoResults()">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+                <span class="graph-pivot-empty__icon" aria-hidden="true">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <h2 id="graph-pivot-empty-title">Sin resultados</h2>
+                <p id="graph-pivot-empty-description">
+                    No se encontraron perfiles relacionados con este nodo en las fuentes consultadas.
+                </p>
+                <div class="graph-pivot-empty__node">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    <span>{{ notice.nodeTitle }}</span>
+                </div>
+                @if (notice.isPartial) {
+                <p class="graph-pivot-empty__partial">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    La consulta tuvo disponibilidad limitada de fuentes; podrían existir datos no consultados.
+                </p>
+                }
+                <button type="button" class="graph-pivot-empty__action" (click)="dismissPivotNoResults()">
+                    Continuar en el grafo
+                </button>
+            </section>
+        </div>
+        }
 
         @if (aiPanelOpen()) {
         <aside #aiPanel class="graph-ai"

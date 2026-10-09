@@ -1920,3 +1920,55 @@
     flex-wrap: wrap;
   }
 }
+
+/* Búsqueda derivada de un nodo de persona del grafo. */
+.search-pivot-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(33, 103, 132, .22);
+  border-radius: 12px;
+  background: #f0f8fc;
+  color: #203b4a;
+}
+.search-pivot-context__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #d8eef9;
+  color: #17618a;
+}
+.search-pivot-context__body {
+  display: flex;
+  flex: 1 1 270px;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.search-pivot-context__body strong { font-size: 13px; }
+.search-pivot-context__body span { font-size: 12px; }
+.search-pivot-context__body small { font-size: 11px; color: #566c77; line-height: 1.45; }
+.search-pivot-context__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid rgba(33, 103, 132, .3);
+  border-radius: 9px;
+  background: #fff;
+  color: #175374;
+  font-weight: 700;
+  cursor: pointer;
+}
+.search-pivot-context__back:hover { background: #e8f5fc; }
+@media (max-width: 640px) {
+  .search-pivot-context__back { width: 100%; }
+}

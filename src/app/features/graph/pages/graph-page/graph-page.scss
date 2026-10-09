@@ -2744,15 +2744,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 11px;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 12px;
   border: 1px solid rgba(73, 182, 255, 0.28);
   border-radius: 10px;
   background: rgba(73, 182, 255, 0.09);
   color: #a7ddfb;
-  font-size: 9px;
-  font-weight: 900;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 800;
   cursor: pointer;
 }
 
@@ -2825,4 +2826,138 @@
   .graph-floating-card--pending {
     top: 208px;
   }
+}
+
+
+/* Pivoteo sin coincidencias: aviso modal sin abandonar ni reiniciar el grafo. */
+.graph-pivot-empty-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 10, 21, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.graph-pivot-empty {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 29px 26px 24px;
+  border: 1px solid rgba(153, 168, 190, 0.24);
+  border-radius: 18px;
+  background: #142238;
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.5);
+  color: #f0f6fe;
+  text-align: center;
+}
+
+.graph-pivot-empty__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(153, 168, 190, 0.2);
+  border-radius: 9px;
+  background: rgba(153, 168, 190, 0.06);
+  color: #aab9cb;
+  font-size: 13px;
+}
+
+.graph-pivot-empty__close:hover {
+  background: rgba(153, 168, 190, 0.15);
+  color: white;
+}
+
+.graph-pivot-empty__icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border: 1px solid rgba(73, 182, 255, 0.28);
+  border-radius: 50%;
+  background: rgba(73, 182, 255, 0.1);
+  color: #8bd4ff;
+  font-size: 24px;
+}
+
+.graph-pivot-empty h2 {
+  margin: 0;
+  color: #f4f8ff;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.graph-pivot-empty > p {
+  margin: 10px 0 0;
+  color: #b8c7d8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.graph-pivot-empty__node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  margin-top: 17px;
+  padding: 10px 12px;
+  border: 1px solid rgba(153, 168, 190, 0.15);
+  border-radius: 9px;
+  background: rgba(153, 168, 190, 0.05);
+  color: #d4e4f7;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.graph-pivot-empty__node i { color: #8bd4ff; }
+
+.graph-pivot-empty > .graph-pivot-empty__partial {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 9px;
+  background: rgba(252, 176, 37, 0.08);
+  color: #edc788;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.graph-pivot-empty__partial i { margin-top: 2px; }
+
+.graph-pivot-empty__action {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 22px;
+  padding: 10px 14px;
+  border: 1px solid rgba(73, 182, 255, 0.4);
+  border-radius: 9px;
+  background: #2479ad;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.graph-pivot-empty__action:hover { background: #2f8ac2; }
+
+.graph-pivot-empty__action:focus-visible,
+.graph-pivot-empty__close:focus-visible {
+  outline: 2px solid #a7ddfb;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .graph-pivot-empty-overlay { padding: 12px; }
+  .graph-pivot-empty { max-height: calc(100dvh - 24px); padding: 28px 18px 20px; }
 }

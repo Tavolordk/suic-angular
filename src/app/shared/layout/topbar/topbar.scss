@@ -130,8 +130,10 @@
 }
 
 .topbar__profile-button svg {
+  display: block;
   width: 24px;
   height: 24px;
+  overflow: visible;
 }
 
 .topbar__profile-menu {
@@ -172,8 +174,10 @@
 }
 
 .topbar__profile-avatar svg {
+  display: block;
   width: 20px;
   height: 20px;
+  overflow: visible;
 }
 
 .topbar__profile-user strong,

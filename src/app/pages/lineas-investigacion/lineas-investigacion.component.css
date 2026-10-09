@@ -187,6 +187,22 @@
     transform 0.18s ease;
 }
 
+
+.investigation-sidebar__button > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.investigation-sidebar__button > i::before {
+  display: block;
+  line-height: 1;
+}
+
 .investigation-sidebar__button:hover {
   background: rgba(255, 255, 255, 0.52);
 }

@@ -113,6 +113,7 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly accountNumber = this.authService.accountNumber;
   readonly primaryProfile = this.authService.primaryProfile;
   readonly investigationContext = this.investigationWorkspace.activeContext;
+  readonly pivotContext = this.searchState.pivotContext;
 
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
@@ -461,6 +462,7 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     this.profileOpen.set(false);
+    this.searchState.clearPivotContext();
     this.linkFilter.set('all');
     this.errorMessage.set(null);
     this.hasSearched.set(false);
@@ -704,6 +706,16 @@ export class SearchPage implements OnInit, OnDestroy {
         item.id === result.id ? { ...item, saved: !item.saved } : item
       )
     );
+  }
+
+  backToPivotGraph(): void {
+    const context = this.pivotContext();
+    if (!context?.graphProfileId) {
+      return;
+    }
+    void this.router.navigate(['/grafo'], {
+      queryParams: { profileId: context.graphProfileId, pivotLinkId: context.parentLinkId }
+    });
   }
 
   openResultDetail(result: SearchResult): void {

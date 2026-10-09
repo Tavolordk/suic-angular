@@ -5,7 +5,7 @@ import { SEARCH_API_BASE_URL } from './search-api.config';
 import {
   ApiResponse,
   SearchRequest,
-  SearchPivotResponse,
+  PivotRequest,
   SearchResultDetailResponse,
   SearchResultsPageResponse
 } from './search-api.models';
@@ -62,19 +62,30 @@ export class SearchApiService {
       .pipe(map((response) => this.unwrap(response, 'No fue posible cargar el perfil.')));
   }
 
-  /** POST /api/search/{searchId}/results/{resultId}/links/{linkId}/pivot - Bearer global. */
+  /** POST /api/search/{searchId}/results/{resultId}/links/{linkId}/pivot?pageSize=18. */
   pivotLink(
     searchId: string,
     resultId: string,
-    linkId: string
-  ): Observable<SearchPivotResponse> {
+    linkId: string,
+    pageSize = 18
+  ): Observable<SearchResultsPageResponse> {
+    const body: PivotRequest = {
+      options: {
+        includeTrace: true,
+        includeContextualCandidates: true
+      }
+    };
+
     return this.http
-      .post<ApiResponse<SearchPivotResponse>>(
+      .post<ApiResponse<SearchResultsPageResponse>>(
         `${this.apiBaseUrl}/search/${encodeURIComponent(searchId)}/results/${encodeURIComponent(resultId)}/links/${encodeURIComponent(linkId)}/pivot`,
-        {},
-        { headers: this.createHeaders() }
+        body,
+        {
+          headers: this.createHeaders(),
+          params: { pageSize }
+        }
       )
-      .pipe(map((response) => this.unwrap(response, 'No fue posible pivotear el vínculo seleccionado.')));
+      .pipe(map((response) => this.unwrap(response, 'No fue posible buscar a partir de esta persona.')));
   }
 
   private createHeaders(): HttpHeaders {

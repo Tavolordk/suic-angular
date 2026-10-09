@@ -5,6 +5,15 @@ import {
 } from '../../../core/infrastructure/search-api/search-api.models';
 import { PersonSearchFormValue } from '../domain/person-search.models';
 
+/** Contexto para volver del listado derivado al nodo de origen. */
+export interface PivotSearchContext {
+  graphProfileId: string;
+  nodeTitle: string;
+  parentSearchId: string;
+  parentResultId: string;
+  parentLinkId: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SearchStateService {
   readonly request = signal<SearchRequest | null>(null);
@@ -12,6 +21,7 @@ export class SearchStateService {
   readonly pageSize = signal<10 | 18>(10);
   readonly formValue = signal<PersonSearchFormValue | null>(null);
   readonly savedResultIds = signal<ReadonlySet<string>>(new Set<string>());
+  readonly pivotContext = signal<PivotSearchContext | null>(null);
 
   saveSearch(
     request: SearchRequest,
@@ -23,6 +33,20 @@ export class SearchStateService {
     this.page.set(page);
     this.pageSize.set(pageSize);
     this.formValue.set(formValue);
+    this.pivotContext.set(null);
+  }
+
+  /** El pivoteo produce una búsqueda nueva, no criterios capturados en el formulario. */
+  savePivotResults(page: SearchResultsPageResponse, context: PivotSearchContext): void {
+    this.request.set(null);
+    this.formValue.set(null);
+    this.page.set(page);
+    this.pageSize.set(18);
+    this.pivotContext.set(context);
+  }
+
+  clearPivotContext(): void {
+    this.pivotContext.set(null);
   }
 
   updatePage(page: SearchResultsPageResponse, pageSize: 10 | 18): void {
@@ -44,5 +68,6 @@ export class SearchStateService {
     this.request.set(null);
     this.page.set(null);
     this.formValue.set(null);
+    this.pivotContext.set(null);
   }
 }

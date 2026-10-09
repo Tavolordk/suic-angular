@@ -266,6 +266,31 @@
   font-size: 19px;
 }
 
+
+/* Keep Font Awesome glyphs optically centered inside the circular/square controls used by the demo views. */
+.investigations-sidebar__button > i,
+.investigations-profile__button > i,
+.investigation-metric > i,
+.investigations-empty__icon > i,
+.directory-icon-button > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.directory-icon-button > i::before,
+.investigations-sidebar__button > i::before,
+.investigations-profile__button > i::before,
+.investigation-metric > i::before,
+.investigations-empty__icon > i::before {
+  display: block;
+  line-height: 1;
+}
+
 .investigations-sidebar__button--active {
   color: #fff;
   background: var(--deep);
