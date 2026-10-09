@@ -2961,3 +2961,32 @@
   .graph-pivot-empty-overlay { padding: 12px; }
   .graph-pivot-empty { max-height: calc(100dvh - 24px); padding: 28px 18px 20px; }
 }
+
+
+/* Pivoted and consolidated records: visually distinct from regular person links. */
+.graph-node__consolidated-ring { pointer-events: none; filter: drop-shadow(0 0 4px rgba(52,211,153,.6)); }
+.legend-dot--consolidated { background: #047857; border: 2px solid #6ee7b7; }
+.graph-pivot__consolidated {
+  margin-top: 12px; padding: 10px; border: 1px solid rgba(52,211,153,.35);
+  background: rgba(4,120,87,.10); border-radius: 10px; min-width: 0;
+}
+.graph-pivot__consolidated > p {
+  margin: 0 0 8px; color: #8bedc7; font-size: 11px;
+  font-weight: 750; display: flex; align-items: center; gap: 6px;
+}
+.graph-pivot__profile {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 0; border-top: 1px solid rgba(52,211,153,.13);
+}
+.graph-pivot__profile span { color: #badaca; font-size: 10px; margin-right: auto; }
+.graph-pivot__profile button {
+  padding: 7px 9px; border: 1px solid rgba(52,211,153,.3); background: rgba(52,211,153,.12);
+  color: #b2f5d5; border-radius: 7px; font-size: 10px; font-weight: 650; cursor: pointer;
+}
+.graph-pivot__profile button:hover:not(:disabled) { background: rgba(52,211,153,.22); }
+.graph-pivot__profile button:disabled { opacity: .55; cursor: wait; }
+.graph-pivot__profile button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
+@media(max-width: 700px) { .graph-pivot__profile { align-items: stretch; } }
+
+.graph-edge-group--pivot-branch .graph-edge { stroke: #47bfa8; stroke-dasharray: 6 5; }
+.graph-node--pivot-branch .graph-node__circle { stroke: #64dec6; stroke-width: 1.7; }

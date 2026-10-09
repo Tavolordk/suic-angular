@@ -82,9 +82,9 @@
             </header>
 
             <section class="graph-detail__body">
-                <div class="graph-detail__type" [style.background]="getNodeDetailBackground(selectedNode().type)"
-                    [style.border]="getNodeDetailBorder(selectedNode().type)"
-                    [style.color]="getNodeColor(selectedNode().type)">
+                <div class="graph-detail__type" [style.background]="isPivotNodeConsolidated(selectedNode()) ? 'rgba(52,211,153,.12)' : getNodeDetailBackground(selectedNode().type)"
+                    [style.border]="isPivotNodeConsolidated(selectedNode()) ? '1.5px solid rgba(52,211,153,.42)' : getNodeDetailBorder(selectedNode().type)"
+                    [style.color]="isPivotNodeConsolidated(selectedNode()) ? '#6ee7b7' : getNodeColor(selectedNode().type)">
                     @switch (selectedNode().type) {
                     @case ('person') {
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -131,6 +131,26 @@
                         {{ pivotLoading() ? 'Buscando personas relacionadas...' : 'Buscar a partir de este nodo' }}
                     </button>
                     <small>Busca perfiles de esta persona vinculada y muestra los resultados en tarjetas. No modifica el grafo actual.</small>
+                    @if (selectedConsolidations().length) {
+                    <div class="graph-pivot__consolidated" aria-label="Perfiles consolidados vinculados">
+                        <p><i class="fa-solid fa-circle-check"></i> Perfil consolidado — {{ selectedConsolidations().length }} {{ selectedConsolidations().length === 1 ? 'registro' : 'registros' }}</p>
+                        @for (record of selectedConsolidations(); track record.profileId) {
+                        <div class="graph-pivot__profile">
+                            <span title="Perfil consolidado">{{ record.profileId.slice(0, 8) }}…</span>
+                            <button type="button" [disabled]="!!expandingPivotProfileId()" (click)="expandPivotProfile(record)">
+                                <i class="fa-solid" [class.fa-spinner]="expandingPivotProfileId() === record.profileId"
+                                    [class.fa-spin]="expandingPivotProfileId() === record.profileId"
+                                    [class.fa-circle-nodes]="expandingPivotProfileId() !== record.profileId"></i>
+                                {{ isPivotProfileExpanded(record.profileId) ? 'Contraer rama' : 'Expandir relaciones' }}
+                            </button>
+                            <button type="button" (click)="openPivotProfileGraph(record.profileId)" title="Abrir el grafo de este perfil">Ver grafo</button>
+                        </div>
+                        }
+                    </div>
+                    }
+                    @if (pivotExpansionError()) {
+                    <p class="graph-pivot__message graph-pivot__message--error" role="alert">{{ pivotExpansionError() }}</p>
+                    }
                     @if (pivotError()) {
                     <p class="graph-pivot__message graph-pivot__message--error" role="alert">
                         <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
@@ -479,6 +499,7 @@
 
                     @for (link of visibleLinks(); track link.id; let linkIndex = $index) {
                     <g class="graph-edge-group" [class.graph-edge-group--selected]="isLinkSelected(link)"
+                        [class.graph-edge-group--pivot-branch]="!!link.branchProfileId"
                         (pointerdown)="$event.stopPropagation()" (click)="selectLink(link.id, $event)">
                         <line [attr.x1]="getNodeById(link.sourceId).x" [attr.y1]="getNodeById(link.sourceId).y"
                             [attr.x2]="getNodeById(link.targetId).x" [attr.y2]="getNodeById(link.targetId).y"
@@ -509,6 +530,7 @@
 
                     @for (node of visibleNodes(); track node.id) {
                     <g class="graph-node" [class.graph-node--selected]="isSelected(node)"
+                        [class.graph-node--pivot-branch]="!!node.branchProfileId"
                         [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
                         [attr.opacity]="getNodeOpacity(node)"
                         [style.--intro-node-delay]="introMode() === 'individual' ? getIntroNodeDelay(node) + 'ms' : null"
@@ -522,19 +544,27 @@
                         <circle class="graph-node__hit-area" [attr.r]="node.radius + 12"></circle>
                         @if (isSelected(node)) {
                         <circle class="graph-node__pulse" [attr.r]="node.radius + 4" fill="none"
-                            [attr.stroke]="getNodeColor(node.type)"></circle>
+                            [attr.stroke]="isPivotNodeConsolidated(node) ? '#34d399' : getNodeColor(node.type)"></circle>
 
                         <circle [attr.r]="node.radius + 8" fill="none" stroke="white" stroke-width="1.5"
                             stroke-dasharray="4 3" opacity="0.4"></circle>
                         }
 
-                        <circle [attr.r]="node.radius + 6" [attr.fill]="getGlowColor(node.type)"
+                        @if (isPivotNodeConsolidated(node)) {
+                        <circle [attr.r]="node.radius + 8" fill="none" stroke="#34d399" stroke-width="3"
+                            class="graph-node__consolidated-ring"></circle>
+                        <circle [attr.cx]="node.radius - 1" [attr.cy]="-node.radius + 1" r="10"
+                            fill="#059669" stroke="white" stroke-width="1.5"></circle>
+                        <path [attr.d]="'M ' + (node.radius - 6) + ' ' + (-node.radius + 1) + ' l 4 4 l 7 -9'"
+                            stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                        }
+                        <circle [attr.r]="node.radius + 6" [attr.fill]="isPivotNodeConsolidated(node) ? 'rgba(52,211,153,.28)' : getGlowColor(node.type)"
                             class="graph-node__glow"></circle>
 
-                        <circle [attr.r]="node.radius" [attr.fill]="getNodeColor(node.type)"
+                        <circle [attr.r]="node.radius" [attr.fill]="isPivotNodeConsolidated(node) ? '#047857' : getNodeColor(node.type)"
                             [attr.stroke]="isSelected(node) ? 'white' : 'rgba(255,255,255,0.32)'"
                             [attr.stroke-width]="isSelected(node) ? 2 : 1"
-                            [attr.stroke-dasharray]="isSelected(node) ? null : '5 3'" class="graph-node__circle">
+                            [attr.stroke-dasharray]="isPivotNodeConsolidated(node) ? null : (isSelected(node) ? null : '5 3')" class="graph-node__circle">
                         </circle>
 
                         @switch (node.type) {
@@ -590,6 +620,11 @@
                 <div>
                     <span class="legend-dot legend-dot--person"></span>
                     Perfil
+                </div>
+
+                <div>
+                    <span class="legend-dot legend-dot--consolidated"></span>
+                    Persona consolidada por pivoteo
                 </div>
 
                 <div>

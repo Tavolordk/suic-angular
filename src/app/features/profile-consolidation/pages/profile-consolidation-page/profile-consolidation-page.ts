@@ -14,6 +14,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { SearchStateService } from '../../../search/data-access/search-state.service';
+import { PivotConsolidationRegistryService } from '../../../graph/data-access/pivot-consolidation-registry.service';
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
 import { ConsolidateProfileRequest } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
@@ -130,6 +132,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
+  private readonly searchState = inject(SearchStateService);
+  private readonly pivotRegistry = inject(PivotConsolidationRegistryService);
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
   private readonly searchQuickPanel = inject(SearchQuickPanelService);
@@ -152,6 +156,11 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly saveSuccessMessage = signal<string | null>(null);
   readonly accepted = signal(false);
   readonly consolidatedProfileId = signal('');
+  readonly originGraphProfileId = computed(() => {
+    const context = this.searchState.pivotContext();
+    return context && this.searchId === this.searchState.page()?.searchId ? context.graphProfileId : null;
+  });
+  readonly originGraphLinkId = computed(() => this.searchState.pivotContext()?.parentLinkId ?? null);
   readonly selectedSourceId = signal('');
   readonly sources = signal<ProfileSourceViewModel[]>([]);
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
@@ -841,6 +850,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       .subscribe({
         next: ({ profile, message }) => {
           this.consolidatedProfileId.set(profile.profileId);
+          if (this.searchState.page()?.searchId === this.searchId) {
+            this.pivotRegistry.recordConsolidation(this.searchState.pivotContext(), this.searchId, this.resultId, profile);
+          }
           this.accepted.set(true);
           this.saveSuccessMessage.set(message);
         },
@@ -870,6 +882,14 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set(null);
     this.authService.logout();
     void this.router.navigateByUrl('/login');
+  }
+
+  backToOriginalPivotGraph(): void {
+    const profileId = this.originGraphProfileId();
+    if (!profileId) return;
+    void this.router.navigate(['/grafo'], {
+      queryParams: { profileId, pivotLinkId: this.originGraphLinkId() }
+    });
   }
 
   goToResults(): void {

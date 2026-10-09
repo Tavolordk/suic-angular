@@ -12,7 +12,7 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, Subscription, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, map, of, Subscription, switchMap, throwError } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import {
   IntelligenceChatHistoryMessage,
@@ -27,6 +27,7 @@ import {
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../../search/data-access/search-state.service';
+import { PivotConsolidationRecord, PivotConsolidationRegistryService } from '../../data-access/pivot-consolidation-registry.service';
 import {
   SearchResultDetailResponse,
   SearchResultLinkItemDto
@@ -60,6 +61,8 @@ interface GraphNode {
   radius: number;
   details: GraphNodeDetail[];
   links: GraphNodeLinks;
+  /** Identifies secondary nodes loaded from a pivoted consolidated profile. */
+  branchProfileId?: string;
 }
 
 interface GraphLink {
@@ -74,11 +77,18 @@ interface GraphLink {
   sourceNames: string[];
   searchId?: string;
   resultId?: string;
+  branchProfileId?: string;
 }
 
 interface GraphFilter {
   type: GraphNodeType;
   label: string;
+}
+
+interface ExpandedPivotBranch {
+  record: PivotConsolidationRecord;
+  profile: ConsolidatedProfileResponse;
+  relations: GraphRelationEntry[];
 }
 
 interface GraphRelationEntry {
@@ -113,6 +123,7 @@ const ROOT_X = 620;
 const ROOT_Y = 320;
 const ADDRESSES_PER_PAGE = 3;
 const RELATIONSHIPS_PER_PAGE = 100;
+const BRANCH_RELATIONSHIP_LIMIT = 12;
 
 @Component({
   selector: 'app-graph-page',
@@ -127,6 +138,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
   private readonly searchApi = inject(SearchApiService);
   private readonly searchState = inject(SearchStateService);
+  private readonly pivotRegistry = inject(PivotConsolidationRegistryService);
   private readonly profileIntelligence = inject(ProfileIntelligenceService);
   private readonly intelligenceApi = inject(IntelligenceApiService);
 
@@ -206,6 +218,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly pivotLoading = signal(false);
   readonly pivotError = signal<string | null>(null);
   readonly pivotNoResults = signal<{ nodeTitle: string; isPartial: boolean } | null>(null);
+  readonly expandedPivotBranches = signal<ExpandedPivotBranch[]>([]);
+  readonly expandingPivotProfileId = signal<string | null>(null);
+  readonly pivotExpansionError = signal<string | null>(null);
 
   // La IA trabaja sobre el response ya recibido. No cambia contratos ni dispara endpoints existentes.
   readonly loadedProfile = signal<ConsolidatedProfileResponse | null>(null);
@@ -356,6 +371,17 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     ) ?? null;
   });
 
+  /** A link can yield more than one consolidated profile; never infer completion from search hits. */
+  readonly selectedConsolidations = computed(() => {
+    const link = this.selectedPivotLink();
+    const searchId = link?.searchId?.trim();
+    const resultId = link?.resultId?.trim();
+    const linkId = link?.externalId?.trim();
+    return searchId && resultId && linkId
+      ? this.pivotRegistry.forLink(this.profileId, searchId, resultId, linkId)
+      : [];
+  });
+
   readonly expandedRelatedNodes = computed(() => {
     const type = this.expandedLinkType();
     if (!type) {
@@ -420,6 +446,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.loadedProfile.set(profile);
         this.nodes.set(graph.nodes);
         this.links.set(graph.links);
+        this.expandedPivotBranches.set([]);
         this.addresses.set(mapAddressesForPanel(profile.addresses ?? []));
         this.addressPageIndex.set(0);
         this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
@@ -482,7 +509,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private renderRelationshipPage(profile = this.loadedProfile()): void {
+  private renderRelationshipPage(profile = this.loadedProfile(), preserveView = false): void {
+    const previouslySelectedId = this.selectedNodeId();
     if (!profile) {
       return;
     }
@@ -504,9 +532,13 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const pageRelations = catalog.slice(start, start + this.relationshipPageSize);
     const graph = mapProfileToGraph(profile, pageRelations, this.relationshipTotals());
 
-    this.nodes.set(graph.nodes);
-    this.links.set(graph.links);
-    this.selectedNodeId.set(graph.nodes[0]?.id ?? profile.profileId);
+    const expandedGraph = this.appendPivotBranches(graph);
+    this.nodes.set(expandedGraph.nodes);
+    this.links.set(expandedGraph.links);
+    this.selectedNodeId.set(
+      preserveView && expandedGraph.nodes.some(node => node.id === previouslySelectedId)
+        ? previouslySelectedId : (graph.nodes[0]?.id ?? profile.profileId)
+    );
     this.selectedLinkId.set(null);
     if (this.returnLinkId) {
       const returningLink = graph.links.find((link) => link.externalId === this.returnLinkId);
@@ -519,8 +551,146 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     }
     const viewType = this.relationshipViewType();
     this.expandedLinkType.set(viewType === 'all' ? null : viewType);
-    this.resetZoom();
-    this.restartIntroAnimation();
+    if (!preserveView) {
+      this.resetZoom();
+      this.restartIntroAnimation();
+    }
+  }
+
+  /** Render each previously fetched branch only if its parent link is on the current page. */
+  private appendPivotBranches(graph: { nodes: GraphNode[]; links: GraphLink[] }): { nodes: GraphNode[]; links: GraphLink[] } {
+    const nodes = [...graph.nodes];
+    const links = [...graph.links];
+    const root = graph.nodes[0];
+
+    for (const branch of this.expandedPivotBranches()) {
+      const parentLink = links.find(link =>
+        link.searchId === branch.record.parentSearchId &&
+        link.resultId === branch.record.parentResultId &&
+        link.externalId === branch.record.parentLinkId
+      );
+      const parentNode = parentLink ? nodes.find(node => node.id === parentLink.targetId) : undefined;
+      if (!parentNode || !root) continue;
+
+      // A separate namespace prevents child link IDs from colliding with the original graph.
+      const childGraph = mapProfileToGraph(branch.profile, branch.relations.slice(0, BRANCH_RELATIONSHIP_LIMIT));
+      const direction = Math.atan2(parentNode.y - root.y, parentNode.x - root.x);
+        childGraph.nodes.slice(1).forEach((child, index) => {
+        const sector = index % 7;
+        const ring = Math.floor(index / 7);
+        const angle = direction - Math.PI * 0.58 + (sector / 6) * Math.PI * 1.16;
+        const distance = 158 + ring * 100;
+        const childId = `pivot:${branch.profile.profileId}:${child.id}`;
+        nodes.push({ ...child, id: childId,
+          x: parentNode.x + Math.cos(angle) * distance,
+          y: parentNode.y + Math.sin(angle) * distance,
+          radius: 22,
+          branchProfileId: branch.profile.profileId
+        });
+        const sourceLink = childGraph.links[index];
+        if (sourceLink) {
+          links.push({ ...sourceLink,
+            id: `pivot-edge:${branch.profile.profileId}:${sourceLink.id}`,
+            sourceId: parentNode.id,
+            targetId: childId,
+            branchProfileId: branch.profile.profileId
+          });
+        }
+      });
+    }
+    return { nodes, links };
+  }
+
+  isPivotNodeConsolidated(node: GraphNode): boolean {
+    if (node.id === this.rootNode().id || node.type !== 'person') return false;
+    const link = this.links().find(entry => entry.targetId === node.id && entry.type === 'person');
+    return !!(link?.searchId && link.resultId && link.externalId &&
+      this.pivotRegistry.forLink(this.profileId, link.searchId, link.resultId, link.externalId).length);
+  }
+
+  isPivotProfileExpanded(profileId: string): boolean {
+    return this.expandedPivotBranches().some(branch => branch.record.profileId === profileId);
+  }
+
+  expandPivotProfile(record: PivotConsolidationRecord): void {
+    if (this.expandingPivotProfileId()) return;
+    if (this.isPivotProfileExpanded(record.profileId)) {
+      this.expandedPivotBranches.update(branches => branches.filter(branch => branch.record.profileId !== record.profileId));
+      this.pivotExpansionError.set(null);
+      this.renderRelationshipPage(undefined, true);
+      // Restoring the parent node is less confusing than selecting a disappeared child.
+      this.selectSourceLink(record);
+      return;
+    }
+
+    this.expandingPivotProfileId.set(record.profileId);
+    this.pivotExpansionError.set(null);
+    this.consolidatedProfilesApi.getProfile(record.profileId).pipe(
+      switchMap(profile => {
+        const searchId = profile.searchId?.trim();
+        const resultId = profile.preconsolidatedResultId?.trim();
+        if (!searchId || !resultId) return of({ profile, relations: [] as GraphRelationEntry[], detailError: false });
+        return this.searchApi.getResultDetail(searchId, resultId).pipe(
+          map(detail => ({ profile, relations: collectGraphRelations(detail), detailError: false })),
+          catchError(() => of({ profile, relations: [] as GraphRelationEntry[], detailError: true }))
+        );
+      }),
+      finalize(() => this.expandingPivotProfileId.set(null))
+    ).subscribe({
+      next: data => {
+        if (data.detailError) {
+          this.pivotExpansionError.set('No fue posible consultar los vínculos del perfil consolidado. Inténtalo de nuevo.');
+          return;
+        }
+        if (!data.relations.length) {
+          this.pivotExpansionError.set(
+            'El perfil está consolidado, pero no tiene vínculos adicionales disponibles para desplegar.'
+          );
+          return;
+        }
+        this.expandedPivotBranches.update(branches => [...branches, { record, ...data }]);
+        this.renderRelationshipPage(undefined, true);
+        this.selectSourceLink(record);
+        this.focusExpandedBranch(record.profileId);
+      },
+      error: (error: unknown) => this.pivotExpansionError.set(extractErrorMessage(error))
+    });
+  }
+
+  private selectSourceLink(record: PivotConsolidationRecord): void {
+    const link = this.links().find(entry =>
+      entry.searchId === record.parentSearchId &&
+      entry.resultId === record.parentResultId &&
+      entry.externalId === record.parentLinkId
+    );
+    if (link) {
+      this.selectedNodeId.set(link.targetId);
+      this.selectedLinkId.set(link.id);
+      this.detailPanelOpen.set(true);
+    }
+  }
+
+  /** Focus the selected origin and its new branch, without modifying the other graph nodes. */
+  private focusExpandedBranch(profileId: string): void {
+    const related = this.nodes().filter(node => node.branchProfileId === profileId);
+    const parent = this.selectedNode();
+    if (!related.length) return;
+    const displayed = [...related, parent, this.rootNode()];
+    const minX = Math.min(...displayed.map(node => node.x));
+    const maxX = Math.max(...displayed.map(node => node.x));
+    const minY = Math.min(...displayed.map(node => node.y));
+    const maxY = Math.max(...displayed.map(node => node.y));
+    const targetZoom = clamp(Math.min(
+      1, (this.viewBoxWidth - 150) / Math.max(1, maxX - minX),
+      (this.viewBoxHeight - 150) / Math.max(1, maxY - minY)
+    ), 0.15, 1);
+    this.zoom.set(Number(targetZoom.toFixed(2)));
+    this.panX.set(this.viewBoxWidth / 2 - (minX + maxX) / 2 * targetZoom);
+    this.panY.set(this.viewBoxHeight / 2 - (minY + maxY) / 2 * targetZoom);
+  }
+
+  openPivotProfileGraph(profileId: string): void {
+    void this.router.navigate(['/grafo'], { queryParams: { profileId } });
   }
 
   setRelationshipView(type: GraphRelationshipView): void {
@@ -1221,6 +1391,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.selectedNodeId.set(nodeId);
     this.pivotError.set(null);
+    this.pivotExpansionError.set(null);
     const rootId = this.rootNode().id;
     const connectedLink = nodeId === rootId
       ? undefined
@@ -1500,6 +1671,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.relationshipQuery.set('');
     this.relationshipPageIndex.set(0);
     this.pivotError.set(null);
+    this.expandedPivotBranches.set([]);
+    this.pivotExpansionError.set(null);
     this.selectedNodeId.set(this.profileId || 'profile');
     this.selectedLinkId.set(null);
     this.expandedLinkType.set(null);

@@ -606,6 +606,11 @@
                                 Aceptado
                             </button>
 
+                            @if (originGraphProfileId()) {
+                            <button type="button" class="graph-button" (click)="backToOriginalPivotGraph()">
+                                <i class="fa-solid fa-arrow-left"></i> Volver al grafo de origen
+                            </button>
+                            }
                             <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
                                 class="graph-button">
                                 <i class="fa-solid fa-share-nodes"></i>
@@ -655,6 +660,11 @@
 
             <footer class="save-success-modal__actions">
                 <button type="button" (click)="closeSaveSuccessModal()">Cerrar</button>
+                @if (originGraphProfileId()) {
+                <button type="button" (click)="closeSaveSuccessModal(); backToOriginalPivotGraph()">
+                    <i class="fa-solid fa-arrow-left"></i> Volver al grafo de origen
+                </button>
+                }
                 <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId() }"
                     (click)="closeSaveSuccessModal()">
                     <i class="fa-solid fa-share-nodes"></i>
