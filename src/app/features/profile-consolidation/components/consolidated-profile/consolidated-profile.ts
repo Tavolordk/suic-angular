@@ -28,8 +28,8 @@ export class ConsolidatedProfileComponent {
   @Output() readonly acceptedRequested = new EventEmitter<void>();
 
   requestAcceptance(): void {
+    if (!this.selectedFields.length) return;
     this.acceptedRequested.emit();
-    this.openConsolidatedModal();
   }
 
   openConsolidatedModal(): void {

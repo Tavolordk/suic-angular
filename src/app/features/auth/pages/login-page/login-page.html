@@ -26,7 +26,8 @@
                 Ingresa tus credenciales para continuar
             </p>
 
-            <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
+            <p class="login-error" role="alert" *ngIf="auth.error()">{{ auth.error() }}</p>
+                <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
                 <div class="login-field">
                     <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(usuario)">
                         <span class="login-field__icon" aria-hidden="true">

@@ -101,8 +101,8 @@
 
     <footer class="consolidated-panel__footer">
         @if (!accepted) {
-        <button type="button" class="accept-button" (click)="requestAcceptance()">
-            Aceptar
+        <button type="button" class="accept-button" [disabled]="selectedFields.length === 0" (click)="requestAcceptance()">
+            Crear perfil
         </button>
         } @else {
         <button type="button" class="accepted-button" (click)="openConsolidatedModal()">

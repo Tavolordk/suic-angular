@@ -167,7 +167,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
   readonly activeLinkGroupId = signal<string | null>(null);
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
-  readonly profileName = signal('Perfil sin nombre disponible');
+  readonly profileName = signal('Cargando perfil...');
   readonly profileSubtitle = signal('Perfil de persona');
   readonly profileEntity = signal<'Person' | 'Vehicle'>('Person');
   readonly selectedDataLabel = computed(() => this.profileEntity() === 'Vehicle' ? 'Datos del vehículo' : 'Datos personales');
@@ -178,6 +178,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   readonly sourcePageIndex = signal(0);
   readonly sourceFieldPageIndex = signal(0);
+  readonly sourceRecordIndex = signal(-1); // -1 representa todos los registros
+  readonly sourceFieldQuery = signal('');
   readonly consolidatedFieldPageIndex = signal(0);
   readonly addressPageIndex = signal(0);
   readonly photoPageIndex = signal(0);
@@ -254,22 +256,36 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly totalAvailable = computed(() =>
-    this.sources().reduce(
-      (total, source) => total + getDisplayableSourceFields(source.fields).length,
-      0
-    )
+    this.sources().reduce((total, source) => total + countSelectableSlots(source.fields), 0)
   );
 
-  readonly totalSelected = computed(() => this.selectedFields().length);
-
-  readonly completedLabel = computed(
-    () => `${this.totalSelected()} de ${this.totalAvailable()}`
-  );
-
-  readonly completionPercent = computed(() => {
-    const total = this.totalAvailable();
-    return total > 0 ? Math.round((this.totalSelected() / total) * 100) : 0;
+  // Dos fuentes que acreditan el mismo código y valor constituyen un solo dato,
+  // pero mantienen ambas procedencias y sus evidenceIds para auditoría.
+  readonly uniqueSelectedData = computed(() => {
+    const grouped = new Map<string, { label: string; value: string; sources: string[] }>();
+    for (const field of this.selectedFields()) {
+      const key = `${getConsolidationDatumKey(field)}|${field.value.trim().toUpperCase()}`;
+      const current = grouped.get(key);
+      if (current) {
+        if (!current.sources.includes(field.sourceTitle)) current.sources.push(field.sourceTitle);
+      } else {
+        grouped.set(key, { label: field.label.replace(/ · Registro \d+$/i, ''), value: field.value, sources: [field.sourceTitle] });
+      }
+    }
+    return [...grouped.values()];
   });
+  readonly totalSelected = computed(() => this.uniqueSelectedData().length);
+  readonly selectedEvidenceCount = computed(() => this.selectedFields().length);
+  readonly selectedSlotCount = computed(() => this.sources().reduce((total, source) => total + countSelectedSlots(source.fields), 0));
+  readonly remainingRequired = computed(() => this.totalAvailable() - this.selectedSlotCount());
+  readonly canCreateProfile = computed(() =>
+    !this.isLoading() && !this.isSaving() && !this.accepted() &&
+    this.sources().length > 0 && this.selectedPersonalFields().length > 0 &&
+    this.remainingRequired() === 0
+  );
+  readonly completedLabel = computed(() => `${this.totalSelected()} datos únicos · ${this.selectedEvidenceCount()} evidencias`);
+  readonly completionPercent = computed(() => this.totalAvailable() > 0
+    ? Math.round((this.selectedSlotCount() / this.totalAvailable()) * 100) : 0);
 
   readonly totalLinks = computed(() =>
     this.links().reduce((total, link) => total + link.count, 0)
@@ -315,11 +331,32 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     createPageLabel(this.normalizedSourcePageIndex(), this.sourcePageCount())
   );
 
-  readonly availableSourceFields = computed<ProfileFieldViewModel[]>(() =>
-    getDisplayableSourceFields(this.selectedSource()?.fields ?? []).filter(
-      (field) => !field.selected
-    )
-  );
+  readonly availableSourceFields = computed<ProfileFieldViewModel[]>(() => {
+    const fields = this.selectedSource()?.fields ?? [];
+    const selectedKeys = new Set(fields.filter(field => field.selected).map(fieldSlotKey));
+    const query = this.sourceFieldQuery().trim().toLocaleLowerCase('es-MX');
+    const recordIndex = this.sourceRecordIndex();
+    return fields.filter(field =>
+      !selectedKeys.has(fieldSlotKey(field)) &&
+      (recordIndex === -1 || field.recordIndex === recordIndex) &&
+      (!query || `${field.label} ${field.value} ${field.code} registro ${field.recordIndex + 1}`.toLocaleLowerCase('es-MX').includes(query))
+    );
+  });
+  readonly sourceRecordOptions = computed(() => Array.from(
+    { length: this.selectedSource()?.recordCount ?? 0 }, (_, index) => index
+  ));
+  readonly remainingSourceFields = computed(() => this.selectedSource()
+    ? countSelectableSlots(this.selectedSource()!.fields) - countSelectedSlots(this.selectedSource()!.fields)
+    : 0);
+  changeSourceRecord(value: string): void {
+    const number = Number(value);
+    this.sourceRecordIndex.set(Number.isInteger(number) ? number : -1);
+    this.sourceFieldPageIndex.set(0);
+  }
+  changeSourceFieldQuery(value: string): void {
+    this.sourceFieldQuery.set(value);
+    this.sourceFieldPageIndex.set(0);
+  }
 
   readonly sourceFieldPages = computed(() =>
     chunkItems(this.availableSourceFields(), FIELDS_PER_PAGE)
@@ -346,8 +383,22 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     )
   );
 
+  // Una sola tarjeta por valor único, con todas las evidencias/procedencias.
+  readonly selectedPersonalGroups = computed(() => {
+    const grouped = new Map<string, { label: string; value: string; evidences: SelectedProfileFieldViewModel[] }>();
+    for (const field of this.selectedPersonalFields()) {
+      const key = `${getConsolidationDatumKey(field)}|${field.value.trim().toUpperCase()}`;
+      const current = grouped.get(key);
+      if (current) {
+        current.evidences.push(field);
+      } else {
+        grouped.set(key, {label: field.label.replace(/ · Registro \d+$/i, ''), value: field.value, evidences: [field]});
+      }
+    }
+    return [...grouped.values()];
+  });
   readonly consolidatedFieldPages = computed(() =>
-    chunkItems(this.selectedPersonalFields(), CONSOLIDATED_FIELDS_PER_PAGE)
+    chunkItems(this.selectedPersonalGroups(), CONSOLIDATED_FIELDS_PER_PAGE)
   );
   readonly consolidatedFieldPageCount = computed(
     () => this.consolidatedFieldPages().length
@@ -358,13 +409,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       this.consolidatedFieldPageCount()
     )
   );
-  readonly visibleSelectedFields = computed<
-    SelectedProfileFieldViewModel[]
-  >(() =>
-    pageAt(
-      this.consolidatedFieldPages(),
-      this.normalizedConsolidatedFieldPageIndex()
-    )
+  readonly visibleSelectedGroups = computed(() =>
+    pageAt(this.consolidatedFieldPages(), this.normalizedConsolidatedFieldPageIndex())
   );
   readonly consolidatedFieldPageLabel = computed(() =>
     createPageLabel(
@@ -483,6 +529,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     }
 
     this.selectedSourceId.set(sourceId);
+    this.sourceRecordIndex.set(-1);
+    this.sourceFieldQuery.set('');
     this.sourcePageIndex.set(Math.floor(sourceIndex / SOURCES_PER_PAGE));
     this.sourceFieldPageIndex.set(0);
   }
@@ -608,16 +656,15 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   getSelectedSourceCount(source: ProfileSourceViewModel): number {
-    return getDisplayableSourceFields(source.fields).filter((field) => field.selected).length;
+    return countSelectedSlots(source.fields);
   }
 
   getRemainingSourceCount(source: ProfileSourceViewModel): number {
-    const displayableFields = getDisplayableSourceFields(source.fields);
-    return displayableFields.length - displayableFields.filter((field) => field.selected).length;
+    return countSelectableSlots(source.fields) - countSelectedSlots(source.fields);
   }
 
   getDisplayableSourceCount(source: ProfileSourceViewModel): number {
-    return getDisplayableSourceFields(source.fields).length;
+    return countSelectableSlots(source.fields);
   }
 
   toggleField(fieldId: string): void {
@@ -667,6 +714,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     );
 
     this.focusConsolidatedField(currentSourceId, fieldId);
+    this.saveErrorMessage.set(null);
     this.accepted.set(false);
   }
 
@@ -717,6 +765,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     if (firstReturnedField) {
       this.focusAvailableField(firstReturnedField.sourceId, firstReturnedField.id);
     }
+    this.saveErrorMessage.set(null);
     this.accepted.set(false);
   }
 
@@ -732,18 +781,21 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           return source;
         }
 
-        const displayableIds = new Set(
-          getDisplayableSourceFields(source.fields).map((field) => field.id)
-        );
-
+        const chosenKeys = new Set<string>();
+        // Respetar la variante elegida previamente, y completar las restantes.
+        const selectedFields = source.fields.filter(field => field.selected);
+        const prioritized = [...selectedFields, ...source.fields.filter(field => !field.selected)];
+        const chosenIds = new Set<string>();
+        for (const field of prioritized) {
+          const key = fieldSlotKey(field);
+          if (!chosenKeys.has(key)) {
+            chosenKeys.add(key);
+            chosenIds.add(field.id);
+          }
+        }
         return {
           ...source,
-          fields: source.fields.map((field) => ({
-            ...field,
-            // Solo se seleccionan las opciones que realmente se muestran.
-            // Las evidencias repetidas permanecen fuera de la UI y fuera del payload.
-            selected: displayableIds.has(field.id)
-          }))
+          fields: source.fields.map(field => ({ ...field, selected: chosenIds.has(field.id) }))
         };
       })
     );
@@ -751,6 +803,25 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.sourceFieldPageIndex.set(0);
     this.consolidatedFieldPageIndex.set(0);
     this.addressPageIndex.set(0);
+    this.accepted.set(false);
+  }
+
+  selectAllSources(): void {
+    if (!this.sources().length || this.isSaving() || this.accepted()) return;
+    this.sources.update(sources => sources.map(source => {
+      const chosen = new Set<string>();
+      const chosenIds = new Set<string>();
+      // Preservar la evidencia que el operador ya eligió frente a otras variantes.
+      for (const field of [...source.fields.filter(field => field.selected), ...source.fields.filter(field => !field.selected)]) {
+        const key = fieldSlotKey(field);
+        if (chosen.has(key)) continue;
+        chosen.add(key);
+        chosenIds.add(field.id);
+      }
+      return { ...source, fields: source.fields.map(field => ({ ...field, selected: chosenIds.has(field.id) })) };
+    }));
+    this.sourceFieldPageIndex.set(0);
+    this.saveErrorMessage.set(null);
     this.accepted.set(false);
   }
 
@@ -836,7 +907,10 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   accept(): void {
-    if (!this.searchId || !this.resultId || !this.selectedPersonalFields().length || this.isSaving()) {
+    if (!this.searchId || !this.resultId || !this.canCreateProfile()) {
+      this.saveErrorMessage.set(this.remainingRequired() > 0
+        ? `Falta seleccionar ${this.remainingRequired()} ${this.remainingRequired() === 1 ? 'dato' : 'datos'} de las fuentes antes de crear el perfil.`
+        : 'Selecciona los datos personales requeridos antes de crear el perfil.');
       return;
     }
 
@@ -846,6 +920,10 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
     if (!selectedEvidenceIds.length) {
       this.saveErrorMessage.set('No hay evidencias seleccionadas para guardar el perfil.');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.confirm('¿Crear el perfil con las evidencias seleccionadas? Esta acción no se puede deshacer.')) {
       return;
     }
 
@@ -981,6 +1059,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     }
 
     this.selectedSourceId.set(sourceId);
+    this.sourceRecordIndex.set(-1);
+    this.sourceFieldQuery.set('');
     this.sourcePageIndex.set(Math.floor(sourceIndex / SOURCES_PER_PAGE));
 
     const source = this.sources()[sourceIndex];
@@ -1042,6 +1122,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private resetCarouselPages(): void {
     this.sourcePageIndex.set(0);
     this.sourceFieldPageIndex.set(0);
+    this.sourceRecordIndex.set(-1);
+    this.sourceFieldQuery.set('');
     this.consolidatedFieldPageIndex.set(0);
     this.addressPageIndex.set(0);
     this.photoPageIndex.set(0);
@@ -1057,7 +1139,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.relatedFileCount.set(0);
     this.additionalObjectCount.set(0);
     this.profileEntity.set('Person');
-    this.profileName.set('Perfil sin nombre disponible');
+    this.profileName.set('Perfil no disponible');
     this.profileSubtitle.set('Perfil de persona');
     this.profileStatus.set('');
     this.hasConflicts.set(false);
@@ -1067,6 +1149,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   private extractErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
+      // No exponer mensajes del servicio sobre access/refresh token al usuario.
+      if (error.status === 401) return 'Tu sesión venció. Inicia sesión nuevamente.';
+      if (error.status === 403) return 'No tienes permisos para realizar esta operación.';
       const apiMessage = this.readApiErrorMessage(error.error);
       if (apiMessage) {
         return apiMessage;
@@ -1190,42 +1275,23 @@ function getConsolidationDatumKey(
   return normalizeFieldCode(field.label.replace(/ · Registro \d+$/i, ''));
 }
 
-function getDisplayableSourceFields(
-  fields: readonly ProfileFieldViewModel[]
-): ProfileFieldViewModel[] {
-  const personalByDatum = new Map<string, ProfileFieldViewModel>();
+/** Conserva todas las alternativas por registro. Seleccionar una variante reemplaza
+ * las del mismo dato y fuente, sin perder opciones para la comparación. */
+function getDisplayableSourceFields(fields: readonly ProfileFieldViewModel[]): ProfileFieldViewModel[] {
+  return [...fields];
+}
 
-  fields.forEach((field) => {
-    // Las direcciones pueden representar domicilios distintos aunque compartan
-    // nombres de campo (CALLE, CP, ESTADO, etc.), por eso no se colapsan aquí.
-    if (isAddressField(field)) {
-      return;
-    }
+function fieldSlotKey(field: ProfileFieldViewModel): string {
+  if (isAddressField(field)) return `${getConsolidationDatumKey(field)}|${field.recordIndex}|${field.value.trim().toUpperCase()}`;
+  return getConsolidationDatumKey(field);
+}
 
-    const key = getConsolidationDatumKey(field);
-    const current = personalByDatum.get(key);
+function countSelectableSlots(fields: readonly ProfileFieldViewModel[]): number {
+  return new Set(fields.map(fieldSlotKey)).size;
+}
 
-    if (!current) {
-      personalByDatum.set(key, field);
-      return;
-    }
-
-    // Si por estado previo una variante repetida ya estaba seleccionada,
-    // conservamos esa como la única visible en vez de volver a mostrar otra.
-    if (field.selected && !current.selected) {
-      personalByDatum.set(key, field);
-    }
-  });
-
-  const canonicalPersonalIds = new Set(
-    Array.from(personalByDatum.values(), (field) => field.id)
-  );
-
-  // Conservamos el orden original de la fuente. De cada dato personal repetido
-  // solo queda una evidencia canónica; las demás ni siquiera se renderizan.
-  return fields.filter(
-    (field) => isAddressField(field) || canonicalPersonalIds.has(field.id)
-  );
+function countSelectedSlots(fields: readonly ProfileFieldViewModel[]): number {
+  return new Set(fields.filter(field => field.selected).map(fieldSlotKey)).size;
 }
 
 function buildConsolidationEvidenceIds(

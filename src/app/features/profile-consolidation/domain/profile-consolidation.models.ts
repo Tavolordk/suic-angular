@@ -8,6 +8,7 @@ export interface ProfileFieldViewModel {
   selected: boolean;
   isIdentifier: boolean;
   isFile: boolean;
+  recordIndex: number; // índice 0-based del registro de origen
 }
 
 export interface ProfileSourceViewModel {
@@ -17,6 +18,7 @@ export interface ProfileSourceViewModel {
   description: string;
   color: string;
   recordCount: number;
+  rawEvidenceCount: number; // atributos + identificadores sin filtrar
   fields: ProfileFieldViewModel[];
 }
 

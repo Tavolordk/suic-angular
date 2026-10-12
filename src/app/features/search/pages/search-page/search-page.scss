@@ -1972,3 +1972,13 @@
 @media (max-width: 640px) {
   .search-pivot-context__back { width: 100%; }
 }
+
+/* Hallazgo REV-12102026-07: ofrecer el nombre completo al enfocar o pasar el cursor. */
+.search-result-card__name:hover, .search-result-card__name:focus-visible { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+
+/* QA 07/06: nombres completos y explicación visible de coincidencia. */
+.search-result-card__value { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.search-result-card__match { grid-column: 1 / -1; color: #4b6070; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.search-field__validation { display: block; margin-top: 5px; font-size: 11px; color: #9e2532; line-height: 1.35; }
+
+.search-field__advisory { display:block; margin-top:5px; color:#765727; font-size:11px; line-height:1.4; }

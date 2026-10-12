@@ -395,7 +395,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   });
 
   readonly pendingProfilesLabel = computed(() => {
-    const visible = Math.max(0, this.nodes().length - 1);
+    const visible = this.visibleLinks().length;
     const total = this.reportedRelationshipCount();
     return `${visible.toLocaleString('es-MX')} visibles de ${total.toLocaleString('es-MX')} vínculos`;
   });
@@ -1463,6 +1463,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
       return nextFilters;
     });
+    this.resetZoom();
   }
 
   previousAddressPage(): void {
@@ -1485,10 +1486,26 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.zoom.update((value) => Math.max(0.15, Number((value - 0.1).toFixed(2))));
   }
 
+  /** Centra y encuadra TODOS los nodos actualmente visibles. */
   resetZoom(): void {
-    this.zoom.set(1);
-    this.panX.set(0);
-    this.panY.set(0);
+    const nodes = this.visibleNodes();
+    if (!nodes.length) {
+      this.zoom.set(1);
+      this.panX.set(0);
+      this.panY.set(0);
+      return;
+    }
+    const minX = Math.min(...nodes.map(node => node.x - node.radius - 36));
+    const maxX = Math.max(...nodes.map(node => node.x + node.radius + 36));
+    const minY = Math.min(...nodes.map(node => node.y - node.radius - 48));
+    const maxY = Math.max(...nodes.map(node => node.y + node.radius + 48));
+    const scale = clamp(Math.min(
+      1.2, (this.viewBoxWidth - 56) / Math.max(1, maxX - minX),
+      (this.viewBoxHeight - 56) / Math.max(1, maxY - minY)
+    ), 0.15, 1.2);
+    this.zoom.set(Number(scale.toFixed(3)));
+    this.panX.set(this.viewBoxWidth / 2 - (minX + maxX) / 2 * scale);
+    this.panY.set(this.viewBoxHeight / 2 - (minY + maxY) / 2 * scale);
   }
 
   onGraphPointerDown(event: PointerEvent): void {
@@ -1897,17 +1914,17 @@ function buildRelationDetails(item: SearchResultLinkItemDto, type: GraphNodeType
 function buildLinkDetails(item: SearchResultLinkItemDto, type: GraphNodeType): GraphNodeDetail[] {
   const details: GraphNodeDetail[] = [];
   if (item.linkId?.trim()) {
-    details.push({ label: 'ID del vínculo', value: item.linkId.trim() });
+    // Identificador interno reservado para operaciones, no para la vista.
   }
   if (item.status?.trim()) {
-    details.push({ label: 'Estatus', value: item.status.trim() });
+    details.push({ label: 'Estado', value: item.status.trim().toLowerCase() === 'independent' ? 'Independiente' : item.status.trim() });
   }
 
   const relationship = humanizeRelationship(item.relationshipCode);
   details.push({ label: 'Tipo de relación', value: relationship });
 
   const entityDetails = buildRelationDetails(item, type)
-    .filter((detail) => normalizeCode(detail.label) !== 'RELACION')
+    .filter((detail) => !/(?:^|\s)(?:ID|LINKEDID|TYPEID)(?:$|\s)/i.test(detail.label) && !/REPORTE\s*ROBO\s*ID/i.test(detail.label) && normalizeCode(detail.label) !== 'RELACION')
     .slice(0, 8);
   details.push(...entityDetails);
 
@@ -2134,6 +2151,12 @@ function createPlaceholderNode(id: string, title: string, message = 'Consultando
 }
 
 function extractErrorMessage(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 401) {
+    return 'Tu sesión venció. Inicia sesión nuevamente.';
+  }
+  if (error instanceof HttpErrorResponse && error.status === 403) {
+    return 'No tienes permisos para consultar esta información.';
+  }
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }

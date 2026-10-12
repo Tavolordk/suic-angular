@@ -226,32 +226,6 @@
                             </label>
 
                             <label class="search-field">
-                                <span class="search-field__label">ALIAS</span>
-                                <span class="search-field__control">
-                                    <span class="search-field__icon">
-                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
-                                        </svg>
-                                    </span>
-                                    <input type="text" formControlName="alias" placeholder="Ej. EL HALCÓN"
-                                        (input)="uppercasePersonField($event, 'alias')" autocomplete="off" />
-                                </span>
-                            </label>
-
-                            <label class="search-field">
-                                <span class="search-field__label">FECHA DE NACIMIENTO</span>
-                                <span class="search-field__control">
-                                    <span class="search-field__icon">
-                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
-                                        </svg>
-                                    </span>
-                                    <input type="date" title="Ej. 29/09/1977" aria-label="Fecha de nacimiento. Ejemplo: 29 de septiembre de 1977"
-                                        formControlName="fechaNacimiento" placeholder="Ej. 29/09/1977" />
-                                </span>
-                            </label>
-
-                            <label class="search-field">
                                 <span class="search-field__label">CURP</span>
                                 <span class="search-field__control">
                                     <span class="search-field__icon">
@@ -260,8 +234,13 @@
                                         </svg>
                                     </span>
                                     <input type="text" formControlName="curp" placeholder="Ej. HEMM770929HMNRRG09"
-                                        (input)="uppercasePersonField($event, 'curp')" maxlength="18" autocomplete="off" />
+                                        (input)="uppercasePersonField($event, 'curp')" maxlength="18" autocomplete="off"
+                                        [attr.aria-invalid]="personForm.controls.curp.touched && personForm.controls.curp.invalid" />
                                 </span>
+                                <small class="search-field__validation" role="alert"
+                                    *ngIf="personForm.controls.curp.touched && personForm.controls.curp.hasError('curpFormato')">
+                                    Captura la CURP completa de 18 caracteres con un formato válido.
+                                </small>
                             </label>
 
                             <label class="search-field">
@@ -275,30 +254,13 @@
                                     <input type="text" formControlName="rfc" placeholder="Ej. HEMM7709295Z9"
                                         (input)="uppercasePersonField($event, 'rfc')" maxlength="13" autocomplete="off" />
                                 </span>
-                            </label>
-
-
-                            <label class="search-field"
-                                [class.search-field--invalid]="shouldShowContactError()">
-                                <span class="search-field__label">CELULAR O CORREO ELECTRÓNICO</span>
-                                <span class="search-field__control">
-                                    <span class="search-field__icon">
-                                        <svg fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M4 4h16v16H4zM4 6l8 6 8-6" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                        </svg>
-                                    </span>
-                                    <input type="text" formControlName="contacto"
-                                        placeholder="Ej. 5512345678 o nombre@dominio.com" maxlength="120"
-                                        autocomplete="off"
-                                        [attr.aria-describedby]="shouldShowContactError() ? 'contacto-formato-error' : null"
-                                        [attr.aria-invalid]="shouldShowContactError()" />
-                                </span>
-                                <small id="contacto-formato-error" class="search-field__error"
-                                    *ngIf="shouldShowContactError()">
-                                    Ingresa un correo electrónico válido o un celular de exactamente 10 dígitos, sin lada internacional.
+                                <small class="search-field__advisory" *ngIf="(personForm.controls.rfc.value || '').trim().length > 0 && (personForm.controls.rfc.value || '').trim().length < 12">
+                                    RFC parcial: aún está pendiente definir la regla de búsqueda sin homoclave. Se enviará tal como lo capturaste.
                                 </small>
                             </label>
+
+
+                            
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'vehiculo'">
@@ -382,7 +344,7 @@
 
             <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
-                    <p>{{ selectedEntity() === 'vehiculo' ? 'Consulta por VIN/NIV, placa o ambos identificadores' : 'Consulta por CURP, RFC, nombre, fecha de nacimiento, celular o correo' }}</p>
+                    <p>{{ selectedEntity() === 'vehiculo' ? 'Consulta por VIN/NIV, placa o ambos identificadores' : 'Consulta por CURP, RFC, nombre o apellidos' }}</p>
                 </div>
 
                 <div class="search-empty-card">
@@ -399,10 +361,10 @@
                 <div class="search-results__toolbar">
                     <p>
                         <strong>{{ totalResults() }}</strong>
-                        resultados encontrados
+                        {{ totalResults() === 1 ? "resultado encontrado" : "resultados encontrados" }}
                         <small *ngIf="executionStatus() || isPartialResult()">
                             {{ executionStatus() || 'Completada' }}
-                            <span *ngIf="isPartialResult()">· respuesta parcial</span>
+                            <span *ngIf="isPartialResult()">· La respuesta de algunas fuentes fue incompleta. Podrían faltar coincidencias o atributos; el servicio no identifica qué fuentes o datos faltaron.</span>
                         </small>
                     </p>
 
@@ -433,15 +395,15 @@
                             </button>
                         </div>
 
-                        <!-- UI preparada para integrar el servicio de reporte cuando esté disponible. -->
-                        <button type="button" class="search-report-button" title="Generar reporte de búsqueda">
+                        <button type="button" class="search-report-button" title="Exportar resultados de la búsqueda en PDF"
+                            [disabled]="isExportingReport()" (click)="exportGeneralReport()">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M6 2h9l3 3v17H6V2z" stroke="currentColor" stroke-width="1.8"
                                     stroke-linejoin="round"></path>
                                 <path d="M15 2v4h4M9 11h6M9 15h6M9 19h4" stroke="currentColor" stroke-width="1.8"
                                     stroke-linecap="round"></path>
                             </svg>
-                            Generar reporte
+                            {{ isExportingReport() ? 'Generando reporte...' : 'Reporte general' }}
                         </button>
 
                         <div class="search-page-size">
@@ -498,6 +460,7 @@
                     </div>
                 </div>
 
+                <p role="alert" class="search-feedback" *ngIf="reportError()">{{ reportError() }}</p>
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
                         [style.animation-delay.ms]="i * 35" [title]="result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : 'Abrir detalle del perfil'" tabindex="0"
@@ -578,8 +541,14 @@
                                 Nombre:
                             </span>
 
-                            <span class="search-result-card__value">
+                            <span class="search-result-card__value" [title]="result.name">
                                 {{ result.name }}
+                            </span>
+                            <span class="search-result-card__match" *ngIf="matchedSearchFields(result).length">
+                                Datos coincidentes: {{ matchedSearchFields(result).join(', ') }}
+                            </span>
+                            <span class="search-result-card__match" *ngIf="!matchedSearchFields(result).length">
+                                Resultado relacionado o aproximado; el servicio no detalla por qué coincidió.
                             </span>
 
                             <span class="search-result-card__label">

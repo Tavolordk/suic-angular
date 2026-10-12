@@ -592,10 +592,10 @@ export class AuthService {
             return throwError(() => originalError);
         }
 
-        this.sessionRefreshInFlight = false;
-        this.showSessionPrompt('401-con-token-vencido');
-
-        return EMPTY;
+        // Un 401 con token vencido no debe dejar una vista que parece activa.
+        // Ya se intentó validar la sesión antes de la petición protegida.
+        this.forceLocalLogout('Tu sesión venció. Inicia sesión nuevamente.');
+        return throwError(() => new AuthHttpError('Tu sesión venció. Inicia sesión nuevamente.', 401));
     }
 
     private monitorAuthenticatedSession(): void {

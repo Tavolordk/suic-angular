@@ -38,7 +38,10 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
 
     const session = authStorage.session();
     if (!session?.accessToken?.trim()) {
-        return next(withTraceId(request));
+        return throwError(() => new HttpErrorResponse({
+            status: 401, statusText: 'Sesión vencida',
+            error: { message: 'Tu sesión venció. Inicia sesión nuevamente.' }
+        }));
     }
 
     return authService.ensureActiveSession().pipe(

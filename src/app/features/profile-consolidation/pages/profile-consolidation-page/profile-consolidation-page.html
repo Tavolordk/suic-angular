@@ -140,6 +140,9 @@
                         <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                     </div>
 
+                    @if (saveErrorMessage()) {
+                    <p role="alert" class="profile-save-feedback">{{ saveErrorMessage() }}</p>
+                    }
                     <div class="profile-header-card__actions">
                         <button type="button" class="profile-header-card__secondary" (click)="goToResults()">
                             Regresar a resultados
@@ -153,9 +156,9 @@
 
                         <button type="button" class="profile-header-card__primary"
                             [class.profile-header-card__primary--accepted]="accepted()"
-                            [disabled]="isLoading() || isSaving() || accepted() || selectedPersonalFields().length === 0" (click)="accept()">
+                            [disabled]="!canCreateProfile()" (click)="accept()">
                             <i class="fa-regular fa-floppy-disk"></i>
-                            {{ isSaving() ? 'Guardando...' : (accepted() ? 'Perfil guardado' : 'Guardar perfil') }}
+                            {{ isSaving() ? 'Guardando...' : (accepted() ? 'Perfil guardado' : 'Crear perfil') }}
                         </button>
                     </div>
                 </section>
@@ -214,8 +217,8 @@
                                     </span>
 
                                     <span class="source-card__match">
-                                        <strong>{{ item.fields.length }}</strong>
-                                        <small>{{ item.fields.length === 1 ? 'Campo' : 'Campos' }}</small>
+                                        <strong>{{ getDisplayableSourceCount(item) }}</strong>
+                                        <small>datos seleccionables</small>
                                         <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : 'No incluido' }}</em>
                                     </span>
                                 </button>
@@ -259,9 +262,28 @@
                             </div>
                         </section>
 
+                        <p class="selection-source-explanation" role="note">
+                            Esta fuente envió {{ source.rawEvidenceCount }} evidencias en {{ source.recordCount }} registros.
+                            Hay {{ getDisplayableSourceCount(source) }} datos seleccionables tras excluir identificadores técnicos
+                            y agrupar variantes del mismo dato. Puedes elegir una evidencia de cada dato y comparar los registros.
+                        </p>
+                        <div class="source-record-controls">
+                            <label>Filtrar por registro
+                                <select [value]="sourceRecordIndex()" (change)="changeSourceRecord($any($event.target).value)">
+                                    <option value="-1">Todos los registros</option>
+                                    @for (index of sourceRecordOptions(); track index) {
+                                    <option [value]="index">Registro {{ index + 1 }}</option>
+                                    }
+                                </select>
+                            </label>
+                            <label>Buscar campos o valores
+                                <input type="search" placeholder="Nombre, CURP, placa..." [value]="sourceFieldQuery()"
+                                    (input)="changeSourceFieldQuery($any($event.target).value)" />
+                            </label>
+                        </div>
                         <section class="selection-counter">
                             <span>
-                                {{ getRemainingSourceCount(source) }} pendientes de {{ getDisplayableSourceCount(source) }} campos
+                                {{ getRemainingSourceCount(source) }} datos pendientes de {{ getDisplayableSourceCount(source) }} seleccionables
                             </span>
 
                             <button type="button" [disabled]="getRemainingSourceCount(source) === 0"
@@ -275,8 +297,8 @@
                             <div class="selection-fields-empty">
                                 <i class="fa-solid fa-circle-check"></i>
                                 <div>
-                                    <strong>Todos los datos de esta fuente ya están en el perfil consolidado.</strong>
-                                    <span>Para regresarlos, usa la <b>×</b> del dato o el botón "Quitar todo".</span>
+                                    <strong>{{ getRemainingSourceCount(source) === 0 ? 'Todos los datos seleccionables de esta fuente están incluidos.' : 'Sin datos pendientes para este filtro.' }}</strong>
+                                    <span>{{ getRemainingSourceCount(source) === 0 ? 'Para cambiarlos, quita un dato del perfil consolidado.' : 'Elige otro registro o elimina el texto del filtro.' }}</span>
                                 </div>
                             </div>
                             } @else {
@@ -326,7 +348,7 @@
                     <article class="profile-card profile-card--consolidated">
                         <header class="profile-card__header">
                             <h2>3. Perfil consolidado</h2>
-                            <p>Campos seleccionados de las fuentes</p>
+                            <p>Revisa todos los datos antes de crear el perfil. Se requiere elegir al menos una evidencia por cada dato seleccionable de cada fuente.</p>
                         </header>
 
                         <section class="consolidated-progress">
@@ -335,6 +357,10 @@
 
                                 <span class="consolidated-progress__actions">
                                     <strong>{{ completedLabel() }}</strong>
+                                    <button type="button" class="consolidated-progress__clear"
+                                        [disabled]="remainingRequired() === 0 || isSaving() || accepted()"
+                                        title="Seleccionar un dato de cada tipo en todas las fuentes"
+                                        (click)="selectAllSources()">Seleccionar todo el perfil</button>
                                     <button type="button" class="consolidated-progress__clear"
                                         [disabled]="totalSelected() === 0" (click)="clearAllSelected()">
                                         <i class="fa-solid fa-rotate-left"></i>
@@ -372,6 +398,29 @@
                         </section>
                         }
 
+                        <p class="consolidation-requirements" role="status">
+                            {{ selectedSlotCount() }} de {{ totalAvailable() }} datos de las fuentes seleccionados.
+                            @if (remainingRequired() > 0) {
+                              Faltan {{ remainingRequired() }} para habilitar «Crear perfil».
+                            } @else {
+                              @if (selectedPersonalFields().length > 0) { Selección completa. Ya puedes crear el perfil. }
+                              @else { No hay datos personales válidos para crear el perfil. }
+                            }
+                        </p>
+                        <details class="consolidation-summary">
+                            <summary>Revisar todos los datos seleccionados ({{ totalSelected() }} valores únicos, {{ selectedEvidenceCount() }} evidencias)</summary>
+                            @if (uniqueSelectedData().length === 0) {
+                              <p>No se han seleccionado datos.</p>
+                            } @else {
+                              <ul>
+                              @for (item of uniqueSelectedData(); track item.label + '|' + item.value) {
+                                <li><strong>{{ item.label }}:</strong> <span>{{ item.value }}</span>
+                                  <small>Procedencia: {{ item.sources.join(', ') }}</small>
+                                </li>
+                              }
+                              </ul>
+                            }
+                        </details>
                         <section class="accordion-card accordion-card--open">
                             <button type="button" class="accordion-card__button">
                                 <span>
@@ -390,24 +439,25 @@
                             } @else {
                             <div class="selected-fields-carousel">
                                 <div class="selected-fields profile-carousel__page">
-                                    @for (field of visibleSelectedFields(); track field.sourceTitle + field.id) {
-                                    <article class="selected-field">
+                                    @for (group of visibleSelectedGroups(); track group.label + '|' + group.value) {
+                                    <article class="selected-field selected-field--grouped">
                                         <div>
-                                            <span>{{ field.label }}</span>
-                                            <strong [title]="field.value">{{ field.value }}</strong>
+                                            <span>{{ group.label }}</span>
+                                            <strong [title]="group.value">{{ group.value }}</strong>
+                                            <small>{{ group.evidences.length }} {{ group.evidences.length === 1 ? 'evidencia' : 'evidencias' }}</small>
                                         </div>
-
-                                        <small class="selected-field__source-avatar"
-                                            [style.background]="field.sourceColor" [title]="field.sourceTitle">
-                                            {{ field.sourceCode }}
-                                        </small>
-
-                                        <button type="button" class="selected-field__remove"
-                                            [attr.aria-label]="'Quitar ' + field.label + ' del perfil consolidado'"
-                                            title="Quitar y regresar a Selección de datos"
-                                            (click)="removeSelectedField(field.sourceId, field.id)">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
+                                        <div class="selected-field__sources" aria-label="Fuentes que aportan el dato">
+                                            @for (field of group.evidences; track field.sourceId + field.id) {
+                                            <span class="selected-field__source">
+                                                <small [style.background]="field.sourceColor" [title]="field.sourceTitle">{{ field.sourceCode }}</small>
+                                                <button type="button" class="selected-field__remove"
+                                                    [attr.aria-label]="'Quitar ' + field.label + ' de ' + field.sourceTitle"
+                                                    (click)="removeSelectedField(field.sourceId, field.id)">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </span>
+                                            }
+                                        </div>
                                     </article>
                                     }
                                 </div>
@@ -596,10 +646,13 @@
 
                         <footer class="consolidated-footer">
                             @if (!accepted()) {
-                            <button type="button" class="accept-button" [disabled]="selectedPersonalFields().length === 0 || isSaving()"
+                            <button type="button" class="accept-button" [disabled]="!canCreateProfile()"
                                 (click)="accept()">
-                                Aceptar
+                                Crear perfil
                             </button>
+                            @if (saveErrorMessage()) {
+                            <p class="profile-save-feedback" role="alert">{{ saveErrorMessage() }}</p>
+                            }
                             } @else {
                             <button type="button" class="accepted-button">
                                 <i class="fa-solid fa-check"></i>

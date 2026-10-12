@@ -268,6 +268,7 @@ function mapSourceGroup(
         : `${records.length} ${records.length === 1 ? 'registro encontrado' : 'registros encontrados'}`,
     color: SOURCE_COLORS[sourceIndex % SOURCE_COLORS.length],
     recordCount: records.length,
+    rawEvidenceCount: records.reduce((total, record) => total + (record.identifiers?.length ?? 0) + (record.attributes?.length ?? 0), 0),
     fields: deduplicateFields(fields)
   };
 }
@@ -302,6 +303,7 @@ function mapEvidenceField(
     label: addRecordSuffix(baseLabel, recordIndex, recordCount),
     value: formatEvidenceValue(normalizedCode, rawValue),
     selected: false,
+    recordIndex,
     isIdentifier,
     isFile: isFileEvidence(normalizedCode, rawValue)
   };
@@ -710,7 +712,7 @@ function resolveProfileName(evidence: SearchResultEvidenceDto[]): string {
     findFirstValue(evidence, MATERNAL_NAME_CODES)
   ].filter(Boolean);
 
-  return parts.join(' ') || 'Perfil sin nombre disponible';
+  return parts.join(' ') || 'Nombre no informado por las fuentes';
 }
 
 function findFirstValue(
@@ -995,7 +997,7 @@ function deduplicateFields(
   const seen = new Set<string>();
 
   return fields.filter((field) => {
-    const key = `${field.code}|${field.label}|${field.value}`;
+    const key = `${field.recordIndex}|${field.code}|${field.label}|${field.value}`;
     if (seen.has(key)) {
       return false;
     }

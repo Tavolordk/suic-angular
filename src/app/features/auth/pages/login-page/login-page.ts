@@ -38,6 +38,7 @@ export class LoginPage implements OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
     private readonly authService = inject(AuthService);
+    protected readonly auth = this.authService;
 
     protected readonly captcha = inject(CaptchaFacade);
 

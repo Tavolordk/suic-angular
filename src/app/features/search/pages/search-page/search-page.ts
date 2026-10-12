@@ -23,7 +23,8 @@ import {
   Validators
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { concatMap, finalize, from, map, reduce } from 'rxjs';
+import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import {
   SearchResultItemDto,
@@ -108,6 +109,7 @@ export class SearchPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
+  private readonly pdfExport = inject(SimplePdfExportService);
   private readonly searchState = inject(SearchStateService);
   private readonly investigationWorkspace = inject(InvestigationWorkspaceService);
   private readonly platformId = inject(PLATFORM_ID);
@@ -125,6 +127,8 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly selectedEntity = signal<SearchEntity>(this.restoredPage?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo' : 'personas');
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
+  readonly isExportingReport = signal(false);
+  readonly reportError = signal<string | null>(null);
   readonly searchTipIndex = signal(0);
   readonly searchTips = [
     'Consultando coincidencias en las fuentes disponibles.',
@@ -224,14 +228,14 @@ export class SearchPage implements OnInit, OnDestroy {
     apellidoMaterno: [
       this.searchState.formValue()?.apellidoMaterno ?? ''
     ],
-    alias: [this.searchState.formValue()?.alias ?? ''],
+    alias: [''],
     fechaNacimiento: [
-      this.searchState.formValue()?.fechaNacimiento ?? ''
+      ''
     ],
-    curp: [this.searchState.formValue()?.curp ?? ''],
+    curp: [this.searchState.formValue()?.curp ?? '', [curpSearchValidator]],
     rfc: [this.searchState.formValue()?.rfc ?? ''],
     contacto: [
-      this.searchState.formValue()?.contacto ?? '',
+      '',
       [Validators.maxLength(120), contactValidator]
     ]
   });
@@ -436,6 +440,7 @@ export class SearchPage implements OnInit, OnDestroy {
 
     const isVehicle = this.selectedEntity() === 'vehiculo';
     this.searchAttempted.set(true);
+    this.reportError.set(null);
     this.errorMessage.set(null);
     const activeForm = isVehicle ? this.vehicleForm : this.personForm;
     activeForm.markAllAsTouched();
@@ -452,7 +457,7 @@ export class SearchPage implements OnInit, OnDestroy {
     if (!hasSearchTerms(request)) {
       this.errorMessage.set(isVehicle
         ? 'Captura al menos el VIN/NIV o la placa del vehículo.'
-        : 'Captura al menos un nombre, apellido, fecha de nacimiento, celular, correo o identificador.');
+        : 'Captura al menos un criterio de búsqueda.');
       this.searchPanelExpanded.set(true);
       return;
     }
@@ -489,6 +494,80 @@ export class SearchPage implements OnInit, OnDestroy {
           this.errorMessage.set(this.extractErrorMessage(error));
         }
       });
+  }
+
+  /** Exporta los resultados recuperados de la búsqueda, sin inventar un endpoint de reportes. */
+  exportGeneralReport(): void {
+    const id = this.searchId();
+    if (!id || !this.totalResults() || this.isExportingReport()) return;
+    const pageSize = this.pageSize();
+    const maxResults = 500; // límite seguro para consultas muy grandes
+    const pageCount = Math.ceil(Math.min(this.totalResults(), maxResults) / pageSize);
+    this.reportError.set(null);
+    this.isExportingReport.set(true);
+    from(Array.from({length: pageCount}, (_, index) => index + 1)).pipe(
+      concatMap(page => this.searchApi.getResults(id, page, pageSize)),
+      map(response => response.items ?? []),
+      reduce((all, page) => [...all, ...page], [] as SearchResultItemDto[]),
+      finalize(() => this.isExportingReport.set(false))
+    ).subscribe({
+      next: items => {
+        if (!items.length) {
+          this.reportError.set('No se recuperaron datos para el reporte.');
+          return;
+        }
+        const results = this.mapResults(items.slice(0, maxResults));
+        const incomplete = this.totalResults() > maxResults || items.length < this.totalResults();
+        this.pdfExport.exportCards(
+          `reporte-general-${id.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
+          'Reporte general de búsqueda',
+          `${this.selectedEntity() === 'vehiculo' ? 'Vehículos' : 'Personas'} · ${results.length} de ${this.totalResults()} resultados`,
+          [
+            { title: 'RESUMEN DE LA BÚSQUEDA',
+              subtitle: incomplete ? 'Reporte parcial: límite de 500 resultados o páginas no recibidas' : 'Resultados recuperados de todas las páginas',
+              lines: [
+                `Resultados reportados: ${results.length}`, `Resultados indicados por el servicio: ${this.totalResults()}`,
+                `Estado: ${this.executionStatus() || 'No informado'}`,
+                this.isPartialResult() ? 'Algunas fuentes devolvieron información parcial.' : 'Sin aviso de respuesta parcial.'
+              ] },
+            ...results.map((result, index) => ({
+              title: `RESULTADO ${index + 1}`, subtitle: result.entity === 'vehiculo' ? 'Vehículo' : 'Persona',
+              lines: [
+                `Nombre o identificación: ${result.name}`,
+                ...(result.curp ? [`CURP: ${result.curp}`] : []),
+                ...(result.rfc ? [`RFC: ${result.rfc}`] : []),
+                ...(result.alias ? [`Alias: ${result.alias}`] : []),
+                ...(result.vin ? [`NIV: ${result.vin}`] : []),
+                ...(result.placa ? [`Placa: ${result.placa}`] : []),
+                `Vínculos: ${result.tags.map(tag => `${this.getTagLabel(tag)} ${tag.count}`).join(', ') || 'Ninguno informado'}`,
+                `Fuentes: ${result.sources.join(', ') || 'No informadas'}`
+              ]
+            }))
+          ]
+        );
+      },
+      error: error => { this.reportError.set(this.extractErrorMessage(error)); }
+    });
+  }
+
+  /** Coincidencias observables en datos resumidos; no equivalen al criterio interno del buscador. */
+  matchedSearchFields(result: SearchResult): string[] {
+    if (result.entity !== 'personas') return [];
+    const form = this.personForm.getRawValue();
+    const same = (actual: string | undefined, expected: string) =>
+      Boolean(actual && expected?.trim() && actual.toUpperCase().trim() === expected.trim().toUpperCase());
+    const fields: string[] = [];
+    if (same(result.curp, form.curp)) fields.push('CURP');
+    if (same(result.rfc, form.rfc)) fields.push('RFC');
+    const resultName = result.name.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ' ');
+    for (const [label, value] of [
+      ['Nombre', form.nombres], ['Apellido paterno', form.apellidoPaterno],
+      ['Apellido materno', form.apellidoMaterno]
+    ] as const) {
+      const norm = value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (norm && resultName.includes(norm)) fields.push(label);
+    }
+    return fields;
   }
 
   setPageSize(size: PageSize): void {
@@ -926,7 +1005,7 @@ export class SearchPage implements OnInit, OnDestroy {
       entity: vehicle ? 'vehiculo' : 'personas',
       name: vehicle
         ? (readVehicleCardField(item.card, ['name', 'marca', 'make', 'modelo', 'model']) || `Vehículo · resultado ${index + 1}`)
-        : (item.card?.name?.value?.trim() || 'Sin nombre disponible'),
+        : (item.card?.name?.value?.trim() || 'Nombre no informado'),
       vin: vehicle ? readVehicleCardField(item.card, ['vin', 'niv', 'vehicleIdentificationNumber']) : undefined,
       placa: vehicle ? readVehicleCardField(item.card, ['placa', 'plate', 'licensePlate', 'plateNumber']) : undefined,
       alias: !vehicle ? item.card?.alias?.value?.trim() || undefined : undefined,
@@ -977,6 +1056,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.hasSearched.set(false);
     this.isSearching.set(false);
     this.errorMessage.set(null);
+    this.reportError.set(null);
     this.searchId.set(null);
     this.results.set([]);
     this.linkFilter.set('all');
@@ -997,10 +1077,11 @@ export class SearchPage implements OnInit, OnDestroy {
       nombres: normalizeUppercaseSearchText(current.nombres),
       apellidoPaterno: normalizeUppercaseSearchText(current.apellidoPaterno),
       apellidoMaterno: normalizeUppercaseSearchText(current.apellidoMaterno),
-      alias: normalizeUppercaseSearchText(current.alias),
+      alias: '',
       curp: normalizeUppercaseSearchText(current.curp),
       rfc: normalizeUppercaseSearchText(current.rfc),
-      contacto: normalizeContactValue(current.contacto)
+      contacto: '',
+      fechaNacimiento: ''
     };
 
     this.personForm.patchValue(normalized, { emitEvent: false });
@@ -1022,6 +1103,9 @@ export class SearchPage implements OnInit, OnDestroy {
 
   private extractErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
+      // No exponer mensajes del servicio sobre access/refresh token al usuario.
+      if (error.status === 401) return 'Tu sesión venció. Inicia sesión nuevamente.';
+      if (error.status === 403) return 'No tienes permisos para realizar esta operación.';
       const apiMessage = this.readApiErrorMessage(error.error);
       if (apiMessage) {
         return apiMessage;
@@ -1180,4 +1264,13 @@ function translateExecutionStatus(value?: string | null): string {
     default:
       return value?.trim() ?? '';
   }
+}
+
+/** La CURP se permite vacía, pero si se utiliza debe ser completa y con forma válida. */
+function curpSearchValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim().toUpperCase();
+  if (!value) return null;
+  return /^[A-ZÑ&]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(value)
+    ? null
+    : { curpFormato: true };
 }

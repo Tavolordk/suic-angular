@@ -590,3 +590,26 @@
     transition: none;
   }
 }
+
+/* QA: inspección por registro y resumen completo sin carrusel que oculte campos. */
+.source-record-controls { display:flex; flex-wrap:wrap; gap:12px; padding:10px 16px; }
+.source-record-controls label { flex:1 1 180px; min-width:0; font-size:11px; font-weight:700; color:#374b5b; }
+.source-record-controls select, .source-record-controls input {
+ display:block; width:100%; min-width:0; margin-top:5px; padding:8px 10px;
+ border:1px solid #c5d1d9; border-radius:7px; background:#fff; color:#243746; font:inherit;
+}
+.selection-source-explanation, .consolidation-requirements { margin:8px 14px; line-height:1.45; color:#455d6c; font-size:12px; overflow-wrap:anywhere; }
+.consolidation-summary { margin:10px 14px 18px; border:1px solid #cad5de; border-radius:8px; background:#f9fbfc; padding:12px; min-width:0; }
+.consolidation-summary summary { cursor:pointer; font-size:12px; font-weight:800; color:#2b4656; }
+.consolidation-summary ul { list-style:none; padding:0; max-height:380px; overflow:auto; }
+.consolidation-summary li { padding:8px 0; border-bottom:1px solid #e1e8ee; font-size:12px; overflow-wrap:anywhere; }
+.consolidation-summary li small { display:block; margin-top:3px; color:#586b79; }
+.profile-header-card__actions button:disabled, .accept-button:disabled { cursor:not-allowed; opacity:.55; }
+
+.selected-field--grouped { min-width:0; }
+.selected-field--grouped > div:first-child { min-width:0; }
+.selected-field--grouped strong { overflow-wrap:anywhere; white-space:normal; }
+.selected-field__sources { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
+.selected-field__source { display:inline-flex; align-items:center; gap:4px; border-radius:8px; background:#f1f5f8; padding:4px; }
+.selected-field__source > small { padding:3px 5px; border-radius:4px; color:white; font-size:10px; font-weight:700; }
+.selected-field__source > button { position:static; width:23px; height:23px; flex:0 0 auto; }
