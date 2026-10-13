@@ -15,6 +15,8 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, finalize, map, of, Subscription, switchMap, throwError } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
+import { answerGraphFacts, compactGraphFacts } from '../../../../core/intelligence/graph-factual-answers';
+import { LinceMascotComponent } from '../../../../shared/ui/lince-mascot/lince-mascot.component';
 import {
   IntelligenceChatHistoryMessage,
   IntelligenceGraphPayload
@@ -129,7 +131,7 @@ const BRANCH_RELATIONSHIP_LIMIT = 12;
 @Component({
   selector: 'app-graph-page',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, LinceMascotComponent],
   templateUrl: './graph-page.html',
   styleUrl: './graph-page.scss'
 })
@@ -214,6 +216,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly addressPageIndex = signal(0);
 
   readonly relationshipCatalog = signal<GraphRelationEntry[]>([]);
+  private readonly aiSourceDetail = signal<SearchResultDetailResponse | null>(null);
   readonly relationshipTotals = signal<GraphNodeLinks>({ persons: 0, vehicles: 0, weapons: 0 });
   readonly relationshipViewType = signal<GraphRelationshipView>('all');
   readonly relationshipQuery = signal('');
@@ -239,10 +242,22 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly aiSnapshot = signal<ProfileIntelligenceSnapshot | null>(null);
   readonly aiAnswer = signal<IntelligenceAnswer | null>(null);
   readonly aiMessages = signal<AiChatMessage[]>([]);
+  // Vistas del nuevo centro de inteligencia; no cambian el historial enviado a la API.
+  readonly aiView = signal<'home' | 'chat' | 'evidence'>('home');
+  readonly aiCopiedMessageId = signal<string | null>(null);
+  readonly aiSelectedEvidenceMessageId = signal<string | null>(null);
+  readonly aiEvidenceSearch = signal('');
   readonly aiErrorMessage = signal<string | null>(null);
   readonly isAiLoading = signal(false);
   readonly aiThinkingEnabled = signal(true);
   readonly aiServiceStatus = signal<'checking' | 'online' | 'fallback'>('checking');
+  readonly aiSuggestedQuestions = [
+    { icon: 'fa-file-lines', title: 'Resumen del perfil', description: 'Información principal', question: 'Resume este perfil consolidado y menciona los datos más importantes disponibles.' },
+    { icon: 'fa-diagram-project', title: 'Explorar vínculos', description: 'Personas y relaciones', question: '¿Qué personas están vinculadas con este perfil y qué relaciones aparecen en el grafo?' },
+    { icon: 'fa-car-side', title: 'Revisar vehículos', description: 'Vehículos relacionados', question: '¿Qué vehículos aparecen vinculados con este perfil en los datos disponibles?' },
+    { icon: 'fa-link', title: 'Consultar evidencias', description: 'Datos y fuentes', question: '¿Cuáles son las evidencias y fuentes más relevantes disponibles para este perfil?' }
+  ] as const;
+
 
   readonly nodeIndex = computed(
     () => new Map(this.nodes().map((node) => [node.id, node] as const))
@@ -409,6 +424,25 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const lastAssistant = [...this.aiMessages()].reverse().find((message) => message.role === 'assistant');
     return lastAssistant?.evidence ?? this.aiAnswer()?.evidence ?? [];
   });
+  readonly aiDisplayedEvidence = computed<IntelligenceEvidence[]>(() => {
+    // Evita atribuir evidencias de una respuesta anterior a otra que no las tiene.
+    const selectedId = this.aiSelectedEvidenceMessageId();
+    if (selectedId) {
+      return this.aiMessages().find((message) => message.id === selectedId)?.evidence ?? [];
+    }
+    // La vista general utiliza datos locales del perfil mientras no haya respuestas.
+    const lastResponse = [...this.aiMessages()].reverse().find((message) => message.role === 'assistant');
+    if (lastResponse?.evidence.length) return lastResponse.evidence;
+    return this.aiSnapshot()?.facts ?? this.aiAnswer()?.evidence ?? [];
+  });
+  readonly aiFilteredEvidence = computed(() => {
+    const query = normalizeSearchText(this.aiEvidenceSearch());
+    const records = this.aiDisplayedEvidence();
+    if (!query) return records;
+    return records.filter((record) => normalizeSearchText(
+      `${record.label} ${record.value} ${record.kind} ${record.sourceCodes.join(' ')}`
+    ).includes(query));
+  });
   readonly aiServiceStatusLabel = computed(() => {
     switch (this.aiServiceStatus()) {
       case 'online': return 'Servicio disponible';
@@ -443,6 +477,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
+    this.aiSourceDetail.set(null);
     this.consolidatedProfilesApi.getProfile(this.profileId).subscribe({
       next: (profile) => {
         const graph = mapProfileToGraph(profile, [], undefined, this.rootTypeHint);
@@ -498,6 +533,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.searchApi.getResultDetail(searchId, resultId).subscribe({
       next: (detail) => {
+        this.aiSourceDetail.set(detail);
         this.relationshipCatalog.set(collectGraphRelations(detail));
         this.relationshipTotals.set(collectRelationshipTotals(detail));
         this.relationshipViewType.set('all');
@@ -831,7 +867,47 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.aiPanelOpen.set(true);
     this.aiPanelMinimized.set(false);
     this.aiPanelMaximized.set(false);
+    this.aiView.set(this.aiMessages().length ? 'chat' : 'home');
     this.focusAiComposer();
+  }
+
+  setAiView(view: 'home' | 'chat' | 'evidence'): void {
+    this.aiView.set(view);
+    if (view === 'evidence') this.aiEvidenceSearch.set('');
+    if (view === 'chat') {
+      this.scrollAiChatToBottom();
+    }
+  }
+
+  openAiMessageEvidence(messageId: string): void {
+    this.aiSelectedEvidenceMessageId.set(messageId);
+    this.setAiView('evidence');
+  }
+
+  setAiEvidenceSearch(event: Event): void {
+    this.aiEvidenceSearch.set((event.target as HTMLInputElement | null)?.value ?? '');
+  }
+
+  aiEvidenceKindLabel(kind: IntelligenceEvidence['kind']): string {
+    switch (kind) {
+      case 'profile': return 'Perfil';
+      case 'address': return 'Domicilio';
+      case 'origin': return 'Fuente';
+      case 'node': return 'Nodo';
+      case 'relation': return 'Vínculo';
+      default: return 'Dato';
+    }
+  }
+
+  copyAiResponse(messageId: string, answer: string): void {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText || !answer.trim()) {
+      return;
+    }
+    navigator.clipboard.writeText(answer).then(() => {
+      this.aiCopiedMessageId.set(messageId);
+    }).catch(() => {
+      this.aiCopiedMessageId.set(null);
+    });
   }
 
   closeAiPanel(): void {
@@ -986,6 +1062,31 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Las relaciones proceden del detalle de búsqueda, no únicamente de la página
+    // actualmente visible. Si el usuario pregunta antes de cargar ese endpoint,
+    // esperamos su respuesta en vez de mandar un grafo incompleto a la IA.
+    const searchId = profile.searchId?.trim();
+    const resultId = profile.preconsolidatedResultId?.trim();
+    if (!this.aiSourceDetail() && searchId && resultId) {
+      this.isAiLoading.set(true);
+      this.aiErrorMessage.set(null);
+      this.searchApi.getResultDetail(searchId, resultId).subscribe({
+        next: (detail) => {
+          this.aiSourceDetail.set(detail);
+          this.relationshipCatalog.set(collectGraphRelations(detail));
+          this.relationshipTotals.set(collectRelationshipTotals(detail));
+          this.renderRelationshipPage(profile, true);
+          this.isAiLoading.set(false);
+          this.askAi(question);
+        },
+        error: () => {
+          this.isAiLoading.set(false);
+          this.aiErrorMessage.set('No fue posible consultar el detalle de búsqueda. Inténtalo nuevamente; no se generó una respuesta incompleta.');
+        }
+      });
+      return;
+    }
+
     const requestId = ++this.aiRequestSequence;
     this.activeAiRequestId = requestId;
 
@@ -1000,6 +1101,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       thinking
     });
 
+    this.aiView.set('chat');
+    this.aiCopiedMessageId.set(null);
+    this.aiSelectedEvidenceMessageId.set(null);
     this.aiMessages.update((messages) => [...messages, userMessage, assistantMessage]);
     this.aiQuestion.set('');
     this.resetAiComposerHeight();
@@ -1007,9 +1111,33 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.aiErrorMessage.set(null);
     this.scrollAiChatToBottom();
 
+    // Para listados y relaciones explícitas, respondemos desde los 2 endpoints
+    // ya consultados, sin el truncamiento del fast-path del backend (12 vehículos).
+    const factualAnswer = this.aiSourceDetail()
+      ? answerGraphFacts(question, this.aiSourceDetail()!, history)
+      : null;
+    if (factualAnswer) {
+      this.updateAiMessage(assistantMessage.id, (message) => ({
+        ...message,
+        text: factualAnswer.text,
+        evidence: factualAnswer.evidence,
+        disclaimer: factualAnswer.disclaimer,
+        streaming: false,
+        mode: 'deterministic-fallback',
+        thinking: false
+      }));
+      this.aiAnswer.set(factualAnswer);
+      this.isAiLoading.set(false);
+      this.scrollAiChatToBottom();
+      return;
+    }
+
     this.aiChatSubscription?.unsubscribe();
+    // El análisis detallado debe llegar al modo generativo cuando la pregunta
+    // exige comparar o interpretar fuentes; 'auto' puede priorizar resúmenes rápidos.
+    const requiresDetailedAnalysis = thinking && /\b(analiza|analisis|compara|comparacion|evalua|diferencias|inconsistencias|hipotesis|riesgos|recomendaciones|conclusiones|hallazgos|respaldo|explica|porque)\b/.test(normalizeSearchText(question));
     this.aiChatSubscription = this.intelligenceApi
-      .streamChat(profile, question, history, thinking, selectedNode, graph, 'auto')
+      .streamChat(profile, question, history, thinking, selectedNode, graph, requiresDetailedAnalysis ? 'deep' : 'auto')
       .subscribe({
         next: (event) => {
           if (requestId !== this.activeAiRequestId) {
@@ -1206,6 +1334,10 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.isAiLoading.set(false);
     this.aiMessages.set([]);
     this.aiAnswer.set(null);
+    this.aiView.set('home');
+    this.aiCopiedMessageId.set(null);
+    this.aiSelectedEvidenceMessageId.set(null);
+    this.aiEvidenceSearch.set('');
     this.resetAiComposerHeight();
     this.focusAiComposer();
   }
@@ -1227,11 +1359,31 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     return this.aiMessages()
       .filter((message) => !message.streaming && this.coerceAiText(message.text).trim().length > 0)
       .slice(-8)
-      .map((message) => ({ role: message.role, content: this.coerceAiText(message.text) }));
+      // Las respuestas con 32+ vehículos ya están respaldadas en el contexto del grafo:
+      // no reenviar miles de tokens repetidos a un LLM que corre en CPU.
+      .map((message) => ({
+        role: message.role,
+        content: this.coerceAiText(message.text).slice(0, message.role === 'assistant' ? 1000 : 1400)
+      }));
   }
 
   private coerceAiText(value: unknown): string {
     return typeof value === 'string' ? value : value == null ? '' : String(value);
+  }
+
+  /** HTML seguro (Angular lo sanitiza al enlazarlo) y Markdown básico legible. */
+  formatAiResponseText(value: string): string {
+    const clean = this.coerceAiText(value)
+      .replace(/&#x20;|&#32;|&nbsp;/gi, ' ')
+      .replace(/\\([*_`#.\-])/g, '$1')
+      .replace(/\u00a0/g, ' ');
+    const escaped = clean
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return escaped
+      .replace(/\*\*([^\n*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|\n)#{1,4}\s+([^\n]+)/g, '$1<strong>$2</strong>')
+      .replace(/(^|\n)\s*[-*]\s+/g, '$1• ');
   }
 
   private normalizeAiEvidence(value: unknown): IntelligenceEvidence[] {
@@ -1316,6 +1468,22 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private currentAiGraphPayload(): IntelligenceGraphPayload {
+    const detail = this.aiSourceDetail();
+    if (detail) {
+      // No limitar el contexto a la página/filtro visible del SVG.
+      // Para grafos masivos se acota a 120 relaciones; los listados completos
+      // se resuelven por separado con el catálogo original sin esa cota.
+      const root = this.rootNode();
+      const related = compactGraphFacts(detail);
+      return {
+        nodes: [
+          { id: root.id, type: this.getNodeTypeLabel(root.type), title: root.title, subtitle: root.subtitle, details: root.details.slice(0, 8) },
+          ...related
+        ],
+        links: related.map((node) => ({ id: `ia-${node.id}`, sourceId: root.id, targetId: node.id })),
+        selectedNodeId: this.selectedNodeId()
+      };
+    }
     return {
       nodes: this.nodes().map((node) => ({
         id: node.id,
@@ -1324,11 +1492,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         subtitle: node.subtitle,
         details: node.details
       })),
-      links: this.links().map((link) => ({
-        id: link.id,
-        sourceId: link.sourceId,
-        targetId: link.targetId
-      })),
+      links: this.links().map((link) => ({ id: link.id, sourceId: link.sourceId, targetId: link.targetId })),
       selectedNodeId: this.selectedNodeId()
     };
   }
