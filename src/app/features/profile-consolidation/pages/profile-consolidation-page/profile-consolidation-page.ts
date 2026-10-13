@@ -2,16 +2,18 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  ElementRef,
   HostListener,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
+  ViewChild,
   computed,
   inject,
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, retry, switchMap, throwError, timer } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../../search/data-access/search-state.service';
@@ -124,7 +126,8 @@ const ADDRESS_FIELD_CODES = new Set([
     './profile-consolidation-page.scss',
     './profile-consolidation-carousel.scss',
     // Va al final a proposito: necesita sobrescribir reglas del carrusel.
-    './profile-consolidation-responsive.scss'
+    './profile-consolidation-responsive.scss',
+    './profile-consolidation-ux.scss'
   ]
 })
 export class ProfileConsolidationPage implements OnInit, OnDestroy {
@@ -155,6 +158,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly errorMessage = signal<string | null>(null);
   readonly saveErrorMessage = signal<string | null>(null);
   readonly saveSuccessMessage = signal<string | null>(null);
+  readonly showCreateConfirmation = signal(false);
+  @ViewChild('confirmCreateButton') private confirmCreateButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('createProfileDialog') private createProfileDialog?: ElementRef<HTMLElement>;
   readonly accepted = signal(false);
   readonly consolidatedProfileId = signal('');
   readonly originGraphProfileId = computed(() => {
@@ -481,6 +487,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.errorMessage.set(null);
     this.saveErrorMessage.set(null);
     this.saveSuccessMessage.set(null);
+    this.showCreateConfirmation.set(false);
     this.consolidatedProfileId.set('');
     this.accepted.set(false);
 
@@ -923,19 +930,77 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       return;
     }
 
-    if (typeof window !== 'undefined' && !window.confirm('¿Crear el perfil con las evidencias seleccionadas? Esta acción no se puede deshacer.')) {
+    this.saveErrorMessage.set(null);
+    this.showCreateConfirmation.set(true);
+    // Al abrir el diálogo, llevar el foco a una acción segura (Cancelar).
+    if (this.isBrowser) {
+      setTimeout(() => this.confirmCreateButton?.nativeElement.focus(), 0);
+    }
+  }
+
+  cancelCreateConfirmation(): void {
+    this.showCreateConfirmation.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showCreateConfirmation()) this.cancelCreateConfirmation();
+  }
+
+  @HostListener('document:keydown.tab', ['$event'])
+  trapCreateConfirmationFocus(event: Event): void {
+    if (!this.showCreateConfirmation() || !(event instanceof KeyboardEvent)) return;
+    const buttons = this.createProfileDialog?.nativeElement.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+    if (!buttons?.length) return;
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  confirmCreateProfile(): void {
+    // Volver a validar en el momento de confirmar evita envíos duplicados
+    // o datos desactualizados si cambió la selección.
+    if (!this.showCreateConfirmation() || !this.searchId || !this.resultId || !this.canCreateProfile()) {
       return;
     }
-
+    const selectedEvidenceIds = buildConsolidationEvidenceIds(this.selectedPersonalFields());
+    if (!selectedEvidenceIds.length) {
+      this.cancelCreateConfirmation();
+      this.saveErrorMessage.set('No hay evidencias seleccionadas para guardar el perfil.');
+      return;
+    }
+    this.cancelCreateConfirmation();
     const request: ConsolidateProfileRequest = { selectedEvidenceIds };
 
     this.isSaving.set(true);
     this.saveErrorMessage.set(null);
     this.saveSuccessMessage.set(null);
 
-    this.consolidatedProfilesApi
-      .consolidateProfile(this.searchId, this.resultId, request)
-      .pipe(finalize(() => this.isSaving.set(false)))
+    this.authService
+      .prepareSessionForConsolidation()
+      .pipe(
+        // Esperar el refresh/validación ANTES del primer POST. El reintento por
+        // HTTP 500 debe abarcar solo el guardado, nunca el refresh de sesión.
+        switchMap(() => this.consolidatedProfilesApi
+          .consolidateProfile(this.searchId, this.resultId, request)
+          .pipe(
+            retry({
+              count: 1,
+              delay: (error: unknown) =>
+                error instanceof HttpErrorResponse && error.status === 500
+                  ? timer(0)
+                  : throwError(() => error)
+            })
+          )
+        ),
+        finalize(() => this.isSaving.set(false))
+      )
       .subscribe({
         next: ({ profile, message }) => {
           this.consolidatedProfileId.set(profile.profileId);

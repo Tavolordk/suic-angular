@@ -542,6 +542,37 @@ export class AuthService {
         return request$;
     }
 
+    /**
+     * Antes de una mutación crítica (consolidación), esperar cualquier refresh
+     * silencioso ya iniciado y usar tokens vigentes. Si el token necesita
+     * renovación según las reglas actuales, renovamos ANTES de enviar el POST.
+     *
+     * No ejecuta ni reintenta el guardado. La validación remota posterior
+     * corresponde al interceptor habitual de los endpoints protegidos.
+     */
+    prepareSessionForConsolidation(): Observable<AuthSession> {
+        return defer(() => {
+            const currentSession = this.storage.readLatestSession();
+            if (!currentSession?.accessToken?.trim()) {
+                return throwError(
+                    () => new AuthHttpError('No hay una sesión activa para guardar el perfil.', 401)
+                );
+            }
+
+            // Si un movimiento/clic ya disparó el refresh silencioso, esperar su
+            // resultado para no enviar el POST con un Bearer que acaba de rotar.
+            if (this.sessionRefreshRequest$) {
+                return this.sessionRefreshRequest$;
+            }
+
+            // Respetar el intervalo actual de refresh (2 min) y el margen de
+            // expiración; no rotar un token que se acaba de renovar.
+            return this.shouldRefreshSession(currentSession)
+                ? this.refreshSessionSafely()
+                : of(currentSession);
+        });
+    }
+
     private isRemoteSessionActive(session: CurrentSessionResponse): boolean {
         const explicitState = [
             session.active,

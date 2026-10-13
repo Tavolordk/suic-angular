@@ -673,6 +673,7 @@
       }
 
       @if (screen() === 'line' && selectedInvestigation(); as investigation) {
+      @let line = selectedLine();
       <section class="investigations-view">
         <nav class="investigations-breadcrumb" aria-label="Ruta de navegación">
           @if (lineReturnScreen() === 'user-lines') {
@@ -683,19 +684,18 @@
           <i class="fa-solid fa-chevron-right"></i>
           <button type="button" (click)="backFromLine()">{{ lineReturnScreen() === 'user-lines' ? (selectedDirectoryUser()?.name || 'Usuario') : investigation.name }}</button>
           <i class="fa-solid fa-chevron-right"></i>
-          <span>{{ selectedLine()?.id || 'Línea' }}</span>
+          <span>{{ (line && line.id) || 'Línea' }}</span>
         </nav>
 
         <header class="investigations-hero investigations-hero--workspace">
           <div>
-            <span class="investigations-eyebrow">{{ investigation.folio }} · {{ selectedLine()?.id || 'Línea de
-              investigación' }}</span>
-            <h1>{{ selectedLine()?.title || 'Línea de investigación' }}</h1>
+            <span class="investigations-eyebrow">{{ investigation.folio }} · {{ (line && line.id) || 'Línea de investigación' }}</span>
+            <h1>{{ (line && line.title) || 'Línea de investigación' }}</h1>
             <p>El equipo amplía el grafo a partir de los vínculos encontrados y conserva la trazabilidad de cada
               decisión.</p>
           </div>
           <div class="investigations-hero__actions investigations-hero__actions--vertical">
-            <span class="status-pill">{{ selectedLine()?.status || 'En desarrollo' }}</span>
+            <span class="status-pill">{{ (line && line.status) || 'En desarrollo' }}</span>
             @if (canInvestigate()) {
             <button type="button" class="investigations-button investigations-button--primary" (click)="pivot()">
               <i class="fa-solid fa-code-branch"></i>Seguir Investigación

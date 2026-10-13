@@ -9,7 +9,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe, DecimalPipe, isPlatformBrowser } from '@angular/common';
+import { DecimalPipe, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ConsolidatedProfilesApiService } from '../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
@@ -178,7 +178,7 @@ function buildGraphPreview(config: GraphPreviewConfig): GraphPreview {
 @Component({
   selector: 'app-lineas-investigacion',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, RouterLink, Topbar],
+  imports: [DecimalPipe, RouterLink, Topbar],
   templateUrl: './lineas-investigacion.component.html',
   styleUrl: './lineas-investigacion.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

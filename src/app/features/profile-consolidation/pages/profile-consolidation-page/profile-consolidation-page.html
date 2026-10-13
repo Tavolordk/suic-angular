@@ -348,29 +348,36 @@
                     <article class="profile-card profile-card--consolidated">
                         <header class="profile-card__header">
                             <h2>3. Perfil consolidado</h2>
-                            <p>Revisa todos los datos antes de crear el perfil. Se requiere elegir al menos una evidencia por cada dato seleccionable de cada fuente.</p>
+                            <p>Verifica las evidencias incluidas antes de crear el perfil.</p>
                         </header>
 
-                        <section class="consolidated-progress">
-                            <div>
-                                <span>Datos completados</span>
-
-                                <span class="consolidated-progress__actions">
-                                    <strong>{{ completedLabel() }}</strong>
-                                    <button type="button" class="consolidated-progress__clear"
-                                        [disabled]="remainingRequired() === 0 || isSaving() || accepted()"
-                                        title="Seleccionar un dato de cada tipo en todas las fuentes"
-                                        (click)="selectAllSources()">Seleccionar todo el perfil</button>
-                                    <button type="button" class="consolidated-progress__clear"
-                                        [disabled]="totalSelected() === 0" (click)="clearAllSelected()">
-                                        <i class="fa-solid fa-rotate-left"></i>
-                                        Quitar todo
-                                    </button>
-                                </span>
+                        <section class="consolidated-progress" aria-label="Avance de consolidación">
+                            <div class="consolidated-progress__top">
+                                <div class="consolidated-progress__label">
+                                    <span>Avance de selección</span>
+                                    <strong>{{ selectedSlotCount() }} de {{ totalAvailable() }} datos requeridos</strong>
+                                </div>
+                                <strong class="consolidated-progress__percent">{{ completionPercent() }}%</strong>
                             </div>
 
-                            <div class="progress-line">
+                            <div class="progress-line" role="progressbar" aria-label="Datos seleccionados"
+                                [attr.aria-valuenow]="completionPercent()" aria-valuemin="0" aria-valuemax="100">
                                 <span [style.width.%]="completionPercent()"></span>
+                            </div>
+
+                            <div class="consolidated-progress__actions">
+                                <button type="button" class="consolidated-progress__clear consolidated-progress__clear--select"
+                                    [disabled]="remainingRequired() === 0 || isSaving() || accepted()"
+                                    title="Seleccionar un dato de cada tipo en todas las fuentes"
+                                    (click)="selectAllSources()">
+                                    <i class="fa-solid fa-check-double" aria-hidden="true"></i>
+                                    Seleccionar todo
+                                </button>
+                                <button type="button" class="consolidated-progress__clear"
+                                    [disabled]="totalSelected() === 0 || isSaving() || accepted()" (click)="clearAllSelected()">
+                                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                                    Quitar todo
+                                </button>
                             </div>
                         </section>
 
@@ -398,17 +405,35 @@
                         </section>
                         }
 
-                        <p class="consolidation-requirements" role="status">
-                            {{ selectedSlotCount() }} de {{ totalAvailable() }} datos de las fuentes seleccionados.
-                            @if (remainingRequired() > 0) {
-                              Faltan {{ remainingRequired() }} para habilitar «Crear perfil».
-                            } @else {
-                              @if (selectedPersonalFields().length > 0) { Selección completa. Ya puedes crear el perfil. }
-                              @else { No hay datos personales válidos para crear el perfil. }
-                            }
+                        <div class="consolidation-metrics" aria-label="Resumen de datos y evidencias seleccionados">
+                            <div class="consolidation-metrics__item">
+                                <strong>{{ totalSelected() }}</strong>
+                                <span>Datos únicos</span>
+                            </div>
+                            <div class="consolidation-metrics__item">
+                                <strong>{{ selectedEvidenceCount() }}</strong>
+                                <span>Evidencias incluidas</span>
+                            </div>
+                        </div>
+                        <p class="consolidation-requirements"
+                            [class.consolidation-requirements--complete]="remainingRequired() === 0 && selectedPersonalFields().length > 0"
+                            role="status">
+                            <i [class]="remainingRequired() === 0 && selectedPersonalFields().length > 0 ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info'" aria-hidden="true"></i>
+                            <span>
+                                @if (remainingRequired() > 0) {
+                                    Faltan <strong>{{ remainingRequired() }} datos</strong> para crear el perfil.
+                                } @else if (selectedPersonalFields().length > 0) {
+                                    Selección completa. Puedes crear el perfil.
+                                } @else {
+                                    Selecciona datos personales válidos para crear el perfil.
+                                }
+                            </span>
                         </p>
                         <details class="consolidation-summary">
-                            <summary>Revisar todos los datos seleccionados ({{ totalSelected() }} valores únicos, {{ selectedEvidenceCount() }} evidencias)</summary>
+                            <summary>
+                                <span><i class="fa-regular fa-clipboard" aria-hidden="true"></i> Revisar evidencias seleccionadas</span>
+                                <span class="consolidation-summary__count">{{ selectedEvidenceCount() }} evidencias <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></span>
+                            </summary>
                             @if (uniqueSelectedData().length === 0) {
                               <p>No se han seleccionado datos.</p>
                             } @else {
@@ -689,6 +714,47 @@
         </main>
     </div>
 
+
+    @if (showCreateConfirmation()) {
+    <div class="create-profile-modal" role="presentation" (click)="cancelCreateConfirmation()">
+        <section #createProfileDialog class="create-profile-modal__card" role="dialog" aria-modal="true"
+            aria-labelledby="create-profile-modal-title" aria-describedby="create-profile-modal-description"
+            (click)="$event.stopPropagation()">
+            <div class="create-profile-modal__heading">
+                <span class="create-profile-modal__icon"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></span>
+                <div>
+                    <span class="create-profile-modal__eyebrow">Confirmación de consolidación</span>
+                    <h2 id="create-profile-modal-title">¿Crear perfil consolidado?</h2>
+                </div>
+            </div>
+
+            <p id="create-profile-modal-description" class="create-profile-modal__description">
+                Se creará el perfil de <strong>{{ profileName() }}</strong> con los datos y evidencias que seleccionaste.
+            </p>
+
+            <div class="create-profile-modal__summary" aria-label="Información que se consolidará">
+                <div><strong>{{ totalSelected() }}</strong><span>Datos únicos</span></div>
+                <div><strong>{{ selectedEvidenceCount() }}</strong><span>Evidencias</span></div>
+                <div><strong>{{ sources().length }}</strong><span>Fuentes</span></div>
+            </div>
+
+            <p class="create-profile-modal__warning">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                Esta acción no se puede deshacer. Revisa las evidencias antes de continuar.
+            </p>
+
+            <footer class="create-profile-modal__actions">
+                <button #confirmCreateButton type="button" class="create-profile-modal__cancel"
+                    (click)="cancelCreateConfirmation()">Cancelar</button>
+                <button type="button" class="create-profile-modal__submit" [disabled]="!canCreateProfile()"
+                    (click)="confirmCreateProfile()">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i>
+                    Confirmar y crear perfil
+                </button>
+            </footer>
+        </section>
+    </div>
+    }
 
     @if (saveSuccessMessage(); as successMessage) {
     <div class="save-success-modal" role="presentation" (click)="closeSaveSuccessModal()">

@@ -1,6 +1,5 @@
 import {
   CommonModule,
-  DatePipe,
   isPlatformBrowser
 } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -99,7 +98,7 @@ interface QuickSearchItem {
 @Component({
   selector: 'app-search-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, Topbar],
+  imports: [CommonModule, ReactiveFormsModule, Topbar],
   templateUrl: './search-page.html',
   styleUrl: './search-page.scss'
 })

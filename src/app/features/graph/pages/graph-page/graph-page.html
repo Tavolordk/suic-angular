@@ -514,10 +514,12 @@
                             [style.--intro-delay]="introMode() === 'individual' ? getIntroLinkDelay(linkIndex) + 'ms' : null"
                             [style.--edge-target-opacity]="getLinkOpacity(link)"
                             [style.stroke]="isLinkSelected(link) ? getNodeColor(link.type) : null" class="graph-edge"></line>
-                        <text *ngIf="isLinkSelected(link)" class="graph-edge__label" [class.graph-edge__label--selected]="isLinkSelected(link)"
+                        @if (isLinkSelected(link)) {
+                        <text class="graph-edge__label graph-edge__label--selected"
                             [attr.x]="(getNodeById(link.sourceId).x + getNodeById(link.targetId).x) / 2"
                             [attr.y]="(getNodeById(link.sourceId).y + getNodeById(link.targetId).y) / 2 - 7"
                             text-anchor="middle">{{ link.label }}</text>
+                        }
                     </g>
 
                     @if (introAnimating() && introMode() === 'individual') {
