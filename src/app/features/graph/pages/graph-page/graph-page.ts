@@ -66,6 +66,8 @@ interface GraphNode {
   links: GraphNodeLinks;
   /** Identifies secondary nodes loaded from a pivoted consolidated profile. */
   branchProfileId?: string;
+  identityKeys?: string[];
+  consolidations?: PivotConsolidationRecord[];
 }
 
 interface GraphLink {
@@ -392,13 +394,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   /** A link can yield more than one consolidated profile; never infer completion from search hits. */
   readonly selectedConsolidations = computed(() => {
-    const link = this.selectedPivotLink();
-    const searchId = link?.searchId?.trim();
-    const resultId = link?.resultId?.trim();
-    const linkId = link?.externalId?.trim();
-    return searchId && resultId && linkId
-      ? this.pivotRegistry.forLink(this.profileId, searchId, resultId, linkId)
-      : [];
+    return this.selectedNode().consolidations ?? [];
   });
 
   readonly expandedRelatedNodes = computed(() => {
@@ -581,7 +577,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     );
     this.selectedLinkId.set(null);
     if (this.returnLinkId) {
-      const returningLink = graph.links.find((link) => link.externalId === this.returnLinkId);
+      const returningLink = expandedGraph.links.find((link) => link.externalId === this.returnLinkId);
       if (returningLink) {
         this.selectedNodeId.set(returningLink.targetId);
         this.selectedLinkId.set(returningLink.id);
@@ -597,64 +593,137 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Render each previously fetched branch only if its parent link is on the current page. */
+  /** Keep one visible occurrence per identity; the latest expanded branch owns shared children. */
   private appendPivotBranches(graph: { nodes: GraphNode[]; links: GraphLink[] }): { nodes: GraphNode[]; links: GraphLink[] } {
-    const nodes = [...graph.nodes];
-    const links = [...graph.links];
     const root = graph.nodes[0];
+    if (!root) return graph;
+    const nodes: GraphNode[] = [root];
+    let links: GraphLink[] = [];
+    const identities = new Map<string, GraphNode>();
+    for (const key of root.identityKeys ?? []) identities.set(key, root);
+    identities.set(`profile:${root.id}`, root);
 
-    for (const branch of this.expandedPivotBranches()) {
-      const parentLink = links.find(link =>
-        link.searchId === branch.record.parentSearchId &&
-        link.resultId === branch.record.parentResultId &&
-        link.externalId === branch.record.parentLinkId
-      );
-      const parentNode = parentLink ? nodes.find(node => node.id === parentLink.targetId) : undefined;
-      if (!parentNode || !root) continue;
+    const reuseNode = (candidate: GraphNode, link: GraphLink): GraphNode => {
+      const records = link.searchId && link.resultId
+        ? this.pivotRegistry.forLink(this.profileId, link.searchId, link.resultId, link.externalId) : [];
+      // Multiple consolidation results are not evidence that those profiles are the same person.
+      const keys = [...(candidate.identityKeys ?? [])];
+      if (records.length === 1) keys.push(`profile:${records[0].profileId}`);
+      const existing = keys.map(key => identities.get(key)).find((node): node is GraphNode => !!node);
+      const node = existing ?? { ...candidate, consolidations: [] };
+      if (!existing) nodes.push(node);
+      node.consolidations = [...(node.consolidations ?? []), ...records].filter((record, index, all) =>
+        all.findIndex(other => other.profileId === record.profileId) === index);
+      for (const key of keys) identities.set(key, node);
+      return node;
+    };
+    for (const link of graph.links) {
+      const candidate = graph.nodes.find(node => node.id === link.targetId);
+      if (!candidate) continue;
+      const node = reuseNode(candidate, link);
+      if (node.id !== root.id && !links.some(entry => entry.targetId === node.id)) {
+        links.push({ ...link, targetId: node.id });
+      }
+    }
 
-      // A separate namespace prevents child link IDs from colliding with the original graph.
+    // Resolve dependencies even when an existing branch was reactivated after one of its children.
+    const pending = [...this.expandedPivotBranches()];
+    while (pending.length) {
+      const branchIndex = pending.findIndex(branch => nodes.some(node =>
+        node.consolidations?.some(record => record.profileId === branch.record.profileId)));
+      if (branchIndex < 0) break;
+      const [branch] = pending.splice(branchIndex, 1);
+      const parentNode = nodes.find(node => node.consolidations?.some(record =>
+        record.profileId === branch.record.profileId))!;
       const childGraph = mapProfileToGraph(branch.profile, branch.relations.slice(0, BRANCH_RELATIONSHIP_LIMIT));
+      for (const key of childGraph.nodes[0].identityKeys ?? []) identities.set(key, parentNode);
+      identities.set(`profile:${branch.profile.profileId}`, parentNode);
       const direction = Math.atan2(parentNode.y - root.y, parentNode.x - root.x);
-        childGraph.nodes.slice(1).forEach((child, index) => {
-        const sector = index % 7;
-        const ring = Math.floor(index / 7);
-        const angle = direction - Math.PI * 0.58 + (sector / 6) * Math.PI * 1.16;
-        const distance = 158 + ring * 100;
-        const childId = `pivot:${branch.profile.profileId}:${child.id}`;
-        nodes.push({ ...child, id: childId,
-          x: parentNode.x + Math.cos(angle) * distance,
-          y: parentNode.y + Math.sin(angle) * distance,
-          radius: 22,
-          branchProfileId: branch.profile.profileId
-        });
+      childGraph.nodes.slice(1).forEach((child, index) => {
         const sourceLink = childGraph.links[index];
-        if (sourceLink) {
-          links.push({ ...sourceLink,
-            id: `pivot-edge:${branch.profile.profileId}:${sourceLink.id}`,
-            sourceId: parentNode.id,
-            targetId: childId,
-            branchProfileId: branch.profile.profileId
-          });
+        if (!sourceLink) return;
+        // Some reciprocal links only contain a full name, without the ancestor's CURP/profile ID.
+        // Hide that visual back-reference only along the current ancestry, never across siblings.
+        const returningAncestor = findReturningAncestor(child, parentNode, nodes, links);
+        const knownProfiles = sourceLink.searchId && sourceLink.resultId
+          ? this.pivotRegistry.forLink(this.profileId, sourceLink.searchId, sourceLink.resultId, sourceLink.externalId)
+          : [];
+        if (returningAncestor && (!knownProfiles.length || knownProfiles.every(record =>
+          record.profileId === returningAncestor.id || returningAncestor.consolidations?.some(existing =>
+            existing.profileId === record.profileId)))) return;
+        const node = reuseNode({ ...child, id: `pivot:${branch.profile.profileId}:${child.id}` }, sourceLink);
+        // Never move the root, the expanding node, or an ancestor underneath its own descendant.
+        let ancestor: string | undefined = parentNode.id;
+        const visited = new Set<string>();
+        while (ancestor && !visited.has(ancestor)) {
+          if (ancestor === node.id) return;
+          visited.add(ancestor);
+          ancestor = links.find(link => link.targetId === ancestor)?.sourceId;
         }
+        if (node.id === root.id) return;
+        const angle = direction - Math.PI * 0.58 + (index % 7 / 6) * Math.PI * 1.16;
+        let distance = 320 + Math.floor(index / 7) * 220;
+        let x = parentNode.x + Math.cos(angle) * distance;
+        let y = parentNode.y + Math.sin(angle) * distance;
+        while (nodes.some(other => other !== node && Math.hypot(other.x - x, other.y - y) < 190)) {
+          distance += 100;
+          x = parentNode.x + Math.cos(angle) * distance;
+          y = parentNode.y + Math.sin(angle) * distance;
+        }
+        const offsetX = x - node.x;
+        const offsetY = y - node.y;
+        const descendants = [node.id];
+        const moved = new Set<string>(descendants);
+        while (descendants.length) {
+          const parentId = descendants.shift()!;
+          for (const edge of links.filter(link => link.sourceId === parentId)) {
+            if (moved.has(edge.targetId)) continue;
+            moved.add(edge.targetId);
+            const descendant = nodes.find(candidate => candidate.id === edge.targetId);
+            if (descendant) {
+              descendant.x += offsetX;
+              descendant.y += offsetY;
+              descendants.push(descendant.id);
+            }
+          }
+        }
+        Object.assign(node, { x, y, branchProfileId: branch.profile.profileId });
+        links = links.filter(link => link.targetId !== node.id);
+        links.push({ ...sourceLink, id: `pivot-edge:${branch.profile.profileId}:${sourceLink.id}`,
+          sourceId: parentNode.id, targetId: node.id, branchProfileId: branch.profile.profileId });
       });
     }
+    // Moving a populated branch can bring its descendants close to another branch.
+    nodes.forEach((node, index) => {
+      const previous = nodes.slice(0, index);
+      while (previous.some(other => Math.hypot(other.x - node.x, other.y - node.y) < 190)) {
+        node.y += 190;
+      }
+    });
     return { nodes, links };
   }
 
   isPivotNodeConsolidated(node: GraphNode): boolean {
-    if (node.id === this.rootNode().id || node.type !== 'person') return false;
-    const link = this.links().find(entry => entry.targetId === node.id && entry.type === 'person');
-    return !!(link?.searchId && link.resultId && link.externalId &&
-      this.pivotRegistry.forLink(this.profileId, link.searchId, link.resultId, link.externalId).length);
+    return node.id !== this.rootNode().id && !!node.consolidations?.length;
   }
 
   isPivotProfileExpanded(profileId: string): boolean {
     return this.expandedPivotBranches().some(branch => branch.record.profileId === profileId);
   }
 
-  expandPivotProfile(record: PivotConsolidationRecord): void {
+  expandPivotProfile(record: PivotConsolidationRecord, collapseIfExpanded = true, onComplete?: () => void): void {
     if (this.expandingPivotProfileId()) return;
     if (this.isPivotProfileExpanded(record.profileId)) {
+      if (!collapseIfExpanded) {
+        this.expandedPivotBranches.update(branches => [
+          ...branches.filter(branch => branch.record.profileId !== record.profileId),
+          ...branches.filter(branch => branch.record.profileId === record.profileId)
+        ]);
+        this.renderRelationshipPage(undefined, true);
+        this.focusExpandedBranch(record.profileId);
+        onComplete?.();
+        return;
+      }
       this.expandedPivotBranches.update(branches => branches.filter(branch => branch.record.profileId !== record.profileId));
       this.pivotExpansionError.set(null);
       this.renderRelationshipPage(undefined, true);
@@ -675,7 +744,10 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           catchError(() => of({ profile, relations: [] as GraphRelationEntry[], detailError: true }))
         );
       }),
-      finalize(() => this.expandingPivotProfileId.set(null))
+      finalize(() => {
+        this.expandingPivotProfileId.set(null);
+        onComplete?.();
+      })
     ).subscribe({
       next: data => {
         if (data.detailError) {
@@ -698,16 +770,13 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private selectSourceLink(record: PivotConsolidationRecord): void {
-    const link = this.links().find(entry =>
-      entry.searchId === record.parentSearchId &&
-      entry.resultId === record.parentResultId &&
-      entry.externalId === record.parentLinkId
-    );
-    if (link) {
-      this.selectedNodeId.set(link.targetId);
-      this.selectedLinkId.set(link.id);
-      this.detailPanelOpen.set(true);
-    }
+    const node = this.nodes().find(candidate => candidate.consolidations?.some(entry =>
+      entry.profileId === record.profileId));
+    if (!node) return;
+    const link = this.links().find(entry => entry.targetId === node.id);
+    this.selectedNodeId.set(node.id);
+    this.selectedLinkId.set(link?.id ?? null);
+    this.detailPanelOpen.set(true);
   }
 
   /** Focus the selected origin and its new branch, without modifying the other graph nodes. */
@@ -1563,9 +1632,15 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const rootId = this.rootNode().id;
     const connectedLink = nodeId === rootId
       ? undefined
-      : this.links().find((link) => link.sourceId === nodeId || link.targetId === nodeId);
+      : this.links().find((link) => link.targetId === nodeId);
     this.selectedLinkId.set(connectedLink?.id ?? null);
     this.detailPanelOpen.set(true);
+    const records = this.selectedConsolidations();
+    const expandNext = (index: number): void => {
+      const record = records[index];
+      if (record) this.expandPivotProfile(record, false, () => expandNext(index + 1));
+    };
+    expandNext(0);
   }
 
   selectLink(linkId: string, event?: Event): void {
@@ -1937,6 +2012,7 @@ function mapProfileToGraph(
       x: ROOT_X,
       y: ROOT_Y,
       radius: 35,
+      identityKeys: graphIdentityKeys(rootType, profile.data ?? []),
       details: rootDetails,
       links: counts
     }
@@ -1957,6 +2033,7 @@ function mapProfileToGraph(
       x: position.x,
       y: position.y,
       radius: relation.type === 'person' ? 29 : 27,
+      identityKeys: graphIdentityKeys(relation.type, [...(relation.item.identifiers ?? []), ...(relation.item.attributes ?? [])]),
       details,
       links: { persons: 0, vehicles: 0, weapons: 0 }
     });
@@ -2161,8 +2238,8 @@ function createRelatedPositions(count: number): Array<{ x: number; y: number }> 
 
   while (placed < count) {
     const capacity = Math.min(count - placed, 8 + ring * 4);
-    const radiusX = 220 + ring * 105;
-    const radiusY = 180 + ring * 75;
+    const radiusX = 360 + ring * 220;
+    const radiusY = 300 + ring * 190;
 
     for (let index = 0; index < capacity; index += 1) {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / capacity;
@@ -2330,4 +2407,46 @@ function extractErrorMessage(error: unknown): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+/** Only stable identifiers can merge nodes; names and placeholder labels are never identities. */
+function graphIdentityKeys(type: GraphNodeType, evidence: Array<{ code?: string | null; value?: string | null }>): string[] {
+  const allowed = type === 'person' ? ['CURP', 'CUIP']
+    : type === 'vehicle' ? ['VIN', 'NIV'] : ['SERIE', 'SERIALNUMBER'];
+  return evidence.flatMap(entry => {
+    const code = normalizeCode(entry.code ?? '');
+    const value = entry.value?.trim().toUpperCase();
+    if (!value || !allowed.includes(code)) return [];
+    const canonicalCode = code === 'NIV' ? 'VIN' : code === 'SERIALNUMBER' ? 'SERIE' : code;
+    return [`${type}:${canonicalCode}:${value}`];
+  });
+}
+
+/** A display-only fallback for reciprocal person links that omit stable identity fields. */
+function findReturningAncestor(
+  child: GraphNode, parent: GraphNode, nodes: GraphNode[], links: GraphLink[]
+): GraphNode | undefined {
+  if (child.type !== 'person') return undefined;
+  const normalizeName = (value: string): string => value.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const name = normalizeName(child.title ?? '');
+  if (name.split(' ').length < 3 || /^PERSONA VINCULADA(?: \d+)?$/.test(name)) return undefined;
+  const matches = nodes.filter(node => node.type === 'person' && normalizeName(node.title ?? '') === name);
+  if (matches.length !== 1) return undefined;
+  const match = matches[0];
+  const childKeys = child.identityKeys ?? [];
+  const ancestorKeys = match.identityKeys ?? [];
+  // A matching name must never override conflicting CURP/CUIP values.
+  if (childKeys.some(key => ancestorKeys.some(other =>
+    key.slice(0, key.lastIndexOf(':')) === other.slice(0, other.lastIndexOf(':')) && key !== other))) {
+    return undefined;
+  }
+  let ancestorId: string | undefined = parent.id;
+  const visited = new Set<string>();
+  while (ancestorId && !visited.has(ancestorId)) {
+    if (ancestorId === match.id) return match;
+    visited.add(ancestorId);
+    ancestorId = links.find(link => link.targetId === ancestorId)?.sourceId;
+  }
+  return undefined;
 }

@@ -363,7 +363,7 @@
         </aside>
         }
 
-        <main class="graph-stage">
+        <main class="graph-stage" [class.graph-stage--ai-open]="aiPanelOpen()">
             @if (!detailPanelOpen()) {
             <button type="button" class="graph-detail-toggle" (click)="toggleDetailPanel()">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -374,6 +374,7 @@
             </button>
             }
 
+            <div class="graph-stage-controls">
             <section class="graph-explorer" aria-label="Explorador de vínculos">
                 <div class="graph-explorer__filters" title="Delimita los vínculos que se exploran y paginan">
                     <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'all'"
@@ -427,6 +428,16 @@
                 </div>
                 }
             </section>
+
+            <section class="graph-floating-card graph-floating-card--pending">
+                <span></span>
+
+                <div>
+                    <strong>{{ pendingProfilesLabel() }}</strong>
+                    <small>Selecciona un nodo para consultar su detalle</small>
+                </div>
+            </section>
+            </div>
 
             <svg class="graph-canvas" [class.graph-canvas--dragging]="dragging()"
                 [class.graph-canvas--intro]="introAnimating()"
@@ -610,15 +621,6 @@
                     </g>
                 </g>
             </svg>
-
-            <section class="graph-floating-card graph-floating-card--pending">
-                <span></span>
-
-                <div>
-                    <strong>{{ pendingProfilesLabel() }}</strong>
-                    <small>Selecciona un nodo para consultar su detalle</small>
-                </div>
-            </section>
 
             <section class="graph-floating-card graph-floating-card--legend">
                 <p>Leyenda</p>

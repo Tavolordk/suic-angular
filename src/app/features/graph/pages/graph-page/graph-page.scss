@@ -2590,8 +2590,9 @@
   top: 14px;
   left: 50%;
   z-index: 24;
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(220px, 340px) auto;
+  display: flex;
+  flex-wrap: wrap;
+  box-sizing: border-box;
   align-items: center;
   gap: 9px;
   width: min(920px, calc(100% - 240px));
@@ -2605,6 +2606,8 @@
 }
 
 .graph-explorer__filters {
+  flex: 1 1 320px;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -2612,6 +2615,7 @@
 }
 
 .graph-explorer__filters button {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2640,6 +2644,8 @@
 }
 
 .graph-explorer__search {
+  flex: 1 1 230px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -2668,6 +2674,7 @@
 }
 
 .graph-explorer__pager {
+  flex: 1 1 190px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -3787,3 +3794,108 @@
 }
 /* El modo amplio sigue acoplado; no hereda padding de la antigua ventana a pantalla completa. */
 .graph-ai--docked.graph-ai--maximized .graph-lince__composer { padding: 12px 15px 13px; }
+
+/* Reflow against the actual graph width, including docked/maximized Lince. */
+.graph-stage-controls {
+  position: absolute;
+  inset: 14px 14px auto;
+  z-index: 24;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.graph-detail-toggle ~ .graph-stage-controls { top: 56px; }
+
+.graph-stage-controls > .graph-explorer {
+  position: relative;
+  inset: auto;
+  transform: none;
+  justify-self: center;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  width: min(920px, 100%);
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.graph-stage-controls .graph-explorer__filters {
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.graph-stage-controls .graph-explorer__filters button { flex: 0 0 auto; }
+
+.graph-stage-controls .graph-explorer__search {
+  flex: 1 1 230px;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.graph-stage-controls .graph-explorer__search > i { flex: 0 0 auto; }
+.graph-stage-controls .graph-explorer__search input { flex: 1 1 0; }
+
+.graph-stage-controls .graph-explorer__pager {
+  flex: 1 1 190px;
+  width: auto;
+  min-width: 0;
+  justify-content: space-between;
+}
+
+.graph-stage-controls .graph-explorer__pager span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.graph-stage-controls .graph-explorer__notice,
+.graph-stage-controls .graph-explorer > p {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.graph-stage-controls > .graph-floating-card--pending {
+  position: relative;
+  inset: auto;
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.graph-stage-controls > .graph-floating-card--pending > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Opening Lince reserves a whole row for filters, regardless of viewport width. */
+.graph-stage--ai-open .graph-explorer > .graph-explorer__filters {
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+}
+
+.graph-stage--ai-open .graph-explorer > .graph-explorer__search {
+  flex: 1 1 240px;
+  min-width: 0;
+  width: auto;
+}
+
+.graph-stage--ai-open .graph-explorer > .graph-explorer__pager {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+
+.graph-explorer__search > i {
+  position: static;
+  flex: 0 0 16px;
+  width: 16px;
+  text-align: center;
+}
