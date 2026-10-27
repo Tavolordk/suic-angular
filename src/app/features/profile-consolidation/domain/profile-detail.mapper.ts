@@ -184,9 +184,15 @@ export function mapSearchResultDetail(
     .map(mapLinkGroup)
     .filter((group) => group.count > 0 || group.items.length > 0);
   const photos = mapPhotos(evidence, sourceGroups);
-  const isVehicle = normalizeCode(detail.entityType || '') === 'VEHICLE';
-  const profileName = isVehicle ? resolveVehicleName(evidence) : resolveProfileName(evidence);
-  const identifier = findFirstValue(evidence, isVehicle ? ['VIN', 'NIV', 'PLACA', 'PLACAS', 'PLATE'] : IDENTIFIER_CODES);
+  const entityType = normalizeCode(detail.entityType || '');
+  const isVehicle = entityType === 'VEHICLE';
+  const isWeapon = entityType === 'WEAPON';
+  const profileName = isVehicle ? resolveVehicleName(evidence)
+    : isWeapon ? resolveWeaponName(evidence)
+    : resolveProfileName(evidence);
+  const identifier = findFirstValue(evidence, isVehicle
+    ? ['VIN', 'NIV', 'PLACA', 'PLACAS', 'PLATE']
+    : isWeapon ? ['MATRICULA', 'REGISTRATIONNUMBER'] : IDENTIFIER_CODES);
   const entityLabel = humanizeEntityType(detail.entityType || 'Person');
   const status = detail.status?.trim() ? translateGeneralStatus(detail.status.trim()) : '';
   const subtitleParts = [identifier, entityLabel, status].filter(Boolean);
@@ -698,6 +704,15 @@ function resolveVehicleName(evidence: SearchResultEvidenceDto[]): string {
   const plate = findFirstValue(evidence, ['PLACA', 'PLACAS', 'PLATE', 'LICENSEPLATE', 'PLATENUMBER']);
   const vin = findFirstValue(evidence, ['VIN', 'NIV', 'VEHICLEIDENTIFICATIONNUMBER']);
   return [brand, model].filter(Boolean).join(' ') || (plate ? `Vehículo · ${plate}` : vin ? `Vehículo · ${vin}` : 'Vehículo sin identificador disponible');
+}
+
+function resolveWeaponName(evidence: SearchResultEvidenceDto[]): string {
+  const type = findFirstValue(evidence, ['TIPODEARMA', 'TIPOARMA', 'WEAPONTYPE']);
+  const brand = findFirstValue(evidence, ['MARCA', 'MAKE']);
+  const model = findFirstValue(evidence, ['MODELO', 'MODEL']);
+  const matricula = findFirstValue(evidence, ['MATRICULA', 'REGISTRATIONNUMBER']);
+  return [type, brand, model].filter(Boolean).join(' ') ||
+    (matricula ? `Arma · ${matricula}` : 'Arma sin identificación disponible');
 }
 
 function resolveProfileName(evidence: SearchResultEvidenceDto[]): string {

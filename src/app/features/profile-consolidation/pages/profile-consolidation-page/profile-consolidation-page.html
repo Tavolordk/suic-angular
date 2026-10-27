@@ -136,7 +136,7 @@
             <div class="profile-content__scroll">
                 <section class="profile-header-card">
                     <div>
-                        <h1>{{ profileEntity() === 'Vehicle' ? (accepted() ? 'Perfil consolidado de vehículo' : 'Preconsolidación de vehículo') : 'Perfil consolidado' }}</h1>
+                        <h1>{{ profileEntity() === 'Vehicle' ? (accepted() ? 'Perfil consolidado de vehículo' : 'Preconsolidación de vehículo') : profileEntity() === 'Weapon' ? (accepted() ? 'Perfil consolidado de arma' : 'Preconsolidación de arma') : 'Perfil consolidado' }}</h1>
                         <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                     </div>
 

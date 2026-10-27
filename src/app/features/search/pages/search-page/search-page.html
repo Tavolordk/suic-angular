@@ -282,24 +282,20 @@
                         </div>
 
                         <div class="search-form__grid" *ngSwitchCase="'armas'">
-                            <label class="search-field" *ngFor="let field of [
-                                { control: 'matricula', label: 'MATRÍCULA', placeholder: 'Ej. MAT-458921' },
-                                { control: 'marca', label: 'MARCA', placeholder: 'Ej. GLOCK' },
-                                { control: 'modelo', label: 'MODELO', placeholder: 'Ej. 17' },
-                                { control: 'calibre', label: 'CALIBRE', placeholder: 'Ej. 9 MM' },
-                                { control: 'tipoArma', label: 'TIPO DE ARMA', placeholder: 'Ej. PISTOLA' },
-                                { control: 'licencia', label: 'NÚMERO DE LICENCIA', placeholder: 'Ej. 206' }
-                            ]">
-                                <span class="search-field__label">{{ field.label }}</span>
+                            <label class="search-field">
+                                <span class="search-field__label">MATRÍCULA</span>
                                 <span class="search-field__control">
-                                    <span class="search-field__icon">
-                                        <svg fill="none" viewBox="0 0 20.5 20.5" aria-hidden="true">
-                                            <path d="M19.25 19.25L14.9 14.9M17.25 9.25C17.25 13.6683 13.6683 17.25 9.25 17.25C4.83172 17.25 1.25 13.6683 1.25 9.25C1.25 4.83172 4.83172 1.25 9.25 1.25C13.6683 1.25 17.25 4.83172 17.25 9.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
-                                        </svg>
+                                    <span class="search-field__icon" aria-hidden="true">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
                                     </span>
-                                    <input type="text" [formControlName]="field.control" [placeholder]="field.placeholder"
-                                        />
+                                    <input type="text" formControlName="matricula" placeholder="Ej. CCJ0142"
+                                        (input)="uppercaseWeaponField($event)" autocomplete="off" required
+                                        [attr.aria-invalid]="weaponForm.controls.matricula.invalid && (weaponForm.controls.matricula.touched || searchAttempted())" />
                                 </span>
+                                <small class="search-field__validation" role="alert"
+                                    *ngIf="weaponForm.controls.matricula.invalid && (weaponForm.controls.matricula.touched || searchAttempted())">
+                                    Captura la matrícula del arma para realizar la búsqueda.
+                                </small>
                             </label>
                         </div>
                     </ng-container>
@@ -344,7 +340,7 @@
 
             <section class="search-empty-states" *ngIf="canShowEmptyStates()">
                 <div class="search-empty-card search-empty-card--frequent">
-                    <p>{{ selectedEntity() === 'vehiculo' ? 'Consulta por VIN/NIV, placa o ambos identificadores' : 'Consulta por CURP, RFC, nombre o apellidos' }}</p>
+                    <p>{{ selectedEntity() === 'vehiculo' ? 'Consulta por VIN/NIV, placa o ambos identificadores' : selectedEntity() === 'armas' ? 'Consulta exclusivamente por matrícula del arma' : 'Consulta por CURP, RFC, nombre o apellidos' }}</p>
                 </div>
 
                 <div class="search-empty-card">
@@ -354,7 +350,7 @@
 
             <section class="search-feedback" *ngIf="canShowNoResults()">
                 <strong>Sin coincidencias</strong>
-                <p>El servicio no devolvió {{ selectedEntity() === 'vehiculo' ? 'vehículos' : 'personas' }} para los identificadores o criterios capturados.</p>
+                <p>El servicio no devolvió {{ selectedEntity() === 'vehiculo' ? 'vehículos' : selectedEntity() === 'armas' ? 'armas' : 'personas' }} para los identificadores o criterios capturados.</p>
             </section>
 
             <section class="search-results" *ngIf="canShowResults()">
@@ -463,7 +459,7 @@
                 <p role="alert" class="search-feedback" *ngIf="reportError()">{{ reportError() }}</p>
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
-                        [style.animation-delay.ms]="i * 35" [title]="result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : 'Abrir detalle del perfil'" tabindex="0"
+                        [style.animation-delay.ms]="i * 35" [title]="result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : result.entity === 'armas' ? 'Abrir preconsolidación del arma' : 'Abrir detalle del perfil'" tabindex="0"
                         (click)="openResultDetail(result)" (keydown.enter)="openResultDetail(result)">
                         <div class="search-result-card__header">
                             <div class="search-result-card__tags" *ngIf="result.tags.length > 0">
@@ -531,6 +527,15 @@
                                 <span class="search-result-card__value">{{ result.sources.length ? result.sources.join(', ') : 'Sin fuentes resumidas' }}</span>
                             </ng-container>
                             <ng-template #personResultFields>
+                            <ng-container *ngIf="result.entity === 'armas'; else personFields">
+                                <span class="search-result-card__label search-result-card__label--name"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Arma:</span>
+                                <span class="search-result-card__value">{{ result.name }}</span>
+                                <span class="search-result-card__label">Matrícula:</span>
+                                <span class="search-result-card__value" [class.search-result-card__value--empty]="!result.matricula">{{ result.matricula || 'Consultar detalle' }}</span>
+                                <span class="search-result-card__label">Fuentes:</span>
+                                <span class="search-result-card__value">{{ result.sources.length ? result.sources.join(', ') : 'Sin fuentes resumidas' }}</span>
+                            </ng-container>
+                            <ng-template #personFields>
                             <span class="search-result-card__label search-result-card__label--name">
                                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                     <path
@@ -577,6 +582,7 @@
                                 [class.search-result-card__value--empty]="!result.rfc">
                                 {{ result.rfc || '—' }}
                             </span>
+                            </ng-template>
                             </ng-template>
                         </div>
                     </article>

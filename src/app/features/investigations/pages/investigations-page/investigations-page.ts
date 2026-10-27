@@ -1077,6 +1077,9 @@ export class InvestigationsPage implements OnInit, OnDestroy {
   }
 
   searchCriteriaSummary(search: InvestigationLinkedSearch): string {
+    if (search.entity === 'armas') {
+      return `Matrícula ${(search.criteria as { matricula: string }).matricula}`;
+    }
     if (search.entity === 'vehiculo') {
       const criteria = search.criteria as { vin?: string; placa?: string };
       return [criteria.vin && `VIN ${criteria.vin}`, criteria.placa && `Placa ${criteria.placa}`].filter(Boolean).join(' · ') || 'Identificadores de vehículo';

@@ -37,6 +37,8 @@ import {
 } from '../../../investigations/data-access/investigation-workspace.service';
 import { PersonSearchFormValue } from '../../domain/person-search.models';
 import { VehicleSearchFormValue } from '../../domain/vehicle-search.models';
+import { WeaponSearchFormValue } from '../../domain/weapon-search.models';
+import { buildWeaponSearchRequest, normalizeWeaponSearch } from '../../domain/weapon-search-request.mapper';
 import { buildVehicleSearchRequest, normalizeVehicleSearch } from '../../domain/vehicle-search-request.mapper';
 import {
   buildPersonSearchRequest,
@@ -72,10 +74,11 @@ interface ResultTag {
 
 interface SearchResult {
   id: string;
-  entity: 'personas' | 'vehiculo';
+  entity: SearchEntity;
   name: string;
   vin?: string;
   placa?: string;
+  matricula?: string;
   alias?: string;
   curp?: string;
   rfc?: string;
@@ -123,7 +126,13 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
-  readonly selectedEntity = signal<SearchEntity>(this.restoredPage?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo' : 'personas');
+  readonly selectedEntity = signal<SearchEntity>(
+    this.restoredPage?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo'
+      : this.restoredPage?.entityType?.toLowerCase() === 'weapon' ? 'armas'
+      : this.searchState.request()?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo'
+      : this.searchState.request()?.entityType?.toLowerCase() === 'weapon' ? 'armas'
+      : 'personas'
+  );
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
   readonly isExportingReport = signal(false);
@@ -167,11 +176,7 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly entityOptions: EntityOption[] = [
     { key: 'personas', label: 'Personas' },
     { key: 'vehiculo', label: 'Vehículo' },
-    {
-      key: 'armas',
-      label: 'Armas',
-      disabled: true
-    }
+    { key: 'armas', label: 'Armas' }
   ];
 
   readonly recentSearches: QuickSearchItem[] = [
@@ -245,12 +250,7 @@ export class SearchPage implements OnInit, OnDestroy {
   });
 
   readonly weaponForm = this.fb.nonNullable.group({
-    matricula: [''],
-    marca: [''],
-    modelo: [''],
-    calibre: [''],
-    tipoArma: [''],
-    licencia: ['']
+    matricula: [this.searchState.weaponFormValue()?.matricula ?? '', Validators.required]
   });
 
   private readonly results = signal<SearchResult[]>(
@@ -420,7 +420,7 @@ export class SearchPage implements OnInit, OnDestroy {
   clearSearch(): void {
     this.personForm.reset(this.emptyPersonFormValue());
     this.vehicleForm.reset({ vin: '', placa: '' });
-    this.weaponForm.reset();
+    this.weaponForm.reset({ matricula: '' });
     this.searchState.clear();
     this.searchAttempted.set(false);
     this.resetResultState();
@@ -432,16 +432,12 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.selectedEntity() === 'armas') {
-      this.errorMessage.set('La búsqueda de armas todavía no está habilitada.');
-      return;
-    }
-
     const isVehicle = this.selectedEntity() === 'vehiculo';
+    const isWeapon = this.selectedEntity() === 'armas';
     this.searchAttempted.set(true);
     this.reportError.set(null);
     this.errorMessage.set(null);
-    const activeForm = isVehicle ? this.vehicleForm : this.personForm;
+    const activeForm = isVehicle ? this.vehicleForm : isWeapon ? this.weaponForm : this.personForm;
     activeForm.markAllAsTouched();
     if (activeForm.invalid) {
       this.searchPanelExpanded.set(true);
@@ -449,13 +445,18 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     const vehicleValue = isVehicle ? normalizeVehicleSearch(this.vehicleForm.getRawValue()) : null;
-    const formValue = isVehicle ? null : this.normalizePersonForm();
+    const weaponValue = isWeapon ? normalizeWeaponSearch(this.weaponForm.getRawValue()) : null;
+    const formValue = !isVehicle && !isWeapon ? this.normalizePersonForm() : null;
     if (vehicleValue) this.vehicleForm.patchValue(vehicleValue, { emitEvent: false });
-    const request = vehicleValue ? buildVehicleSearchRequest(vehicleValue) : buildPersonSearchRequest(formValue!);
+    if (weaponValue) this.weaponForm.patchValue(weaponValue, { emitEvent: false });
+    const request = vehicleValue ? buildVehicleSearchRequest(vehicleValue)
+      : weaponValue ? buildWeaponSearchRequest(weaponValue)
+      : buildPersonSearchRequest(formValue!);
 
     if (!hasSearchTerms(request)) {
       this.errorMessage.set(isVehicle
         ? 'Captura al menos el VIN/NIV o la placa del vehículo.'
+        : isWeapon ? 'Captura la matrícula del arma.'
         : 'Captura al menos un criterio de búsqueda.');
       this.searchPanelExpanded.set(true);
       return;
@@ -482,6 +483,9 @@ export class SearchPage implements OnInit, OnDestroy {
           if (vehicleValue) {
             this.searchState.saveVehicleSearch(request, page, this.pageSize(), vehicleValue);
             this.investigationWorkspace.recordSuccessfulSearch(vehicleValue, page, 'vehiculo');
+          } else if (weaponValue) {
+            this.searchState.saveWeaponSearch(request, page, this.pageSize(), weaponValue);
+            this.investigationWorkspace.recordSuccessfulSearch(weaponValue, page, 'armas');
           } else {
             this.searchState.saveSearch(request, page, this.pageSize(), formValue!);
             this.investigationWorkspace.recordSuccessfulSearch(formValue!, page);
@@ -520,7 +524,7 @@ export class SearchPage implements OnInit, OnDestroy {
         this.pdfExport.exportCards(
           `reporte-general-${id.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
           'Reporte general de búsqueda',
-          `${this.selectedEntity() === 'vehiculo' ? 'Vehículos' : 'Personas'} · ${results.length} de ${this.totalResults()} resultados`,
+          `${this.selectedEntity() === 'vehiculo' ? 'Vehículos' : this.selectedEntity() === 'armas' ? 'Armas' : 'Personas'} · ${results.length} de ${this.totalResults()} resultados`,
           [
             { title: 'RESUMEN DE LA BÚSQUEDA',
               subtitle: incomplete ? 'Reporte parcial: límite de 500 resultados o páginas no recibidas' : 'Resultados recuperados de todas las páginas',
@@ -530,7 +534,7 @@ export class SearchPage implements OnInit, OnDestroy {
                 this.isPartialResult() ? 'Algunas fuentes devolvieron información parcial.' : 'Sin aviso de respuesta parcial.'
               ] },
             ...results.map((result, index) => ({
-              title: `RESULTADO ${index + 1}`, subtitle: result.entity === 'vehiculo' ? 'Vehículo' : 'Persona',
+              title: `RESULTADO ${index + 1}`, subtitle: result.entity === 'vehiculo' ? 'Vehículo' : result.entity === 'armas' ? 'Arma' : 'Persona',
               lines: [
                 `Nombre o identificación: ${result.name}`,
                 ...(result.curp ? [`CURP: ${result.curp}`] : []),
@@ -538,6 +542,7 @@ export class SearchPage implements OnInit, OnDestroy {
                 ...(result.alias ? [`Alias: ${result.alias}`] : []),
                 ...(result.vin ? [`NIV: ${result.vin}`] : []),
                 ...(result.placa ? [`Placa: ${result.placa}`] : []),
+                ...(result.matricula ? [`Matrícula: ${result.matricula}`] : []),
                 `Vínculos: ${result.tags.map(tag => `${this.getTagLabel(tag)} ${tag.count}`).join(', ') || 'Ninguno informado'}`,
                 `Fuentes: ${result.sources.join(', ') || 'No informadas'}`
               ]
@@ -767,6 +772,16 @@ export class SearchPage implements OnInit, OnDestroy {
     }
   }
 
+  uppercaseWeaponField(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    const normalized = normalizeWeaponSearch({ matricula: input.value }).matricula;
+    if (input.value !== normalized) input.value = normalized;
+    if (this.weaponForm.controls.matricula.value !== normalized) {
+      this.weaponForm.controls.matricula.setValue(normalized, { emitEvent: false });
+    }
+  }
+
   uppercaseVehicleField(event: Event, field: string): void {
     if (field !== 'vin' && field !== 'placa') return;
     const input = event.target as HTMLInputElement | null;
@@ -815,7 +830,7 @@ export class SearchPage implements OnInit, OnDestroy {
       queryParams: {
         searchId: currentSearchId,
         resultId: result.id,
-        entityType: result.entity === 'vehiculo' ? 'Vehicle' : 'Person'
+        entityType: result.entity === 'vehiculo' ? 'Vehicle' : result.entity === 'armas' ? 'Weapon' : 'Person'
       }
     });
   }
@@ -882,10 +897,14 @@ export class SearchPage implements OnInit, OnDestroy {
   private restoreLinkedSearch(search: InvestigationLinkedSearch): void {
     this.investigationWorkspace.resumeSearch(search);
     const isVehicle = search.entity === 'vehiculo';
-    this.selectedEntity.set(isVehicle ? 'vehiculo' : 'personas');
+    const isWeapon = search.entity === 'armas';
+    this.selectedEntity.set(search.entity);
     if (isVehicle) {
       this.vehicleForm.reset({ vin: '', placa: '' });
       this.vehicleForm.patchValue(search.criteria as VehicleSearchFormValue);
+    } else if (isWeapon) {
+      this.weaponForm.reset({ matricula: '' });
+      this.weaponForm.patchValue(search.criteria as WeaponSearchFormValue);
     } else {
       this.personForm.reset(this.emptyPersonFormValue());
       this.personForm.patchValue(search.criteria as PersonSearchFormValue);
@@ -909,6 +928,9 @@ export class SearchPage implements OnInit, OnDestroy {
           if (isVehicle) {
             const form = normalizeVehicleSearch(search.criteria as VehicleSearchFormValue);
             this.searchState.saveVehicleSearch(buildVehicleSearchRequest(form), page, this.pageSize(), form);
+          } else if (isWeapon) {
+            const form = normalizeWeaponSearch(search.criteria as WeaponSearchFormValue);
+            this.searchState.saveWeaponSearch(buildWeaponSearchRequest(form), page, this.pageSize(), form);
           } else {
             const form = search.criteria as PersonSearchFormValue;
             this.searchState.saveSearch(buildPersonSearchRequest(form), page, this.pageSize(), form);
@@ -980,6 +1002,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.searchId.set(page.searchId);
     // Algunas respuestas paginadas omiten entityType. En tal caso preservar la selección.
     if (page.entityType?.toLowerCase() === 'vehicle') this.selectedEntity.set('vehiculo');
+    else if (page.entityType?.toLowerCase() === 'weapon') this.selectedEntity.set('armas');
     else if (page.entityType?.toLowerCase() === 'person') this.selectedEntity.set('personas');
     this.results.set(this.mapResults(page.items ?? []));
     this.totalResultsCount.set(page.counts.totalItems);
@@ -991,25 +1014,25 @@ export class SearchPage implements OnInit, OnDestroy {
     this.isPartialResult.set(page.execution.isPartial);
   }
 
-  private isVehicleResults(): boolean {
-    return this.selectedEntity() === 'vehiculo';
-  }
-
   private mapResults(items: SearchResultItemDto[]): SearchResult[] {
     const savedIds = this.searchState.savedResultIds();
 
-    const vehicle = this.isVehicleResults();
+    const vehicle = this.selectedEntity() === 'vehiculo';
+    const weapon = this.selectedEntity() === 'armas';
     return items.map((item, index) => ({
       id: item.resultId,
-      entity: vehicle ? 'vehiculo' : 'personas',
+      entity: vehicle ? 'vehiculo' : weapon ? 'armas' : 'personas',
       name: vehicle
-        ? (readVehicleCardField(item.card, ['name', 'marca', 'make', 'modelo', 'model']) || `Vehículo · resultado ${index + 1}`)
-        : (item.card?.name?.value?.trim() || 'Nombre no informado'),
-      vin: vehicle ? readVehicleCardField(item.card, ['vin', 'niv', 'vehicleIdentificationNumber']) : undefined,
-      placa: vehicle ? readVehicleCardField(item.card, ['placa', 'plate', 'licensePlate', 'plateNumber']) : undefined,
-      alias: !vehicle ? item.card?.alias?.value?.trim() || undefined : undefined,
-      curp: !vehicle ? item.card?.curp?.value?.trim() || undefined : undefined,
-      rfc: !vehicle ? item.card?.rfc?.value?.trim() || undefined : undefined,
+        ? (readCardField(item.card, ['name', 'marca', 'make', 'modelo', 'model']) || `Vehículo · resultado ${index + 1}`)
+        : weapon
+          ? (readCardField(item.card, ['name', 'tipoArma', 'weaponType', 'marca', 'make']) || `Arma · resultado ${index + 1}`)
+          : (item.card?.name?.value?.trim() || 'Nombre no informado'),
+      vin: vehicle ? readCardField(item.card, ['vin', 'niv', 'vehicleIdentificationNumber']) : undefined,
+      placa: vehicle ? readCardField(item.card, ['placa', 'plate', 'licensePlate', 'plateNumber']) : undefined,
+      matricula: weapon ? readCardField(item.card, ['matricula', 'MATRICULA', 'registrationNumber']) : undefined,
+      alias: !vehicle && !weapon ? item.card?.alias?.value?.trim() || undefined : undefined,
+      curp: !vehicle && !weapon ? item.card?.curp?.value?.trim() || undefined : undefined,
+      rfc: !vehicle && !weapon ? item.card?.rfc?.value?.trim() || undefined : undefined,
       tags: this.mapTags(item),
       saved: savedIds.has(item.resultId),
       status: item.status?.trim() || undefined,
@@ -1162,9 +1185,9 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 }
 
-/** La tarjeta del Swagger es orientada a Person. Si el motor entrega campos Vehicle extra,
- * se muestran sin asumir que existen; el detalle siempre proviene del endpoint real. */
-function readVehicleCardField(card: SearchResultItemDto['card'] | null | undefined, codes: string[]): string | undefined {
+/** Las tarjetas resumen no garantizan atributos específicos de Vehicle/Weapon.
+ * Mostrar únicamente los campos realmente devueltos por el backend. */
+function readCardField(card: SearchResultItemDto['card'] | null | undefined, codes: string[]): string | undefined {
   if (!card) return undefined;
   const record = card as unknown as Record<string, unknown>;
   for (const code of codes) {

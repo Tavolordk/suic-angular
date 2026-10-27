@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { SearchResultsPageResponse } from '../../../core/infrastructure/search-api/search-api.models';
 import { PersonSearchFormValue } from '../../search/domain/person-search.models';
 import { VehicleSearchFormValue } from '../../search/domain/vehicle-search.models';
+import { WeaponSearchFormValue } from '../../search/domain/weapon-search.models';
 
 export interface InvestigationSearchContext {
   investigationId: string;
@@ -18,9 +19,9 @@ export interface InvestigationLinkedSearch {
   investigationId: string;
   investigationFolio: string;
   investigationName: string;
-  entity: 'personas' | 'vehiculo';
+  entity: 'personas' | 'vehiculo' | 'armas';
   label: string;
-  criteria: PersonSearchFormValue | VehicleSearchFormValue;
+  criteria: PersonSearchFormValue | VehicleSearchFormValue | WeaponSearchFormValue;
   backendSearchId: string;
   totalResults: number;
   executionStatus: string;
@@ -79,7 +80,7 @@ export class InvestigationWorkspaceService {
     });
   }
 
-  recordSuccessfulSearch(formValue: PersonSearchFormValue | VehicleSearchFormValue, page: SearchResultsPageResponse, entity: 'personas' | 'vehiculo' = 'personas'): InvestigationLinkedSearch | null {
+  recordSuccessfulSearch(formValue: PersonSearchFormValue | VehicleSearchFormValue | WeaponSearchFormValue, page: SearchResultsPageResponse, entity: 'personas' | 'vehiculo' | 'armas' = 'personas'): InvestigationLinkedSearch | null {
     const context = this.activeContext();
     if (!context) {
       return null;
@@ -95,7 +96,9 @@ export class InvestigationWorkspaceService {
       investigationFolio: context.investigationFolio,
       investigationName: context.investigationName,
       entity,
-      label: entity === 'vehiculo' ? this.buildVehicleLabel(formValue as VehicleSearchFormValue) : this.buildLabel(formValue as PersonSearchFormValue),
+      label: entity === 'vehiculo' ? this.buildVehicleLabel(formValue as VehicleSearchFormValue)
+        : entity === 'armas' ? `Matrícula ${(formValue as WeaponSearchFormValue).matricula}`
+        : this.buildLabel(formValue as PersonSearchFormValue),
       criteria: { ...formValue },
       backendSearchId: page.searchId,
       totalResults: page.counts.totalItems,

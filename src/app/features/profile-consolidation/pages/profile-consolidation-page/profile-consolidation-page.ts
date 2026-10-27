@@ -175,8 +175,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
   readonly profileName = signal('Cargando perfil...');
   readonly profileSubtitle = signal('Perfil de persona');
-  readonly profileEntity = signal<'Person' | 'Vehicle'>('Person');
-  readonly selectedDataLabel = computed(() => this.profileEntity() === 'Vehicle' ? 'Datos del vehículo' : 'Datos personales');
+  readonly profileEntity = signal<'Person' | 'Vehicle' | 'Weapon'>('Person');
+  readonly selectedDataLabel = computed(() => this.profileEntity() === 'Vehicle' ? 'Datos del vehículo'
+    : this.profileEntity() === 'Weapon' ? 'Datos del arma' : 'Datos personales');
   readonly profileStatus = signal('');
   readonly hasConflicts = signal(false);
   readonly relatedFileCount = signal(0);
@@ -497,7 +498,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       .subscribe({
         next: (detail) => {
           // Algunas respuestas de detalle no incluyen entityType. Mantener el contexto
-          // de la tarjeta para rotular correctamente vehículos sin inventar evidencias.
+          // de la tarjeta para rotular correctamente vehículos y armas sin inventar evidencias.
           const normalizedDetail = {
             ...detail,
             entityType: detail.entityType || this.routeEntityType ||
@@ -510,7 +511,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           this.links.set(viewModel.links);
           this.activeLinkGroupId.set(null);
           this.photos.set(viewModel.photos);
-          this.profileEntity.set(normalizedDetail.entityType?.toLowerCase() === 'vehicle' ? 'Vehicle' : 'Person');
+          const entityType = normalizedDetail.entityType?.toLowerCase();
+          this.profileEntity.set(entityType === 'vehicle' ? 'Vehicle'
+            : entityType === 'weapon' ? 'Weapon' : 'Person');
           this.profileName.set(viewModel.profileName);
           this.profileSubtitle.set(viewModel.profileSubtitle);
           this.profileStatus.set(viewModel.status);

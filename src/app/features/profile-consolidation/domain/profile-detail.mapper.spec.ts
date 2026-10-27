@@ -491,3 +491,37 @@ describe('etiquetas en español para expedientes de investigación', () => {
     }));
   });
 });
+
+
+describe('perfil raíz de arma', () => {
+  it('identifica el arma por matrícula y muestra sus atributos propios', () => {
+    const detail: SearchResultDetailResponse = {
+      searchId: 'search-weapon-1',
+      resultId: 'result-weapon-1',
+      entityType: 'Weapon',
+      kind: 'Enriched',
+      status: 'Completed',
+      hasConflicts: false,
+      sourceGroups: [{
+        sourceCode: 'RNPSP',
+        records: [{
+          identifiers: [{ evidenceId: 'weapon-1', code: 'arma.matricula', value: 'CCJ0142' }],
+          attributes: [
+            { evidenceId: 'weapon-2', code: 'tipoArma', value: 'PISTOLA' },
+            { evidenceId: 'weapon-3', code: 'marca', value: 'GLOCK' }
+          ]
+        }]
+      }],
+      linkGroups: []
+    };
+
+    const profile = mapSearchResultDetail(detail);
+    expect(profile.entityType).toBe('Weapon');
+    expect(profile.profileName).toBe('PISTOLA GLOCK');
+    expect(profile.profileSubtitle).toContain('CCJ0142');
+    expect(profile.profileSubtitle).toContain('Perfil de arma');
+    expect(profile.sources[0].fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: 'Matrícula', value: 'CCJ0142' })
+    ]));
+  });
+});
