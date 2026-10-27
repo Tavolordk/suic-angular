@@ -88,6 +88,15 @@
                 </button>
             </header>
 
+            <nav class="graph-detail-tabs" aria-label="Secciones del nodo seleccionado">
+                <button type="button" [attr.aria-pressed]="detailTab() === 'summary'" (click)="setDetailTab('summary')">Resumen</button>
+                <button type="button" [attr.aria-pressed]="detailTab() === 'data'" (click)="setDetailTab('data')">Datos</button>
+                <button type="button" [attr.aria-pressed]="detailTab() === 'links'" (click)="setDetailTab('links')">Vínculos</button>
+                @if (selectedNode().id === rootNode().id && addresses().length > 0) {
+                <button type="button" [attr.aria-pressed]="detailTab() === 'addresses'" (click)="setDetailTab('addresses')">Direcciones</button>
+                }
+            </nav>
+
             <section class="graph-detail__body">
                 <div class="graph-detail__type" [style.background]="isPivotNodeConsolidated(selectedNode()) ? 'rgba(52,211,153,.12)' : getNodeDetailBackground(selectedNode().type)"
                     [style.border]="isPivotNodeConsolidated(selectedNode()) ? '1.5px solid rgba(52,211,153,.42)' : getNodeDetailBorder(selectedNode().type)"
@@ -120,16 +129,37 @@
                     <p>{{ selectedNode().subtitle }}</p>
                 </div>
 
+                @if (detailTab() === 'summary') {
                 <div class="graph-detail__fields">
-                    @for (detail of selectedNode().details; track detail.label) {
-                    <div class="graph-detail__field">
-                        <span>{{ detail.label }}</span>
-                        <strong>{{ detail.value }}</strong>
-                    </div>
+                    @for (detail of summaryDetailFields(); track $index) {
+                    <div class="graph-detail__field"><span>{{ detail.label }}</span><strong>{{ detail.value }}</strong></div>
                     }
                 </div>
+                <button type="button" class="graph-detail-more" (click)="setDetailTab('data')">Ver los {{ selectedNode().details.length }} datos disponibles</button>
+                @if (selectedLink(); as link) {
+                <div class="graph-detail-summary-link"><small>Relación seleccionada</small><strong>{{ link.label }}</strong>
+                    <button type="button" (click)="setDetailTab('links')">Ver vínculo y fuentes</button>
+                </div>
+                }
+                }
 
-                @if (selectedPivotLink()) {
+                @if (detailTab() === 'data') {
+                <label class="graph-detail-search"><span>Buscar en los datos</span>
+                    <input type="search" [value]="detailQuery()" (input)="searchDetailFields($event)" placeholder="Nombre del campo o valor" />
+                </label>
+                <div class="graph-detail__fields">
+                    @for (detail of visibleDetailFields(); track $index) {
+                    <div class="graph-detail__field"><span>{{ detail.label }}</span><strong>{{ detail.value }}</strong></div>
+                    } @empty { <p class="graph-detail-empty">No hay datos que coincidan.</p> }
+                </div>
+                <div class="graph-detail-pagination" aria-label="Paginación de datos">
+                    <button type="button" [disabled]="detailPage() === 0" (click)="changeDetailPage(-1)" aria-label="Datos anteriores">‹</button>
+                    <span>{{ detailPage() + 1 }} / {{ detailPageCount() }} · {{ filteredDetailFields().length }} datos</span>
+                    <button type="button" [disabled]="detailPage() >= detailPageCount() - 1" (click)="changeDetailPage(1)" aria-label="Datos siguientes">›</button>
+                </div>
+                }
+
+                @if (detailTab() === 'summary' && selectedPivotLink()) {
                 <section class="graph-pivot" aria-label="Buscar desde la persona seleccionada">
                     <button type="button" class="graph-pivot__button" [disabled]="pivotLoading()"
                         (click)="pivotSelectedNode()">
@@ -166,6 +196,7 @@
                 </section>
                 }
 
+                @if (detailTab() === 'links') {
                 @if (selectedLink(); as link) {
                 <section class="graph-relationship-detail" [style.border-color]="getNodeColor(link.type)">
                     <header class="graph-relationship-detail__header">
@@ -192,6 +223,7 @@
                         </span>
                     </div>
 
+                    <details class="graph-detail-disclosure"><summary>Datos del vínculo</summary>
                     <div class="graph-relationship-detail__fields">
                         @for (detail of link.details; track detail.label + detail.value) {
                         <div>
@@ -200,6 +232,8 @@
                         </div>
                         }
                     </div>
+
+                    </details>
 
                     @if (link.sourceNames.length > 0) {
                     <footer class="graph-relationship-detail__sources">
@@ -215,7 +249,9 @@
                 </section>
                 }
 
-                @if (selectedNode().id === rootNode().id && addresses().length > 0) {
+                }
+
+                @if (detailTab() === 'addresses' && selectedNode().id === rootNode().id && addresses().length > 0) {
                 <section class="graph-addresses">
                     <header class="graph-addresses__header">
                         <div>
@@ -271,6 +307,7 @@
                 </section>
                 }
 
+                @if (detailTab() === 'links') {
                 <div class="graph-detail__links">
                     <p>Vínculos del perfil</p>
 
@@ -359,6 +396,7 @@
                     </section>
                     }
                 </div>
+                }
             </section>
         </aside>
         }

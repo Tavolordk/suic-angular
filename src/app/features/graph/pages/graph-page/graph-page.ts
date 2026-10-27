@@ -13,7 +13,7 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, finalize, map, of, Subscription, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, map, of, Subject, Subscription, switchMap, takeUntil, throwError } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import { answerGraphFacts, compactGraphFacts } from '../../../../core/intelligence/graph-factual-answers';
 import { LinceMascotComponent } from '../../../../shared/ui/lince-mascot/lince-mascot.component';
@@ -41,6 +41,7 @@ import {
 } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 
 type GraphNodeType = 'person' | 'vehicle' | 'weapon';
+type DetailTab = 'summary' | 'data' | 'links' | 'addresses';
 type IntroAnimationMode = 'individual' | 'wave' | 'global';
 
 interface GraphNodeDetail {
@@ -160,15 +161,46 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private aiPanelDragStartX = 0;
   private aiPanelDragStartY = 0;
 
-  readonly rootTypeHint: GraphNodeType | undefined =
+  rootTypeHint: GraphNodeType | undefined =
     this.route.snapshot.queryParamMap.get('entityType')?.toLowerCase() === 'vehicle' ? 'vehicle' : undefined;
 
-  readonly profileId =
+  profileId =
     this.route.snapshot.queryParamMap.get('profileId')?.trim() ||
     this.route.snapshot.queryParamMap.get('investigationId')?.trim() ||
     '';
 
   readonly detailPanelOpen = signal(true);
+  private readonly detailView = signal({ nodeId: '', tab: 'summary' as DetailTab, query: '', page: 0 });
+  readonly detailTab = computed(() => this.detailView().nodeId === this.selectedNode().id
+    ? this.detailView().tab : 'summary');
+  readonly detailQuery = computed(() => this.detailView().nodeId === this.selectedNode().id
+    ? this.detailView().query : '');
+  readonly filteredDetailFields = computed(() => {
+    const query = normalizeDetailSearch(this.detailQuery());
+    return this.selectedNode().details.filter(field =>
+      !query || normalizeDetailSearch(`${field.label} ${field.value}`).includes(query));
+  });
+  readonly detailPageCount = computed(() => Math.max(1, Math.ceil(this.filteredDetailFields().length / 6)));
+  readonly detailPage = computed(() => Math.min(this.detailView().nodeId === this.selectedNode().id
+    ? this.detailView().page : 0, this.detailPageCount() - 1));
+  readonly visibleDetailFields = computed(() => this.filteredDetailFields().slice(this.detailPage() * 6, this.detailPage() * 6 + 6));
+  readonly summaryDetailFields = computed(() => this.selectedNode().details
+    .filter(field => !/(^ID(?: |$)|SOURCE LINKED ID|LINKED ID)/i.test(field.label)).slice(0, 3));
+
+  setDetailTab(tab: DetailTab): void {
+    this.detailView.set({ nodeId: this.selectedNode().id, tab, query: '', page: 0 });
+  }
+
+  searchDetailFields(event: Event): void {
+    this.detailView.set({ nodeId: this.selectedNode().id, tab: 'data',
+      query: (event.target as HTMLInputElement).value, page: 0 });
+  }
+
+  changeDetailPage(offset: number): void {
+    this.detailView.update(view => ({ ...view, nodeId: this.selectedNode().id,
+      page: clamp(this.detailPage() + offset, 0, this.detailPageCount() - 1) }));
+  }
+
   readonly selectedNodeId = signal(this.profileId || 'profile');
   readonly selectedLinkId = signal<string | null>(null);
   readonly expandedLinkType = signal<GraphNodeType | null>(null);
@@ -447,8 +479,51 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     }
   });
 
+  private readonly graphContextChanged = new Subject<void>();
+  private graphRouteSubscription?: Subscription;
+  private graphContextVersion = 0;
+
   ngOnInit(): void {
-    this.loadProfile();
+    let previousRouteKey: string | undefined;
+    this.graphRouteSubscription = this.route.queryParamMap.subscribe(params => {
+      const profileId = params.get('profileId')?.trim() || params.get('investigationId')?.trim() || '';
+      const type = params.get('entityType')?.toLowerCase() === 'vehicle' ? 'vehicle' : undefined;
+      const returnLinkId = params.get('pivotLinkId')?.trim() || null;
+      const routeKey = JSON.stringify([profileId, type, returnLinkId]);
+      if (routeKey === previousRouteKey) return;
+      previousRouteKey = routeKey;
+      // Angular reuses this page when only the query parameters change.
+      this.graphContextVersion += 1;
+      this.stopAiGeneration();
+      this.graphContextChanged.next();
+      this.profileId = profileId;
+      this.rootTypeHint = type;
+      this.returnLinkId = returnLinkId;
+      this.isLoading.set(false);
+      this.expandingPivotProfileId.set(null);
+      this.pivotLoading.set(false);
+      this.loadedProfile.set(null);
+      this.nodes.set([createPlaceholderNode(profileId || 'profile', 'Cargando perfil consolidado...')]);
+      this.links.set([]);
+      this.addresses.set([]);
+      this.activeFilters.set({ person: true, vehicle: true, weapon: true });
+      this.relationshipCatalog.set([]);
+      this.relationshipTotals.set({ persons: 0, vehicles: 0, weapons: 0 });
+      this.relationshipPageIndex.set(0);
+      this.relationshipQuery.set('');
+      this.relationshipViewType.set('all');
+      this.expandedPivotBranches.set([]);
+      this.expandedLinkType.set(null);
+      this.selectedNodeId.set(profileId || 'profile');
+      this.selectedLinkId.set(null);
+      this.detailView.set({ nodeId: profileId, tab: 'summary', query: '', page: 0 });
+      this.pivotError.set(null);
+      this.pivotExpansionError.set(null);
+      this.aiMessages.set([]);
+      this.aiAnswer.set(null);
+      this.aiSnapshot.set(null);
+      this.loadProfile();
+    });
   }
 
   ngAfterViewInit(): void {
@@ -456,6 +531,10 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.graphRouteSubscription?.unsubscribe();
+    this.graphContextVersion += 1;
+    this.graphContextChanged.next();
+    this.graphContextChanged.complete();
     if (this.introTimer) {
       clearTimeout(this.introTimer);
     }
@@ -474,7 +553,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.errorMessage.set(null);
 
     this.aiSourceDetail.set(null);
-    this.consolidatedProfilesApi.getProfile(this.profileId).subscribe({
+    this.consolidatedProfilesApi.getProfile(this.profileId).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (profile) => {
         const graph = mapProfileToGraph(profile, [], undefined, this.rootTypeHint);
         const fallbackSnapshot = this.profileIntelligence.analyze(profile);
@@ -527,7 +606,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.searchApi.getResultDetail(searchId, resultId).subscribe({
+    this.searchApi.getResultDetail(searchId, resultId).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (detail) => {
         this.aiSourceDetail.set(detail);
         this.relationshipCatalog.set(collectGraphRelations(detail));
@@ -732,6 +811,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    const contextVersion = this.graphContextVersion;
     this.expandingPivotProfileId.set(record.profileId);
     this.pivotExpansionError.set(null);
     this.consolidatedProfilesApi.getProfile(record.profileId).pipe(
@@ -745,10 +825,11 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         );
       }),
       finalize(() => {
+        if (contextVersion !== this.graphContextVersion) return;
         this.expandingPivotProfileId.set(null);
         onComplete?.();
       })
-    ).subscribe({
+    ).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: data => {
         if (data.detailError) {
           this.pivotExpansionError.set('No fue posible consultar los vínculos del perfil consolidado. Inténtalo de nuevo.');
@@ -880,7 +961,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         return this.searchApi.pivotLink(searchId, resultId, linkId, 18);
       }),
       finalize(() => this.pivotLoading.set(false))
-    ).subscribe({
+    ).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (page) => {
         if (!page.searchId?.trim() || !page.pagination || !page.counts || !Array.isArray(page.items ?? [])) {
           this.pivotError.set('El servidor no devolvió una página de resultados válida para el pivoteo.');
@@ -1139,7 +1220,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     if (!this.aiSourceDetail() && searchId && resultId) {
       this.isAiLoading.set(true);
       this.aiErrorMessage.set(null);
-      this.searchApi.getResultDetail(searchId, resultId).subscribe({
+      this.searchApi.getResultDetail(searchId, resultId).pipe(takeUntil(this.graphContextChanged)).subscribe({
         next: (detail) => {
           this.aiSourceDetail.set(detail);
           this.relationshipCatalog.set(collectGraphRelations(detail));
@@ -1207,7 +1288,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const requiresDetailedAnalysis = thinking && /\b(analiza|analisis|compara|comparacion|evalua|diferencias|inconsistencias|hipotesis|riesgos|recomendaciones|conclusiones|hallazgos|respaldo|explica|porque)\b/.test(normalizeSearchText(question));
     this.aiChatSubscription = this.intelligenceApi
       .streamChat(profile, question, history, thinking, selectedNode, graph, requiresDetailedAnalysis ? 'deep' : 'auto')
-      .subscribe({
+      .pipe(takeUntil(this.graphContextChanged)).subscribe({
         next: (event) => {
           if (requestId !== this.activeAiRequestId) {
             return;
@@ -1522,7 +1603,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private refreshLocalLlmHealth(): void {
-    this.intelligenceApi.checkLlmHealth().subscribe({
+    this.intelligenceApi.checkLlmHealth().pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (health) => {
         const ready = health.runtimeReachable && health.modelAvailable && health.status === 'ok';
         this.aiServiceStatus.set(ready ? 'online' : 'fallback');
@@ -1636,7 +1717,17 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.selectedLinkId.set(connectedLink?.id ?? null);
     this.detailPanelOpen.set(true);
     const records = this.selectedConsolidations();
+    if (this.expandingPivotProfileId()) return;
+    if (records.length && records.every(record => this.isPivotProfileExpanded(record.profileId))) {
+      const profileIds = new Set(records.map(record => record.profileId));
+      this.expandedPivotBranches.update(branches => branches.filter(branch => !profileIds.has(branch.record.profileId)));
+      this.renderRelationshipPage(undefined, true);
+      this.selectSourceLink(records[0]);
+      return;
+    }
+    const contextVersion = this.graphContextVersion;
     const expandNext = (index: number): void => {
+      if (contextVersion !== this.graphContextVersion) return;
       const record = records[index];
       if (record) this.expandPivotProfile(record, false, () => expandNext(index + 1));
     };
@@ -2449,4 +2540,8 @@ function findReturningAncestor(
     ancestorId = links.find(link => link.targetId === ancestorId)?.sourceId;
   }
   return undefined;
+}
+
+function normalizeDetailSearch(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
