@@ -160,14 +160,14 @@
                 }
 
                 @if (detailTab() === 'summary' && selectedPivotLink()) {
-                <section class="graph-pivot" aria-label="Buscar desde la persona seleccionada">
+                <section class="graph-pivot" aria-label="Buscar desde el nodo seleccionado">
                     <button type="button" class="graph-pivot__button" [disabled]="pivotLoading()"
                         (click)="pivotSelectedNode()">
                         <i class="fa-solid" [class.fa-spinner]="pivotLoading()"
                             [class.fa-spin]="pivotLoading()" [class.fa-magnifying-glass]="!pivotLoading()"></i>
-                        {{ pivotLoading() ? 'Buscando personas relacionadas...' : 'Buscar a partir de este nodo' }}
+                        {{ pivotLoading() ? 'Buscando vínculos relacionados...' : 'Buscar a partir de este nodo' }}
                     </button>
-                    <small>Busca perfiles de esta persona vinculada y muestra los resultados en tarjetas. No modifica el grafo actual.</small>
+                    <small>Busca resultados relacionados con este nodo (persona, vehículo o arma) y los muestra en tarjetas. No modifica el grafo actual.</small>
                     @if (selectedConsolidations().length) {
                     <div class="graph-pivot__consolidated" aria-label="Perfiles consolidados vinculados">
                         <p><i class="fa-solid fa-circle-check"></i> Perfil consolidado — {{ selectedConsolidations().length }} {{ selectedConsolidations().length === 1 ? 'registro' : 'registros' }}</p>
@@ -718,10 +718,10 @@
                 </span>
                 <h2 id="graph-pivot-empty-title">Sin resultados</h2>
                 <p id="graph-pivot-empty-description">
-                    No se encontraron perfiles relacionados con este nodo en las fuentes consultadas.
+                    No se encontraron resultados relacionados con este nodo en las fuentes consultadas.
                 </p>
                 <div class="graph-pivot-empty__node">
-                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    <i class="fa-solid" [class.fa-user]="notice.nodeType === 'person'" [class.fa-car]="notice.nodeType === 'vehicle'" [class.fa-shield-halved]="notice.nodeType === 'weapon'" aria-hidden="true"></i>
                     <span>{{ notice.nodeTitle }}</span>
                 </div>
                 @if (notice.isPartial) {

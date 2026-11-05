@@ -11,6 +11,10 @@ import { WeaponSearchFormValue } from '../domain/weapon-search.models';
 export interface PivotSearchContext {
   graphProfileId: string;
   nodeTitle: string;
+  /** Tipo del nodo de origen, también cuando el motor no declara entityType en la página. */
+  nodeType?: 'Person' | 'Vehicle' | 'Weapon';
+  /** Permite restaurar el tipo del nodo raíz al volver al grafo. */
+  graphRootType?: 'Person' | 'Vehicle' | 'Weapon';
   parentSearchId: string;
   parentResultId: string;
   parentLinkId: string;

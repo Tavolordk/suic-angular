@@ -126,13 +126,11 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
-  readonly selectedEntity = signal<SearchEntity>(
-    this.restoredPage?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo'
-      : this.restoredPage?.entityType?.toLowerCase() === 'weapon' ? 'armas'
-      : this.searchState.request()?.entityType?.toLowerCase() === 'vehicle' ? 'vehiculo'
-      : this.searchState.request()?.entityType?.toLowerCase() === 'weapon' ? 'armas'
-      : 'personas'
-  );
+  readonly selectedEntity = signal<SearchEntity>(resolveSearchEntity(
+    this.restoredPage?.entityType ||
+    this.searchState.pivotContext()?.nodeType ||
+    this.searchState.request()?.entityType
+  ));
   readonly profileOpen = signal(false);
   readonly isSearching = signal(false);
   readonly isExportingReport = signal(false);
@@ -813,7 +811,8 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
     void this.router.navigate(['/grafo'], {
-      queryParams: { profileId: context.graphProfileId, pivotLinkId: context.parentLinkId }
+      queryParams: { profileId: context.graphProfileId, pivotLinkId: context.parentLinkId,
+        ...(context.graphRootType ? { entityType: context.graphRootType } : {}) }
     });
   }
 
@@ -1182,6 +1181,15 @@ export class SearchPage implements OnInit, OnDestroy {
     }
 
     return null;
+  }
+}
+
+/** Conserva el tipo del nodo de pivoteo cuando la API omite entityType. */
+function resolveSearchEntity(entityType?: string | null): SearchEntity {
+  switch (entityType?.trim().toLowerCase()) {
+    case 'vehicle': return 'vehiculo';
+    case 'weapon': return 'armas';
+    default: return 'personas';
   }
 }
 

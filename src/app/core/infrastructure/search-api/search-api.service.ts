@@ -85,7 +85,7 @@ export class SearchApiService {
           params: { pageSize }
         }
       )
-      .pipe(map((response) => this.unwrap(response, 'No fue posible buscar a partir de esta persona.')));
+      .pipe(map((response) => this.unwrap(response, 'No fue posible buscar a partir de este vínculo.')));
   }
 
   private createHeaders(): HttpHeaders {

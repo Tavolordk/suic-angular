@@ -162,7 +162,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private aiPanelDragStartY = 0;
 
   rootTypeHint: GraphNodeType | undefined =
-    this.route.snapshot.queryParamMap.get('entityType')?.toLowerCase() === 'vehicle' ? 'vehicle' : undefined;
+    resolveGraphNodeType(this.route.snapshot.queryParamMap.get('entityType')) ?? undefined;
 
   profileId =
     this.route.snapshot.queryParamMap.get('profileId')?.trim() ||
@@ -258,7 +258,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly relationshipPageSize = RELATIONSHIPS_PER_PAGE;
   readonly pivotLoading = signal(false);
   readonly pivotError = signal<string | null>(null);
-  readonly pivotNoResults = signal<{ nodeTitle: string; isPartial: boolean } | null>(null);
+  readonly pivotNoResults = signal<{ nodeTitle: string; nodeType: GraphNodeType; isPartial: boolean } | null>(null);
   readonly expandedPivotBranches = signal<ExpandedPivotBranch[]>([]);
   readonly expandingPivotProfileId = signal<string | null>(null);
   readonly pivotExpansionError = signal<string | null>(null);
@@ -413,14 +413,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     return this.links().find((link) => link.id === selectedId) ?? null;
   });
 
-  /** Solo los nodos Persona provenientes de un vínculo pueden originar esta búsqueda. */
+  /** Los nodos hijos Persona, Vehículo y Arma pueden originar un pivoteo por linkId. */
   readonly selectedPivotLink = computed(() => {
     const node = this.selectedNode();
-    if (node.id === this.rootNode().id || node.type !== 'person') {
+    if (node.id === this.rootNode().id) {
       return null;
     }
     return this.links().find((link) =>
-      link.targetId === node.id && link.type === 'person' && Boolean(link.externalId?.trim())
+      link.targetId === node.id && link.type === node.type && Boolean(link.externalId?.trim())
     ) ?? null;
   });
 
@@ -487,7 +487,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     let previousRouteKey: string | undefined;
     this.graphRouteSubscription = this.route.queryParamMap.subscribe(params => {
       const profileId = params.get('profileId')?.trim() || params.get('investigationId')?.trim() || '';
-      const type = params.get('entityType')?.toLowerCase() === 'vehicle' ? 'vehicle' : undefined;
+      const type = resolveGraphNodeType(params.get('entityType')) ?? undefined;
       const returnLinkId = params.get('pivotLinkId')?.trim() || null;
       const routeKey = JSON.stringify([profileId, type, returnLinkId]);
       if (routeKey === previousRouteKey) return;
@@ -672,40 +672,57 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Keep one visible occurrence per identity; the latest expanded branch owns shared children. */
+  /** Reuse confirmed identities without losing links from other consolidated profiles. */
   private appendPivotBranches(graph: { nodes: GraphNode[]; links: GraphLink[] }): { nodes: GraphNode[]; links: GraphLink[] } {
     const root = graph.nodes[0];
     if (!root) return graph;
     const nodes: GraphNode[] = [root];
-    let links: GraphLink[] = [];
+    const links: GraphLink[] = [];
     const identities = new Map<string, GraphNode>();
     for (const key of root.identityKeys ?? []) identities.set(key, root);
     identities.set(`profile:${root.id}`, root);
 
-    const reuseNode = (candidate: GraphNode, link: GraphLink): GraphNode => {
+    const reuseNode = (
+      candidate: GraphNode, link: GraphLink, fromPivotBranch = false
+    ): { node: GraphNode; isNew: boolean } => {
       const records = link.searchId && link.resultId
         ? this.pivotRegistry.forLink(this.profileId, link.searchId, link.resultId, link.externalId) : [];
-      // Multiple consolidation results are not evidence that those profiles are the same person.
+      // Several results for the same link do not necessarily represent one entity.
       const keys = [...(candidate.identityKeys ?? [])];
       if (records.length === 1) keys.push(`profile:${records[0].profileId}`);
-      const existing = keys.map(key => identities.get(key)).find((node): node is GraphNode => !!node);
+      const identified = keys.map(key => identities.get(key)).find((node): node is GraphNode => !!node);
+      // Some providers return a related person with ONLY name and surnames.
+      // In an expanded branch, reuse a uniquely matching consolidated node rather
+      // than draw a second person, provided no stable identifiers contradict it.
+      const existing = identified ?? (fromPivotBranch
+        ? findUniqueConsolidatedNameMatch(candidate, nodes, root.id) : undefined);
       const node = existing ?? { ...candidate, consolidations: [] };
       if (!existing) nodes.push(node);
       node.consolidations = [...(node.consolidations ?? []), ...records].filter((record, index, all) =>
         all.findIndex(other => other.profileId === record.profileId) === index);
       for (const key of keys) identities.set(key, node);
-      return node;
+      return { node, isNew: !existing };
     };
+
+    // This is a graph, not a tree: one child can have multiple incoming connections.
+    // Only discard an exact duplicate connection or a self-loop.
+    const connect = (link: GraphLink, sourceId: string, targetId: string, id: string, branchProfileId?: string): void => {
+      // Two profiles may have several DIFFERENT relationships to the same entity.
+      // Deduplicate an identical source relationship, not just the endpoints.
+      if (sourceId === targetId || links.some(edge => edge.sourceId === sourceId
+        && edge.targetId === targetId && edge.externalId === link.externalId
+        && edge.label === link.label && edge.branchProfileId === branchProfileId)) return;
+      links.push({ ...link, id, sourceId, targetId, ...(branchProfileId ? { branchProfileId } : {}) });
+    };
+
     for (const link of graph.links) {
       const candidate = graph.nodes.find(node => node.id === link.targetId);
       if (!candidate) continue;
-      const node = reuseNode(candidate, link);
-      if (node.id !== root.id && !links.some(entry => entry.targetId === node.id)) {
-        links.push({ ...link, targetId: node.id });
-      }
+      const { node } = reuseNode(candidate, link);
+      connect(link, root.id, node.id, link.id);
     }
 
-    // Resolve dependencies even when an existing branch was reactivated after one of its children.
+    // Resolve dependencies even if a previously expanded branch is reactivated out of order.
     const pending = [...this.expandedPivotBranches()];
     while (pending.length) {
       const branchIndex = pending.findIndex(branch => nodes.some(node =>
@@ -714,65 +731,63 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       const [branch] = pending.splice(branchIndex, 1);
       const parentNode = nodes.find(node => node.consolidations?.some(record =>
         record.profileId === branch.record.profileId))!;
-      const childGraph = mapProfileToGraph(branch.profile, branch.relations.slice(0, BRANCH_RELATIONSHIP_LIMIT));
+      const childGraph = mapProfileToGraph(branch.profile, branch.relations.slice(0, BRANCH_RELATIONSHIP_LIMIT), undefined, parentNode.type);
       for (const key of childGraph.nodes[0].identityKeys ?? []) identities.set(key, parentNode);
       identities.set(`profile:${branch.profile.profileId}`, parentNode);
       const direction = Math.atan2(parentNode.y - root.y, parentNode.x - root.x);
       childGraph.nodes.slice(1).forEach((child, index) => {
         const sourceLink = childGraph.links[index];
         if (!sourceLink) return;
-        // Some reciprocal links only contain a full name, without the ancestor's CURP/profile ID.
-        // Hide that visual back-reference only along the current ancestry, never across siblings.
-        const returningAncestor = findReturningAncestor(child, parentNode, nodes, links);
-        const knownProfiles = sourceLink.searchId && sourceLink.resultId
-          ? this.pivotRegistry.forLink(this.profileId, sourceLink.searchId, sourceLink.resultId, sourceLink.externalId)
-          : [];
-        if (returningAncestor && (!knownProfiles.length || knownProfiles.every(record =>
-          record.profileId === returningAncestor.id || returningAncestor.consolidations?.some(existing =>
-            existing.profileId === record.profileId)))) return;
-        const node = reuseNode({ ...child, id: `pivot:${branch.profile.profileId}:${child.id}` }, sourceLink);
-        // Never move the root, the expanding node, or an ancestor underneath its own descendant.
-        let ancestor: string | undefined = parentNode.id;
-        const visited = new Set<string>();
-        while (ancestor && !visited.has(ancestor)) {
-          if (ancestor === node.id) return;
-          visited.add(ancestor);
-          ancestor = links.find(link => link.targetId === ancestor)?.sourceId;
-        }
-        if (node.id === root.id) return;
-        const angle = direction - Math.PI * 0.58 + (index % 7 / 6) * Math.PI * 1.16;
-        let distance = 320 + Math.floor(index / 7) * 220;
-        let x = parentNode.x + Math.cos(angle) * distance;
-        let y = parentNode.y + Math.sin(angle) * distance;
-        while (nodes.some(other => other !== node && Math.hypot(other.x - x, other.y - y) < 190)) {
-          distance += 100;
-          x = parentNode.x + Math.cos(angle) * distance;
-          y = parentNode.y + Math.sin(angle) * distance;
-        }
-        const offsetX = x - node.x;
-        const offsetY = y - node.y;
-        const descendants = [node.id];
-        const moved = new Set<string>(descendants);
-        while (descendants.length) {
-          const parentId = descendants.shift()!;
-          for (const edge of links.filter(link => link.sourceId === parentId)) {
-            if (moved.has(edge.targetId)) continue;
-            moved.add(edge.targetId);
-            const descendant = nodes.find(candidate => candidate.id === edge.targetId);
-            if (descendant) {
-              descendant.x += offsetX;
-              descendant.y += offsetY;
-              descendants.push(descendant.id);
-            }
+        // Preserve reciprocal relationships instead of dropping their links.
+        // Identity keys or a unique, non-conflicting full-name match against an
+        // existing consolidated profile will reuse that profile's visible node.
+        const { node, isNew } = reuseNode(
+          { ...child, id: `pivot:${branch.profile.profileId}:${child.id}` }, sourceLink, true);
+        if (node.id === parentNode.id) return;
+
+        // Shared nodes keep their positions and existing connections. Only a new
+        // node needs positioning relative to the branch that introduced it.
+        if (isNew) {
+          const angle = direction - Math.PI * 0.58 + (index % 7 / 6) * Math.PI * 1.16;
+          let distance = 320 + Math.floor(index / 7) * 220;
+          let x = parentNode.x + Math.cos(angle) * distance;
+          let y = parentNode.y + Math.sin(angle) * distance;
+          while (nodes.some(other => other !== node && Math.hypot(other.x - x, other.y - y) < 190)) {
+            distance += 100;
+            x = parentNode.x + Math.cos(angle) * distance;
+            y = parentNode.y + Math.sin(angle) * distance;
           }
+          Object.assign(node, { x, y, branchProfileId: branch.profile.profileId });
         }
-        Object.assign(node, { x, y, branchProfileId: branch.profile.profileId });
-        links = links.filter(link => link.targetId !== node.id);
-        links.push({ ...sourceLink, id: `pivot-edge:${branch.profile.profileId}:${sourceLink.id}`,
-          sourceId: parentNode.id, targetId: node.id, branchProfileId: branch.profile.profileId });
+        connect(sourceLink, parentNode.id, node.id,
+          `pivot-edge:${branch.profile.profileId}:${sourceLink.id}`, branch.profile.profileId);
       });
     }
-    // Moving a populated branch can bring its descendants close to another branch.
+    // A non-identified child can be visited before the matching consolidated
+    // profile has been added by another branch. Reconcile after ALL branches,
+    // making node reuse independent of pivot/expansion order.
+    for (const candidate of [...nodes]) {
+      if (!candidate.branchProfileId || candidate.type !== 'person') continue;
+      const target = findUniqueConsolidatedNameMatch(candidate,
+        nodes.filter(node => node !== candidate), root.id);
+      if (!target) continue;
+      target.consolidations = [...(target.consolidations ?? []), ...(candidate.consolidations ?? [])]
+        .filter((record, index, all) => all.findIndex(other => other.profileId === record.profileId) === index);
+      for (const edge of links) {
+        if (edge.sourceId === candidate.id) edge.sourceId = target.id;
+        if (edge.targetId === candidate.id) edge.targetId = target.id;
+      }
+      nodes.splice(nodes.indexOf(candidate), 1);
+    }
+    // Eliminate self-edges and exact repeated source relationships after redirects.
+    const seenEdges = new Set<string>();
+    for (let index = links.length - 1; index >= 0; index--) {
+      const edge = links[index];
+      const identity = [edge.sourceId, edge.targetId, edge.externalId,
+        edge.label, edge.branchProfileId ?? ''].join('\u0000');
+      if (edge.sourceId === edge.targetId || seenEdges.has(identity)) links.splice(index, 1);
+      else seenEdges.add(identity);
+    }
     nodes.forEach((node, index) => {
       const previous = nodes.slice(0, index);
       while (previous.some(other => Math.hypot(other.x - node.x, other.y - node.y) < 190)) {
@@ -880,7 +895,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openPivotProfileGraph(profileId: string): void {
-    void this.router.navigate(['/grafo'], { queryParams: { profileId } });
+    void this.router.navigate(['/grafo'], { queryParams: { profileId, entityType: graphEntityType(this.selectedNode().type) } });
   }
 
   setRelationshipView(type: GraphRelationshipView): void {
@@ -923,9 +938,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Verifica el vínculo Persona en el detalle real del resultado padre y envía
-   * la respuesta paginada de Pivot a las mismas tarjetas de búsqueda.
-   * Nunca envía nombre, CURP o RFC desde el navegador.
+   * Verifica que el vínculo del resultado padre corresponda al tipo del nodo hijo
+   * (Persona, Vehículo o Arma), y envía las tarjetas devueltas por el backend.
+   * No inventa criterios de búsqueda ni envía datos del nodo desde el navegador.
    */
   pivotSelectedNode(): void {
     const link = this.selectedPivotLink();
@@ -939,7 +954,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const linkId = link.externalId?.trim();
 
     if (!searchId || !resultId || !linkId) {
-      this.pivotError.set('No se encontraron los identificadores necesarios para buscar desde esta persona.');
+      this.pivotError.set('No se encontraron los identificadores necesarios para buscar desde este nodo.');
       return;
     }
 
@@ -949,14 +964,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     this.searchApi.getResultDetail(searchId, resultId).pipe(
       switchMap((detail) => {
-        // No usar IDs generados por el grafo ni confundir un vínculo Vehículo/Arma
-        // con una persona. El motor acepta el linkId definido por este detalle.
-        const belongsToPerson = (detail.linkGroups ?? []).some((group) =>
-          resolveGraphNodeType(group.entityType) === 'person' &&
+        // Comprobar el ID real y su entidad antes del POST: nunca usar IDs visuales
+        // ni pivoteos de otra clase de vínculo si cambió el resultado padre.
+        const belongsToEntity = (detail.linkGroups ?? []).some((group) =>
+          resolveGraphNodeType(group.entityType) === node.type &&
           (group.items ?? []).some((item) => item.linkId === linkId)
         );
-        if (!belongsToPerson) {
-          return throwError(() => new Error('Esta persona ya no está disponible entre los vínculos del resultado. Actualiza el grafo e inténtalo de nuevo.'));
+        if (!belongsToEntity) {
+          return throwError(() => new Error('Este vínculo ya no está disponible para el tipo de nodo seleccionado. Actualiza el grafo e inténtalo de nuevo.'));
         }
         return this.searchApi.pivotLink(searchId, resultId, linkId, 18);
       }),
@@ -974,6 +989,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         if ((page.items?.length ?? 0) === 0 || page.counts.totalItems <= 0) {
           this.pivotNoResults.set({
             nodeTitle: node.title,
+            nodeType: node.type,
             isPartial: page.execution?.isPartial === true
           });
           return;
@@ -984,7 +1000,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           nodeTitle: node.title,
           parentSearchId: searchId,
           parentResultId: resultId,
-          parentLinkId: linkId
+          parentLinkId: linkId,
+          nodeType: graphEntityType(node.type),
+          graphRootType: graphEntityType(this.rootNode().type)
         });
         void this.router.navigate(['/busqueda']);
       },
@@ -2099,7 +2117,9 @@ function mapProfileToGraph(
       type: rootType,
       title: profileTitle,
       subtitle:
-        findDataValue(profile, rootType === 'vehicle' ? ['VIN', 'NIV', 'PLACA', 'PLACAS'] : ['CURP', 'RFC', 'CUIP']) || `Versión ${profile.versionNumber}`,
+        findDataValue(profile, rootType === 'vehicle' ? ['VIN', 'NIV', 'PLACA', 'PLACAS']
+          : rootType === 'weapon' ? ['MATRICULA', 'REGISTRATIONNUMBER', 'SERIE']
+          : ['CURP', 'RFC', 'CUIP']) || `Versión ${profile.versionNumber}`,
       x: ROOT_X,
       y: ROOT_Y,
       radius: 35,
@@ -2135,7 +2155,7 @@ function mapProfileToGraph(
       targetId: nodeId,
       type: relation.type,
       label: humanizeRelationship(relation.item.relationshipCode),
-      externalId: relation.item.linkId || `vinculo-${index + 1}`,
+      externalId: relation.item.linkId?.trim() || '',
       status: relation.item.status?.trim() || 'Sin estatus informado',
       details: buildLinkDetails(relation.item, relation.type),
       sourceNames: Array.from(new Set(
@@ -2209,6 +2229,14 @@ function normalizeSearchText(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('es-MX')
     .trim();
+}
+
+function graphEntityType(type: GraphNodeType): 'Person' | 'Vehicle' | 'Weapon' {
+  switch (type) {
+    case 'vehicle': return 'Vehicle';
+    case 'weapon': return 'Weapon';
+    default: return 'Person';
+  }
 }
 
 function resolveGraphNodeType(entityType?: string | null): GraphNodeType | null {
@@ -2400,10 +2428,12 @@ function formatAddressLabel(address: ConsolidatedProfileAddressDto): string {
  * de identidad del perfil, no por la presencia de vínculos con vehículos. */
 function resolveConsolidatedRootType(profile: ConsolidatedProfileResponse): GraphNodeType {
   const version = normalizeCode(profile.contractVersion ?? '');
+  if (version.includes('WEAPON')) return 'weapon';
   if (version.includes('VEHICLE')) return 'vehicle';
   if (version.includes('PERSON')) return 'person';
   if (findDataValue(profile, ['CURP', 'RFC', 'CUIP'])) return 'person';
   if (findDataValue(profile, ['VIN', 'NIV', 'PLACA', 'PLACAS', 'LICENSEPLATE'])) return 'vehicle';
+  if (findDataValue(profile, ['MATRICULA', 'REGISTRATIONNUMBER'])) return 'weapon';
   return 'person'; // Tipo no confirmado por el contrato; compatibilidad existente.
 }
 
@@ -2412,6 +2442,12 @@ function resolveProfileTitle(profile: ConsolidatedProfileResponse, rootType = re
     const brand = findDataValue(profile, ['MARCA', 'MAKE']);
     const model = findDataValue(profile, ['MODELO', 'MODEL']);
     return [brand, model].filter(Boolean).join(' ') || findDataValue(profile, ['PLACA', 'VIN', 'NIV']) || `Vehículo ${profile.profileId.slice(0, 8)}`;
+  }
+
+  if (rootType === 'weapon') {
+    const weaponType = findDataValue(profile, ['TIPODEARMA', 'TIPOARMA', 'WEAPONTYPE']);
+    const registration = findDataValue(profile, ['MATRICULA', 'REGISTRATIONNUMBER', 'SERIE']);
+    return [weaponType || 'Arma', registration].filter(Boolean).join(' · ');
   }
 
   const directName = findDataValue(profile, ['NOMBRECOMPLETO', 'FULLNAME']);
@@ -2503,43 +2539,51 @@ function clamp(value: number, min: number, max: number): number {
 /** Only stable identifiers can merge nodes; names and placeholder labels are never identities. */
 function graphIdentityKeys(type: GraphNodeType, evidence: Array<{ code?: string | null; value?: string | null }>): string[] {
   const allowed = type === 'person' ? ['CURP', 'CUIP']
-    : type === 'vehicle' ? ['VIN', 'NIV'] : ['SERIE', 'SERIALNUMBER'];
+    : type === 'vehicle' ? ['VIN', 'NIV'] : ['SERIE', 'SERIALNUMBER', 'MATRICULA', 'REGISTRATIONNUMBER'];
   return evidence.flatMap(entry => {
     const code = normalizeCode(entry.code ?? '');
     const value = entry.value?.trim().toUpperCase();
     if (!value || !allowed.includes(code)) return [];
-    const canonicalCode = code === 'NIV' ? 'VIN' : code === 'SERIALNUMBER' ? 'SERIE' : code;
+    const canonicalCode = code === 'NIV' ? 'VIN'
+      : code === 'SERIALNUMBER' ? 'SERIE'
+      : code === 'REGISTRATIONNUMBER' ? 'MATRICULA' : code;
     return [`${type}:${canonicalCode}:${value}`];
   });
 }
 
-/** A display-only fallback for reciprocal person links that omit stable identity fields. */
-function findReturningAncestor(
-  child: GraphNode, parent: GraphNode, nodes: GraphNode[], links: GraphLink[]
+/** Only match a complete, non-placeholder person name: never a partial search term. */
+function normalizedFullPersonName(value: string): string | null {
+  const name = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().replace(/\s+/g, ' ').toUpperCase();
+  if (name.split(' ').length < 3 || !/^[A-ZÑ][A-ZÑ'\-]*(?: [A-ZÑ][A-ZÑ'\-]*){2,}$/.test(name)) return null;
+  if (name.startsWith('PERSONA VINCULADA') || name.startsWith('SIN INFORMACION')) return null;
+  return name;
+}
+
+/**
+ * A pivoted detail may omit CURP/CUIP even when it names a profile already in
+ * the graph. Reuse only one unambiguous consolidated person with the exact full
+ * name; never override two different known identifiers or merge free-text peers.
+ * The source relationship remains on its own edge for traceability.
+ */
+function findUniqueConsolidatedNameMatch(
+  candidate: GraphNode, nodes: GraphNode[], rootProfileId: string
 ): GraphNode | undefined {
-  if (child.type !== 'person') return undefined;
-  const normalizeName = (value: string): string => value.normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toUpperCase();
-  const name = normalizeName(child.title ?? '');
-  if (name.split(' ').length < 3 || /^PERSONA VINCULADA(?: \d+)?$/.test(name)) return undefined;
-  const matches = nodes.filter(node => node.type === 'person' && normalizeName(node.title ?? '') === name);
+  if (candidate.type !== 'person') return undefined;
+  const name = normalizedFullPersonName(candidate.title);
+  if (!name) return undefined;
+  const matches = nodes.filter(node => node.type === 'person'
+    && normalizedFullPersonName(node.title) === name);
+  // Even if only one is a consolidated profile, two namesakes make the match
+  // ambiguous. Do not silently merge people when evidence is insufficient.
   if (matches.length !== 1) return undefined;
-  const match = matches[0];
-  const childKeys = child.identityKeys ?? [];
-  const ancestorKeys = match.identityKeys ?? [];
-  // A matching name must never override conflicting CURP/CUIP values.
-  if (childKeys.some(key => ancestorKeys.some(other =>
-    key.slice(0, key.lastIndexOf(':')) === other.slice(0, other.lastIndexOf(':')) && key !== other))) {
-    return undefined;
-  }
-  let ancestorId: string | undefined = parent.id;
-  const visited = new Set<string>();
-  while (ancestorId && !visited.has(ancestorId)) {
-    if (ancestorId === match.id) return match;
-    visited.add(ancestorId);
-    ancestorId = links.find(link => link.targetId === ancestorId)?.sourceId;
-  }
-  return undefined;
+  const target = matches[0];
+  if (target.id !== rootProfileId && !(target.consolidations?.length)) return undefined;
+  const incomingKeys = candidate.identityKeys ?? [];
+  const targetKeys = target.identityKeys ?? [];
+  // If both sides have independent known IDs, full-name equality isn't proof.
+  if (incomingKeys.length && targetKeys.length) return undefined;
+  return target;
 }
 
 function normalizeDetailSearch(value: string): string {
