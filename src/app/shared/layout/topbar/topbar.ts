@@ -2,11 +2,12 @@ import { DatePipe, isPlatformBrowser } from '@angular/common';
 import { Component, HostListener, OnDestroy, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
+import { TermsDialog } from '../../components/terms-dialog/terms-dialog';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, TermsDialog],
   templateUrl: './topbar.html',
   styleUrl: './topbar.scss'
 })
@@ -18,9 +19,15 @@ export class Topbar implements OnInit, OnDestroy {
 
   readonly accountNumber = this.authService.accountNumber;
   readonly primaryProfile = this.authService.primaryProfile;
+  // Etiqueta legible en pantalla; el código real del perfil sigue intacto para autorización.
+  readonly profileLabel = computed(() => {
+    const profile = this.primaryProfile();
+    return /^SPM[-_\s]*CONSULTA$/i.test(profile) ? 'Consulta' : profile;
+  });
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
   readonly profileOpen = signal(false);
+  readonly termsOpen = signal(false);
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) {
@@ -45,6 +52,14 @@ export class Topbar implements OnInit, OnDestroy {
   @HostListener('document:click')
   closeProfile(): void {
     this.profileOpen.set(false);
+  }
+
+  openTerms(): void {
+    this.termsOpen.set(true);
+  }
+
+  closeTerms(): void {
+    this.termsOpen.set(false);
   }
 
   logout(): void {

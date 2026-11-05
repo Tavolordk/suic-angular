@@ -402,11 +402,27 @@
   font-size: 11px;
 }
 
-.terms span {
+.terms__link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #223544;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
   text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.terms__link:hover {
+  color: #3e708b;
+}
+
+.terms__link:focus-visible {
+  outline: 2px solid #477b9b;
+  outline-offset: 3px;
 }
 
 .login-submit {

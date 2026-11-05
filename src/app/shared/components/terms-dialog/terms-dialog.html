@@ -1,0 +1,148 @@
+<div class="legal-backdrop" (click)="onBackdropClick($event)">
+  <section #dialog class="legal-modal" role="dialog" aria-modal="true" aria-labelledby="legal-modal-title"
+    aria-describedby="legal-modal-intro" tabindex="-1">
+    <header class="legal-modal__header">
+      <div class="legal-modal__identity">
+        <div class="legal-modal__seal" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 2v6h6M8 13h8M8 17h8" />
+          </svg>
+        </div>
+        <div class="legal-modal__titles">
+          <span class="legal-modal__eyebrow">SISTEMA PLATAFORMA MÉXICO · SPM-1.0</span>
+          <h2 id="legal-modal-title">Términos y condiciones de uso</h2>
+          <p>Uso institucional y protección de la información</p>
+        </div>
+      </div>
+      <button #closeButton type="button" class="legal-modal__close" (click)="close()"
+        aria-label="Cerrar términos y condiciones" title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="legal-modal__body">
+      <p id="legal-modal-intro" class="legal-modal__lead">
+        El acceso y uso de SPM-1.0 está destinado exclusivamente a las personas usuarias autorizadas,
+        en el ejercicio de funciones institucionales legalmente asignadas. Estas condiciones precisan las
+        reglas de uso responsable, seguridad y tratamiento de la información consultada.
+      </p>
+
+      <section class="legal-modal__section">
+        <h3>1. Objeto y ámbito de aplicación</h3>
+        <p>
+          El sistema constituye una herramienta de consulta y análisis de información para actividades
+          institucionales, dentro de las atribuciones y competencias de las autoridades correspondientes.
+          La asignación de una cuenta no amplía las facultades legales de quien la utiliza ni autoriza
+          consultas ajenas a una necesidad de servicio debidamente justificada.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>2. Acceso autorizado y uso de credenciales</h3>
+        <p>
+          Cada persona usuaria deberá emplear únicamente su cuenta, proteger sus medios de autenticación,
+          evitar compartir contraseñas o códigos de verificación y cerrar la sesión cuando deje de utilizar
+          el sistema. Queda prohibida la suplantación de identidad, el uso de credenciales ajenas y cualquier
+          intento de eludir los controles de acceso, autorización o seguridad.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>3. Confidencialidad y tratamiento de datos personales</h3>
+        <p>
+          La información deberá tratarse conforme a su naturaleza, finalidad legítima y clasificación legal.
+          Los datos personales y, cuando corresponda, los datos personales sensibles, serán tratados con
+          respeto a los principios, deberes y medidas de seguridad establecidos en la legislación aplicable.
+          El acceso a información no implica autorización para divulgarla o reutilizarla fuera del propósito
+          institucional que motivó la consulta.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>4. Restricciones de consulta, reproducción y difusión</h3>
+        <p>
+          No se permite consultar información por curiosidad, beneficio personal, fines comerciales o en
+          favor de terceros no autorizados. La descarga, impresión, captura de pantalla, reproducción,
+          extracción masiva, transferencia o comunicación de información únicamente procederá cuando esté
+          expresamente autorizada y se realice por los canales institucionales y procedimientos aplicables.
+          Se prohíbe publicar o compartir datos mediante cuentas, dispositivos, servicios o medios no
+          autorizados por la institución.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>5. Integridad de la información y seguridad informática</h3>
+        <p>
+          Se deberá preservar la exactitud, integridad y disponibilidad de la información. Quedan prohibidas
+          las alteraciones no autorizadas, la incorporación deliberada de datos falsos, la utilización de
+          herramientas automatizadas no aprobadas, la explotación de vulnerabilidades o cualquier acción
+          que comprometa el funcionamiento del sistema. Los hallazgos de seguridad o incidentes que puedan
+          afectar datos o credenciales deben comunicarse oportunamente mediante los canales institucionales
+          establecidos.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>6. Trazabilidad, supervisión y responsabilidades</h3>
+        <p>
+          Las consultas y operaciones podrán estar sujetas a registros técnicos de acceso, controles de
+          seguridad, auditoría y supervisión, conforme al marco normativo y a las políticas institucionales
+          aplicables. El uso indebido de información o de las herramientas tecnológicas podrá originar las
+          responsabilidades administrativas, civiles o penales que procedan, determinadas exclusivamente
+          por las autoridades competentes y mediante los procedimientos previstos en la ley.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>7. Derechos de las personas y aviso de privacidad</h3>
+        <p>
+          El tratamiento de datos personales se rige por el aviso de privacidad que corresponda al responsable
+          del tratamiento, incluyendo las finalidades y los medios para ejercer los derechos de acceso,
+          rectificación, cancelación y oposición (ARCO), según proceda legalmente. Este documento de uso
+          no sustituye dicho aviso, ni limita derechos reconocidos por la Constitución y las leyes mexicanas.
+        </p>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>8. Marco normativo de referencia</h3>
+        <p>Estas condiciones se interpretan de acuerdo con las disposiciones vigentes que resulten aplicables, entre
+          otras:</p>
+        <ul class="legal-modal__laws">
+          <li><a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/CPEUM.pdf" target="_blank"
+              rel="noopener noreferrer">Constitución Política de los Estados Unidos Mexicanos</a>, artículos 6, 16 y 21.
+          </li>
+          <li><a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LGPDPPSO.pdf" target="_blank"
+              rel="noopener noreferrer">Ley General de Protección de Datos Personales en Posesión de Sujetos
+              Obligados</a>.</li>
+          <li><a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LGTAIP.pdf" target="_blank"
+              rel="noopener noreferrer">Ley General de Transparencia y Acceso a la Información Pública</a>.</li>
+          <li><a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LGSNSP.pdf" target="_blank"
+              rel="noopener noreferrer">Ley General del Sistema Nacional de Seguridad Pública</a>.</li>
+          <li><a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LGRA.pdf" target="_blank"
+              rel="noopener noreferrer">Ley General de Responsabilidades Administrativas</a>.</li>
+        </ul>
+      </section>
+
+      <section class="legal-modal__section">
+        <h3>9. Aplicación e interpretación</h3>
+        <p>
+          Las políticas, manuales, convenios, reglas de clasificación y demás instrumentos institucionales
+          aplicables se observarán en sus respectivos ámbitos de competencia. Las actualizaciones a estas
+          condiciones se darán a conocer a través de los medios institucionales correspondientes.
+          Ninguna disposición aquí contenida exime a las personas usuarias o a la institución de sus
+          obligaciones legales.
+        </p>
+      </section>
+
+    </div>
+
+    <footer class="legal-modal__footer">
+      <span>SPM-1.0 © 2026</span>
+      <button type="button" class="legal-modal__done" (click)="close()">Cerrar</button>
+    </footer>
+  </section>
+</div>

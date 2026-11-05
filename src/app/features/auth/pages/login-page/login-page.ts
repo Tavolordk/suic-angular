@@ -15,6 +15,7 @@ import {
 } from './contact-method.validator';
 
 import { AuthService } from '../../../../core/auth/auth.service';
+import { TermsDialog } from '../../../../shared/components/terms-dialog/terms-dialog';
 import {
     CAPTCHA_LENGTH,
     CaptchaFacade
@@ -29,7 +30,8 @@ import {
     imports: [
         CommonModule,
         ReactiveFormsModule,
-        FigmaOrbitalBackgroundComponent
+        FigmaOrbitalBackgroundComponent,
+        TermsDialog
     ],
     templateUrl: './login-page.html',
     styleUrl: './login-page.scss'
@@ -49,6 +51,7 @@ export class LoginPage implements OnDestroy {
     /** El campo se esta usando como telefono (solo digitos), no como correo. */
     readonly contactIsPhone = signal(false);
 
+    readonly termsOpen = signal(false);
     readonly loginError = signal('');
     readonly submitted = signal(false);
     readonly isSubmitting = signal(false);
@@ -96,6 +99,14 @@ export class LoginPage implements OnDestroy {
         });
 
         this.captcha.load();
+    }
+
+    openTerms(): void {
+        this.termsOpen.set(true);
+    }
+
+    closeTerms(): void {
+        this.termsOpen.set(false);
     }
 
     ngOnDestroy(): void {

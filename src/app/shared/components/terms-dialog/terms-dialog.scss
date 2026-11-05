@@ -1,0 +1,255 @@
+:host,
+:host * {
+  box-sizing: border-box;
+}
+
+.legal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(6, 15, 26, 0.76);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  font-family: 'Noto Sans', Arial, sans-serif;
+  animation: legalFadeIn 150ms ease-out;
+}
+
+.legal-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 810px);
+  max-height: min(92dvh, 890px);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(170, 193, 213, 0.42);
+  border-radius: 18px;
+  background: #f5f8fb;
+  box-shadow: 0 28px 84px rgba(0, 0, 0, 0.42);
+  color: #1d3040;
+}
+
+.legal-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 25px 19px;
+  background: linear-gradient(125deg, #172d40, #2b485c);
+  color: #ffffff;
+}
+
+.legal-modal__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Iconografía documental de trazo uniforme, sin símbolos decorativos. */
+.legal-modal__seal {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  border: 1px solid rgba(179, 213, 231, 0.28);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d1e4f0;
+}
+
+.legal-modal__seal svg {
+  width: 25px;
+  height: 25px;
+}
+
+.legal-modal__eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #b6d3e4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.legal-modal__titles h2 {
+  margin: 0;
+  font-size: clamp(17px, 3.4vw, 23px);
+  font-weight: 750;
+  line-height: 1.28;
+}
+
+.legal-modal__titles p {
+  margin: 7px 0 0;
+  color: #c3d5e2;
+  font-size: 12px;
+}
+
+.legal-modal__close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+
+.legal-modal__close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.legal-modal__close svg {
+  width: 19px;
+  height: 19px;
+}
+
+.legal-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 25px 30px 28px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #9eafbe transparent;
+  color: #2f4353;
+  font-size: 13px;
+  line-height: 1.72;
+}
+
+.legal-modal__lead {
+  margin: 0 0 23px;
+  padding: 14px 17px;
+  border-left: 3px solid #477b9b;
+  border-radius: 0 8px 8px 0;
+  background: #e5eef5;
+  color: #244158;
+  font-weight: 550;
+}
+
+.legal-modal__section {
+  margin-top: 21px;
+}
+
+.legal-modal__section h3 {
+  margin: 0 0 8px;
+  color: #1e3b50;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.legal-modal__section p {
+  margin: 0;
+}
+
+.legal-modal__laws {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.legal-modal__laws li {
+  margin-block: 5px;
+}
+
+.legal-modal__laws a {
+  color: #1c648b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-modal__laws a:hover {
+  color: #11445f;
+}
+
+.legal-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 25px;
+  border-top: 1px solid #d6e1e8;
+  background: #edf3f7;
+}
+
+.legal-modal__footer span {
+  color: #5c7382;
+  font-size: 11px;
+}
+
+.legal-modal__done {
+  min-width: 102px;
+  min-height: 37px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 9px;
+  background: #223e52;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-modal__done:hover {
+  background: #335e77;
+}
+
+.legal-modal button:focus-visible,
+.legal-modal a:focus-visible {
+  outline: 3px solid #79b8de;
+  outline-offset: 2px;
+}
+
+@keyframes legalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 600px) {
+  .legal-backdrop {
+    align-items: stretch;
+    padding: 10px;
+  }
+  .legal-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 13px;
+  }
+  .legal-modal__header {
+    padding: 16px 15px;
+  }
+  .legal-modal__identity {
+    gap: 10px;
+  }
+  /* Iconografía documental de trazo uniforme, sin símbolos decorativos. */
+.legal-modal__seal {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .legal-modal__body {
+    padding: 18px 17px 22px;
+    font-size: 12.5px;
+  }
+  .legal-modal__footer {
+    padding: 12px 16px;
+  }
+  .legal-modal__footer span {
+    max-width: 55%;
+    line-height: 1.35;
+  }
+  .legal-modal__done {
+    min-width: 90px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-backdrop { animation: none; }
+}

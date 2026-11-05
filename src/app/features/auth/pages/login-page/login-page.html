@@ -188,9 +188,8 @@
 
                     <p>
                         Acepto
-                        <span>
-                            términos y condiciones
-                        </span>
+                        <button type="button" class="terms__link" (click)="openTerms()"
+                            aria-haspopup="dialog">términos y condiciones</button>
                     </p>
                 </div>
 
@@ -224,3 +223,7 @@
         </span>
     </footer>
 </section>
+
+@if (termsOpen()) {
+    <app-terms-dialog (closed)="closeTerms()" />
+}

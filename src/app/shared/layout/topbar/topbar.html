@@ -1,4 +1,4 @@
-<header class="topbar">
+<header class="topbar" [class.topbar--legal-open]="termsOpen()">
   <div class="topbar__brand">
     <img src="/login-seguridad-logo.png" alt="Logo SSPC" />
   </div>
@@ -49,32 +49,43 @@
 
           <div>
             <strong>{{ accountNumber() }}</strong>
-            <span>{{ primaryProfile() }}</span>
+            <span>SPM-1.0</span>
           </div>
         </div>
 
         <div class="topbar__profile-meta">
           <p>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-4h4v4"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
             Unidad de Inteligencia
           </p>
 
           <p>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            Perfil: {{ primaryProfile() }}
+            Perfil: {{ profileLabel() }}
           </p>
         </div>
+
+        <button type="button" class="topbar__terms" (click)="openTerms()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 2v6h6M8 13h8M8 17h8" />
+          </svg>
+          Términos y condiciones
+        </button>
 
         <button type="button" class="topbar__logout" (click)="logout()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
           </svg>
           Cerrar sesión
         </button>
@@ -83,3 +94,7 @@
     </div>
   </div>
 </header>
+
+@if (termsOpen()) {
+  <app-terms-dialog (closed)="closeTerms()" />
+}
