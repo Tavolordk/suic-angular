@@ -1982,3 +1982,39 @@
 .search-field__validation { display: block; margin-top: 5px; font-size: 11px; color: #9e2532; line-height: 1.35; }
 
 .search-field__advisory { display:block; margin-top:5px; color:#765727; font-size:11px; line-height:1.4; }
+
+
+/* Contrato de búsquedas guardadas: acción por búsqueda completa, no por tarjeta. */
+.search-snapshot-actions {
+  margin: 12px 0;
+  padding: 14px 18px;
+  border: 1px solid #e1e4e9;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  > div { flex: 1 1 250px; display: flex; flex-direction: column; gap: 4px; }
+  strong { font-size: 14px; color: #23304a; }
+  small { font-size: 12px; color: #627087; line-height: 1.5; }
+  .search-report-button { margin: 0; }
+  &__feedback, &__error { flex-basis: 100%; margin: 0; font-size: 12px; line-height: 1.5; }
+  &__feedback { color: #1c7046; }
+  &__error { color: #b12b2b; }
+}
+.search-sidebar-panel__notice {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5e6878;
+  margin: 12px 8px;
+  overflow-wrap: anywhere;
+}
+.search-sidebar-panel__lookup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px;
+  input { min-width: 0; flex: 1 1 200px; padding: 10px; border: 1px solid #d2d8df; border-radius: 7px; }
+  button { border: 0; border-radius: 7px; background: #722b4c; color: #fff; padding: 9px 14px; cursor: pointer; }
+}

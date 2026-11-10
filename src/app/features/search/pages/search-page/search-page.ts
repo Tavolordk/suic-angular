@@ -21,21 +21,26 @@ import {
   ValidationErrors,
   Validators
 } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { concatMap, finalize, from, map, reduce } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { concatMap, finalize, from, map, reduce, Subscription } from 'rxjs';
 import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import {
+  SearchHistoryItemDto,
   SearchResultItemDto,
   SearchResultsPageResponse
 } from '../../../../core/infrastructure/search-api/search-api.models';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../data-access/search-state.service';
+import { SearchHistoryService } from '../../data-access/search-history.service';
+import { historyDate, historyEntityLabel, historyInputsLabel, historyTitle } from '../../domain/search-history.mapper';
+import { SavedSearchReferencesService } from '../../data-access/saved-search-references.service';
 import {
   InvestigationLinkedSearch,
   InvestigationWorkspaceService
 } from '../../../investigations/data-access/investigation-workspace.service';
 import { PersonSearchFormValue } from '../../domain/person-search.models';
+import { orderResultPage } from '../../domain/search-result-order';
 import { VehicleSearchFormValue } from '../../domain/vehicle-search.models';
 import { WeaponSearchFormValue } from '../../domain/weapon-search.models';
 import { buildWeaponSearchRequest, normalizeWeaponSearch } from '../../domain/weapon-search-request.mapper';
@@ -83,11 +88,12 @@ interface SearchResult {
   curp?: string;
   rfc?: string;
   tags: ResultTag[];
-  saved: boolean;
   status?: string;
   kind?: string;
   hasConflicts: boolean;
   sources: string[];
+  consolidatedProfileId?: string;
+  consolidatedVersionNumber?: number;
 }
 
 interface QuickSearchItem {
@@ -101,7 +107,7 @@ interface QuickSearchItem {
 @Component({
   selector: 'app-search-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, Topbar],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, Topbar],
   templateUrl: './search-page.html',
   styleUrl: './search-page.scss'
 })
@@ -113,6 +119,14 @@ export class SearchPage implements OnInit, OnDestroy {
   private readonly searchApi = inject(SearchApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
   private readonly searchState = inject(SearchStateService);
+  readonly searchHistory = inject(SearchHistoryService);
+  readonly historyOpenError = signal<string | null>(null);
+  readonly historyOpeningId = signal<string | null>(null);
+  readonly historyTitle = historyTitle;
+  readonly historyDate = historyDate;
+  readonly historyEntityLabel = historyEntityLabel;
+  readonly historyInputsLabel = historyInputsLabel;
+  private readonly savedReferences = inject(SavedSearchReferencesService);
   private readonly investigationWorkspace = inject(InvestigationWorkspaceService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
@@ -122,6 +136,14 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly primaryProfile = this.authService.primaryProfile;
   readonly investigationContext = this.investigationWorkspace.activeContext;
   readonly pivotContext = this.searchState.pivotContext;
+  readonly historicalPivotParent = this.searchState.historicalPivotParent;
+  readonly historicalSearchId = this.searchState.historicalSearchId;
+  readonly recentResultsUrl = this.searchState.recentResultsUrl;
+  readonly savedSearchRecords = this.savedReferences.records;
+  readonly isSavingSearch = signal(false);
+  readonly saveSearchFeedback = signal<string | null>(null);
+  readonly saveSearchError = signal<string | null>(null);
+  readonly isCurrentSearchSaved = computed(() => this.savedReferences.isSaved(this.searchId()));
 
   readonly activeSidebarPanel = signal<SidebarPanel>(null);
   readonly currentTime = signal(new Date());
@@ -164,6 +186,7 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly totalResultsCount = signal(
     this.restoredPage?.counts.totalItems ?? 0
   );
+  readonly consolidatedResultsCount = signal(this.restoredPage?.counts.consolidated ?? 0);
   readonly executionStatus = signal(
     translateExecutionStatus(this.restoredPage?.execution.status)
   );
@@ -193,31 +216,6 @@ export class SearchPage implements OnInit, OnDestroy {
       values: {
         nombres: 'MIGUEL ANGEL',
         apellidoPaterno: 'HERNANDEZ'
-      }
-    }
-  ];
-
-  readonly savedSearches: QuickSearchItem[] = [
-    {
-      id: 1,
-      label: 'RFC HEMM7709295Z9',
-      type: 'personas',
-      icon: 'person',
-      values: {
-        nombres: 'MIGUEL ANGEL',
-        apellidoPaterno: 'HERNANDEZ',
-        rfc: 'HEMM7709295Z9'
-      }
-    },
-    {
-      id: 2,
-      label: 'Miguel Hernández · 1977-09-29',
-      type: 'personas',
-      icon: 'person',
-      values: {
-        nombres: 'MIGUEL ANGEL',
-        apellidoPaterno: 'HERNANDEZ',
-        fechaNacimiento: '1977-09-29'
       }
     }
   ];
@@ -255,6 +253,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.mapResults(this.restoredPage?.items ?? [])
   );
   private clockInterval?: ReturnType<typeof setInterval>;
+  private querySubscription?: Subscription;
   private searchTipInterval?: ReturnType<typeof setInterval>;
 
   readonly activeForm = computed<FormGroup>(() => {
@@ -347,12 +346,39 @@ export class SearchPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.restoreInvestigationContextFromRoute();
+    const restoredRecent = this.searchState.recentHistoryItem();
+    if (restoredRecent && this.searchState.page()?.searchId === restoredRecent.searchId) {
+      this.applyHistoryCriteria(restoredRecent);
+    }
 
     if (!this.isBrowser) {
       return;
     }
 
-    this.applyQuickPresetFromRoute();
+    // Manejar también navegación a la misma ruta /busqueda con otro searchId.
+    this.querySubscription = this.route.queryParamMap.subscribe((params) => {
+      const recentId = params.get('recentSearchId')?.trim();
+      if (recentId && this.searchState.recentResultsUrl() && this.searchState.page()?.searchId === recentId) {
+        const restored = this.searchState.page()!;
+        const historyItem = this.searchState.recentHistoryItem();
+        if (historyItem?.searchId === recentId) this.applyHistoryCriteria(historyItem);
+        this.pageSize.set(18);
+        this.applyPage(restored);
+        this.hasSearched.set(true);
+        this.errorMessage.set(null);
+        this.searchPanelExpanded.set((restored.items?.length ?? 0) === 0);
+        this.activeSidebarPanel.set(null);
+        void this.router.navigate([], { relativeTo: this.route,
+          queryParams: { recentSearchId: null }, queryParamsHandling: 'merge', replaceUrl: true });
+        return;
+      }
+      const id = params.get('savedSearchId')?.trim();
+      if (id) {
+        if (this.historicalSearchId() !== id || this.searchId() !== id) this.openSavedById(id);
+      } else {
+        this.applyQuickPresetFromRoute();
+      }
+    });
 
     this.clockInterval = setInterval(() => {
       this.currentTime.set(new Date());
@@ -360,6 +386,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.querySubscription?.unsubscribe();
     if (this.clockInterval) {
       clearInterval(this.clockInterval);
     }
@@ -375,9 +402,7 @@ export class SearchPage implements OnInit, OnDestroy {
 
     const presets: Record<string, QuickSearchItem | undefined> = {
       'recent-curp': this.recentSearches[0],
-      'recent-miguel': this.recentSearches[1],
-      'saved-rfc': this.savedSearches[0],
-      'saved-miguel-date': this.savedSearches[1]
+      'recent-miguel': this.recentSearches[1]
     };
 
     const item = presets[preset];
@@ -420,6 +445,9 @@ export class SearchPage implements OnInit, OnDestroy {
     this.vehicleForm.reset({ vin: '', placa: '' });
     this.weaponForm.reset({ matricula: '' });
     this.searchState.clear();
+    this.saveSearchFeedback.set(null);
+    this.saveSearchError.set(null);
+    this.removeHistoricalQueryParam();
     this.searchAttempted.set(false);
     this.resetResultState();
     this.searchPanelExpanded.set(true);
@@ -432,6 +460,9 @@ export class SearchPage implements OnInit, OnDestroy {
 
     const isVehicle = this.selectedEntity() === 'vehiculo';
     const isWeapon = this.selectedEntity() === 'armas';
+    this.saveSearchFeedback.set(null);
+    this.saveSearchError.set(null);
+    this.removeHistoricalQueryParam();
     this.searchAttempted.set(true);
     this.reportError.set(null);
     this.errorMessage.set(null);
@@ -468,6 +499,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.beginSearching();
     this.results.set([]);
     this.totalResultsCount.set(0);
+    this.consolidatedResultsCount.set(0);
     this.currentPage.set(1);
 
     this.searchApi
@@ -476,6 +508,7 @@ export class SearchPage implements OnInit, OnDestroy {
       .subscribe({
         next: (page) => {
           this.applyPage(page);
+          if (this.activeSidebarPanel() === 'history') this.searchHistory.load(1);
           this.hasSearched.set(true);
           this.searchPanelExpanded.set((page.items?.length ?? 0) === 0);
           if (vehicleValue) {
@@ -507,7 +540,11 @@ export class SearchPage implements OnInit, OnDestroy {
     this.reportError.set(null);
     this.isExportingReport.set(true);
     from(Array.from({length: pageCount}, (_, index) => index + 1)).pipe(
-      concatMap(page => this.searchApi.getResults(id, page, pageSize)),
+      concatMap(page => this.historicalSearchId() === id
+        ? this.searchApi.getSavedResults(id, page, pageSize)
+        : this.recentResultsUrl()
+          ? this.searchApi.getHistoryResults(this.recentResultsUrl()!, id, page, pageSize)
+          : this.searchApi.getResults(id, page, pageSize)),
       map(response => response.items ?? []),
       reduce((all, page) => [...all, ...page], [] as SearchResultItemDto[]),
       finalize(() => this.isExportingReport.set(false))
@@ -638,6 +675,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.closeProfile();
     this.activeSidebarPanel.set(null);
     this.searchState.clear();
+    this.searchHistory.clear();
     this.authService.logout();
     void this.router.navigateByUrl('/login');
   }
@@ -650,11 +688,156 @@ export class SearchPage implements OnInit, OnDestroy {
   goToHistory(): void {
     this.closeProfile();
     this.activeSidebarPanel.set('history');
+    this.historyOpenError.set(null);
+    this.searchHistory.load(1);
   }
 
   goToSaved(): void {
     this.closeProfile();
     this.activeSidebarPanel.set('bookmarks');
+  }
+
+  /** Recuperar un resultado temporal ya ejecutado sin repetir POST /api/search. */
+  openRecentSearch(item: SearchHistoryItemDto): void {
+    if (this.isSearching() || this.historyOpeningId()) return;
+    this.historyOpenError.set(null);
+    this.historyOpeningId.set(item.searchId);
+    this.searchApi.getHistoryResults(item.resultsUrl, item.searchId, 1, 18).pipe(
+      finalize(() => this.historyOpeningId.set(null))
+    ).subscribe({
+      next: response => {
+        if (response.searchId && response.searchId !== item.searchId) {
+          this.historyOpenError.set('El servicio devolvió una búsqueda distinta a la seleccionada.');
+          return;
+        }
+        const page: SearchResultsPageResponse = {
+          ...response, searchId: item.searchId, entityType: response.entityType || item.entityType
+        };
+        this.investigationWorkspace.clearContext();
+        this.removeHistoricalQueryParam();
+        this.pageSize.set(18);
+        this.applyHistoryCriteria(item);
+        this.searchState.saveRecentResults(item, page, 18);
+        this.applyPage(page);
+        this.hasSearched.set(true);
+        this.searchAttempted.set(false);
+        this.linkFilter.set('all');
+        this.errorMessage.set(null);
+        this.reportError.set(null);
+        this.saveSearchError.set(null);
+        this.saveSearchFeedback.set(null);
+        this.searchPanelExpanded.set((page.items?.length ?? 0) === 0);
+        this.activeSidebarPanel.set(null);
+      },
+      error: (error: unknown) => {
+        if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 410)) {
+          this.historyOpenError.set('La búsqueda temporal venció o ya no existe. Actualizamos la lista; ejecuta una búsqueda nueva sólo si lo deseas.');
+          this.searchHistory.load(1);
+        } else {
+          this.historyOpenError.set(this.extractErrorMessage(error));
+        }
+      }
+    });
+  }
+
+  /** Rellena criterios conocidos únicamente para mostrarlos, sin ejecutar otra búsqueda. */
+  private applyHistoryCriteria(item: SearchHistoryItemDto): void {
+    const type = resolveSearchEntity(item.entityType);
+    this.selectedEntity.set(type);
+    const values = new Map((item.inputs ?? []).map(entry => [entry.code.toLowerCase(), entry.value]));
+    this.personForm.reset(this.emptyPersonFormValue());
+    this.vehicleForm.reset({ vin: '', placa: '' });
+    this.weaponForm.reset({ matricula: '' });
+    if (type === 'vehiculo') {
+      this.vehicleForm.patchValue({ vin: values.get('vin') ?? values.get('niv') ?? '', placa: values.get('placa') ?? '' });
+    } else if (type === 'armas') {
+      this.weaponForm.patchValue({ matricula: values.get('matricula') ?? '' });
+    } else {
+      this.personForm.patchValue({
+        nombres: values.get('nombre') ?? values.get('nombres') ?? '',
+        apellidoPaterno: values.get('apellidopaterno') ?? '',
+        apellidoMaterno: values.get('apellidomaterno') ?? '',
+        curp: values.get('curp') ?? '', rfc: values.get('rfc') ?? ''
+      });
+    }
+  }
+
+  /** Conservar la búsqueda COMPLETA, no el resultado individual ni un perfil. */
+  saveCurrentSearch(): void {
+    const id = this.searchId();
+    if (!id || this.isSavingSearch() || this.isSearching()) return;
+    if (this.historicalSearchId() === id) {
+      this.saveSearchFeedback.set('Ya estás consultando la búsqueda conservada.');
+      return;
+    }
+    this.saveSearchError.set(null);
+    this.saveSearchFeedback.set(null);
+    this.isSavingSearch.set(true);
+    this.searchApi.saveSearch(id).pipe(finalize(() => this.isSavingSearch.set(false)))
+      .subscribe({
+        next: (saved) => {
+          this.savedReferences.remember(saved, this.selectedEntity());
+          const until = new Date(saved.retainUntilUtc);
+          const retainLabel = Number.isNaN(until.valueOf()) ? saved.retainUntilUtc :
+            until.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+          this.saveSearchFeedback.set(
+            `${saved.repeated ? 'La búsqueda ya estaba guardada' : 'Búsqueda guardada correctamente'}. Conservación hasta: ${retainLabel}.`
+          );
+        },
+        error: (error: unknown) => this.saveSearchError.set(this.extractErrorMessage(error))
+      });
+  }
+
+  /** Apertura por referencia local o ID explícito. La autorización siempre la valida backend. */
+  openSavedById(rawId: string): void {
+    const id = rawId.trim();
+    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) {
+      const message = 'Introduce un identificador UUID válido de una búsqueda guardada.';
+      this.saveSearchError.set(message);
+      this.errorMessage.set(message);
+      return;
+    }
+    if (this.isSearching()) return;
+    this.activeSidebarPanel.set(null);
+    this.saveSearchError.set(null);
+    this.saveSearchFeedback.set(null);
+    this.reportError.set(null);
+    this.errorMessage.set(null);
+    this.hasSearched.set(false);
+    this.results.set([]);
+    this.pageSize.set(18); // contrato de lectura histórica: tamaño por defecto
+    this.beginSearching();
+    this.searchApi.getSavedResults(id, 1, 18)
+      .pipe(finalize(() => this.endSearching()))
+      .subscribe({
+        next: (page) => {
+          this.applyPage(page);
+          this.hasSearched.set(true);
+          this.searchPanelExpanded.set((page.items?.length ?? 0) === 0);
+          this.searchState.saveHistoricalResults(page, 18);
+          void this.router.navigate([], { relativeTo: this.route,
+            queryParams: { savedSearchId: id }, queryParamsHandling: 'merge', replaceUrl: true });
+        },
+        error: (error: unknown) => {
+          this.searchPanelExpanded.set(true);
+          this.errorMessage.set(this.extractErrorMessage(error));
+        }
+      });
+  }
+
+  returnToHistoricalParent(): void {
+    const parent = this.historicalPivotParent();
+    if (!parent) return;
+    void this.router.navigate(['/perfil-consolidado'], { queryParams: {
+      searchId: parent.searchId, resultId: parent.resultId,
+      entityType: parent.entityType, historical: 'true'
+    } });
+  }
+
+  private removeHistoricalQueryParam(): void {
+    if (!this.route.snapshot.queryParamMap.has('savedSearchId')) return;
+    void this.router.navigate([], { relativeTo: this.route,
+      queryParams: { savedSearchId: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   goToInvestigationLines(): void {
@@ -712,6 +895,11 @@ export class SearchPage implements OnInit, OnDestroy {
     this.search();
   }
 
+
+  formatSavedRetention(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? value : date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+  }
 
   getQuickSearchTypeLabel(item: QuickSearchItem): string {
     return item.icon === 'curp' ? 'CURP' : 'Persona';
@@ -795,16 +983,6 @@ export class SearchPage implements OnInit, OnDestroy {
     return control.invalid && (control.touched || this.searchAttempted());
   }
 
-  toggleSave(result: SearchResult, event: MouseEvent): void {
-    event.stopPropagation();
-    this.searchState.toggleSavedResult(result.id);
-    this.results.update((items) =>
-      items.map((item) =>
-        item.id === result.id ? { ...item, saved: !item.saved } : item
-      )
-    );
-  }
-
   backToPivotGraph(): void {
     const context = this.pivotContext();
     if (!context?.graphProfileId) {
@@ -829,7 +1007,12 @@ export class SearchPage implements OnInit, OnDestroy {
       queryParams: {
         searchId: currentSearchId,
         resultId: result.id,
-        entityType: result.entity === 'vehiculo' ? 'Vehicle' : result.entity === 'armas' ? 'Weapon' : 'Person'
+        entityType: result.entity === 'vehiculo' ? 'Vehicle' : result.entity === 'armas' ? 'Weapon' : 'Person',
+        kind: result.kind,
+        ...(result.kind === 'ConsolidatedProfile' && result.consolidatedProfileId
+          ? { profileId: result.consolidatedProfileId, versionNumber: result.consolidatedVersionNumber }
+          : {}),
+        ...(this.historicalSearchId() === currentSearchId ? { historical: 'true' } : {})
       }
     });
   }
@@ -982,8 +1165,11 @@ export class SearchPage implements OnInit, OnDestroy {
     this.errorMessage.set(null);
     this.beginSearching();
 
-    this.searchApi
-      .getResults(currentSearchId, pageNumber, this.pageSize())
+    (this.historicalSearchId() === currentSearchId
+      ? this.searchApi.getSavedResults(currentSearchId, pageNumber, this.pageSize())
+      : this.recentResultsUrl()
+        ? this.searchApi.getHistoryResults(this.recentResultsUrl()!, currentSearchId, pageNumber, this.pageSize())
+        : this.searchApi.getResults(currentSearchId, pageNumber, this.pageSize()))
       .pipe(finalize(() => this.endSearching()))
       .subscribe({
         next: (page) => {
@@ -1005,6 +1191,7 @@ export class SearchPage implements OnInit, OnDestroy {
     else if (page.entityType?.toLowerCase() === 'person') this.selectedEntity.set('personas');
     this.results.set(this.mapResults(page.items ?? []));
     this.totalResultsCount.set(page.counts.totalItems);
+    this.consolidatedResultsCount.set(page.counts.consolidated ?? 0);
     this.currentPage.set(page.pagination.page);
     this.totalPages.set(page.pagination.totalPages);
     this.hasPreviousPage.set(page.pagination.hasPreviousPage);
@@ -1014,11 +1201,12 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   private mapResults(items: SearchResultItemDto[]): SearchResult[] {
-    const savedIds = this.searchState.savedResultIds();
-
     const vehicle = this.selectedEntity() === 'vehiculo';
     const weapon = this.selectedEntity() === 'armas';
-    return items.map((item, index) => ({
+    // El servicio debe ordenar el conjunto completo antes de paginar. Dentro
+    // de la página recibida mostramos primero los consolidados sin generar
+    // otra paginación ni fusionar personas que compartan el mismo nombre.
+    return orderResultPage(items).map((item, index) => ({
       id: item.resultId,
       entity: vehicle ? 'vehiculo' : weapon ? 'armas' : 'personas',
       name: vehicle
@@ -1033,11 +1221,14 @@ export class SearchPage implements OnInit, OnDestroy {
       curp: !vehicle && !weapon ? item.card?.curp?.value?.trim() || undefined : undefined,
       rfc: !vehicle && !weapon ? item.card?.rfc?.value?.trim() || undefined : undefined,
       tags: this.mapTags(item),
-      saved: savedIds.has(item.resultId),
       status: item.status?.trim() || undefined,
       kind: item.kind?.trim() || undefined,
       hasConflicts: item.hasConflicts,
-      sources: item.sources?.filter(Boolean) ?? []
+      sources: item.sources?.filter(Boolean) ?? [],
+      consolidatedProfileId: item.kind === 'ConsolidatedProfile'
+        ? item.consolidatedProfile?.profileId : undefined,
+      consolidatedVersionNumber: item.kind === 'ConsolidatedProfile'
+        ? item.consolidatedProfile?.versionNumber : undefined
     }));
   }
 
@@ -1078,10 +1269,13 @@ export class SearchPage implements OnInit, OnDestroy {
     this.isSearching.set(false);
     this.errorMessage.set(null);
     this.reportError.set(null);
+    this.saveSearchFeedback.set(null);
+    this.saveSearchError.set(null);
     this.searchId.set(null);
     this.results.set([]);
     this.linkFilter.set('all');
     this.totalResultsCount.set(0);
+    this.consolidatedResultsCount.set(0);
     this.currentPage.set(1);
     this.totalPages.set(0);
     this.hasPreviousPage.set(false);
@@ -1127,6 +1321,7 @@ export class SearchPage implements OnInit, OnDestroy {
       // No exponer mensajes del servicio sobre access/refresh token al usuario.
       if (error.status === 401) return 'Tu sesión venció. Inicia sesión nuevamente.';
       if (error.status === 403) return 'No tienes permisos para realizar esta operación.';
+      if (error.status === 410) return 'La búsqueda temporal o la búsqueda guardada ha vencido.';
       const apiMessage = this.readApiErrorMessage(error.error);
       if (apiMessage) {
         return apiMessage;
@@ -1135,6 +1330,10 @@ export class SearchPage implements OnInit, OnDestroy {
       if (error.status === 0) {
         return 'No fue posible conectar con el servicio de búsquedas.';
       }
+      if (error.status === 404) return 'La búsqueda, el resultado o el vínculo solicitado no está disponible.';
+      if (error.status === 409) return 'La operación presenta un conflicto con el estado actual de la búsqueda.';
+      if (error.status === 422) return 'El guardado o el vínculo solicitado no cumple los requisitos del servicio.';
+      if (error.status === 503) return 'El servicio de búsquedas guardadas está temporalmente indisponible en este ambiente.';
 
       if (error.status === 401 || error.status === 403) {
         return 'Tu sesión no tiene autorización para consultar búsquedas.';
@@ -1165,6 +1364,20 @@ export class SearchPage implements OnInit, OnDestroy {
       errors?: unknown;
     };
 
+    if (Array.isArray(candidate.errors)) {
+      const coded = candidate.errors.find((entry): entry is { code: string; message?: string } =>
+        !!entry && typeof entry === 'object' && typeof entry.code === 'string');
+      if (coded) {
+        const labels: Record<string, string> = {
+          SAVED_SEARCH_ACTIONS_UNAVAILABLE: 'El pivoteo de búsquedas guardadas no está habilitado en este ambiente.',
+          PIVOT_INSUFFICIENT_DATA: 'El vínculo no contiene datos suficientes para una búsqueda nueva.',
+          PIVOT_DATA_AMBIGUOUS: 'Los datos del vínculo son ambiguos para realizar el pivoteo.',
+          PIVOT_ENTITY_NOT_SUPPORTED: 'Este tipo de vínculo no admite pivoteo.',
+          AUTH_PROVIDER_RATE_LIMITED: 'El proveedor de autenticación está limitando las solicitudes. Inténtalo más tarde.'
+        };
+        return labels[coded.code] || coded.message || coded.code;
+      }
+    }
     if (typeof candidate.message === 'string' && candidate.message.trim()) {
       return candidate.message.trim();
     }

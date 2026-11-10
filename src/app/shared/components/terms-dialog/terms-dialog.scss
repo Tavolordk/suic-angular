@@ -183,6 +183,43 @@
   font-size: 11px;
 }
 
+/* Acciones del documento: impresión y cierre, sin alterar el contenido legal. */
+.legal-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.legal-modal__print {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 37px;
+  padding: 8px 13px;
+  border: 1px solid #b5c9d6;
+  border-radius: 9px;
+  background: #fff;
+  color: #234c66;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-modal__print:hover {
+  background: #e4eef5;
+  border-color: #7b9db5;
+}
+
+.legal-modal__print svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
 .legal-modal__done {
   min-width: 102px;
   min-height: 37px;
@@ -228,8 +265,7 @@
   .legal-modal__identity {
     gap: 10px;
   }
-  /* Iconografía documental de trazo uniforme, sin símbolos decorativos. */
-.legal-modal__seal {
+  .legal-modal__seal {
     width: 36px;
     height: 36px;
     flex-basis: 36px;
@@ -247,6 +283,10 @@
   }
   .legal-modal__done {
     min-width: 90px;
+  }
+  .legal-modal__print {
+    padding-inline: 10px;
+    font-size: 11px;
   }
 }
 

@@ -2,6 +2,19 @@ export interface ApiResponse<T> {
   success: boolean;
   message?: string | null;
   data: T;
+  errors?: Array<{ code?: string | null; message?: string | null }> | null;
+  traceId?: string | null;
+}
+
+/** Respuesta del POST /api/search/{searchId}/save (no equivale a guardar tarjeta). */
+export interface SavedSearchResponse {
+  contractVersion: string;
+  searchId: string;
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotContractVersion: string;
+  retainUntilUtc: string;
+  repeated: boolean;
 }
 
 export interface SearchCriterionDto {
@@ -29,6 +42,7 @@ export interface SearchRequest {
 export interface SearchExecutionSummaryDto {
   status?: string | null;
   isPartial: boolean;
+  consolidatedSearchStatus?: string | null;
 }
 
 export interface SearchResultCountsDto {
@@ -36,6 +50,8 @@ export interface SearchResultCountsDto {
   enriched: number;
   partial: number;
   contextual: number;
+  /** Person v2: si no se envía, debe interpretarse como cero. */
+  consolidated?: number | null;
 }
 
 export interface SearchResultPaginationDto {
@@ -54,9 +70,9 @@ export interface SearchResultCardFieldDto {
 
 export interface SearchResultCardDto {
   name: SearchResultCardFieldDto;
-  alias: SearchResultCardFieldDto;
-  curp: SearchResultCardFieldDto;
-  rfc: SearchResultCardFieldDto;
+  alias?: SearchResultCardFieldDto;
+  curp?: SearchResultCardFieldDto;
+  rfc?: SearchResultCardFieldDto;
 }
 
 export interface SearchResultLinkSummaryDto {
@@ -64,10 +80,19 @@ export interface SearchResultLinkSummaryDto {
   count: number;
 }
 
+/** Sólo se envía en los resultados kind=ConsolidatedProfile. */
+export interface ConsolidatedProfileSearchReferenceDto {
+  profileId: string;
+  profileVersionId: string;
+  versionNumber: number;
+  effectiveAtUtc: string;
+}
+
 export interface SearchResultItemDto {
   resultId: string;
   kind?: string | null;
   status?: string | null;
+  consolidatedProfile?: ConsolidatedProfileSearchReferenceDto | null;
   card: SearchResultCardDto;
   sources?: string[] | null;
   links?: SearchResultLinkSummaryDto[] | null;
@@ -83,6 +108,35 @@ export interface SearchResultsPageResponse {
   pagination: SearchResultPaginationDto;
   items?: SearchResultItemDto[] | null;
   pivotOrigin?: PivotOriginDto | null;
+}
+
+/** GET /api/search/history: sólo búsquedas temporales vigentes de la cuenta autenticada. */
+export interface SearchHistoryInputDto {
+  type: 'Criterion' | 'Identifier' | string;
+  code: string;
+  value: string;
+}
+
+export interface SearchHistoryItemDto {
+  searchId: string;
+  entityType: 'Person' | 'Vehicle' | 'Weapon' | string;
+  startedAtUtc: string;
+  createdAtUtc: string;
+  expiresAtUtc: string;
+  inputs: SearchHistoryInputDto[];
+  options: SearchOptionsDto;
+  counts: SearchResultCountsDto;
+  execution: SearchExecutionSummaryDto;
+  resultOrigin: string;
+  /** Ruta relativa recibida del servidor, nunca una URL externa. */
+  resultsUrl: string;
+}
+
+export interface SearchHistoryPageResponse {
+  contractVersion: string;
+  totalItems: number;
+  pagination: SearchResultPaginationDto;
+  items: SearchHistoryItemDto[];
 }
 
 export interface EvidenceOriginDto {
@@ -145,6 +199,7 @@ export interface SearchResultDetailResponse {
   entityType?: string | null;
   kind?: string | null;
   status?: string | null;
+  consolidatedProfile?: ConsolidatedProfileSearchReferenceDto | null;
   hasConflicts: boolean;
   sourceGroups?: SearchResultSourceGroupDto[] | null;
   linkGroups?: SearchResultLinkGroupDto[] | null;
@@ -157,6 +212,8 @@ export interface PivotOriginDto {
   parentResultId: string;
   parentLinkId: string;
   origins?: SearchResultLinkOriginDto[] | null;
+  snapshotVersion?: number | null;
+  snapshotContractVersion?: string | null;
 }
 
 export interface PivotRequest {

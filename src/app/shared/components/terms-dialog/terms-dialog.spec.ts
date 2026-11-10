@@ -27,6 +27,35 @@ describe('TermsDialog', () => {
     expect(fixture.nativeElement.querySelector('.legal-modal__seal svg path')).toBeTruthy();
   });
 
+  it('ofrece imprimir o guardar como PDF sin sustituir el texto legal', () => {
+    const button = fixture.nativeElement.querySelector('.legal-modal__print') as HTMLButtonElement;
+    expect(button).toBeTruthy();
+    expect(button.textContent).toContain('Imprimir / Guardar PDF');
+    expect(fixture.nativeElement.querySelectorAll('.legal-modal__section').length).toBe(9);
+  });
+
+  it('prepara los nueve apartados para imprimir sin iframe y limpia al terminar', () => {
+    const printSpy = spyOn(window, 'print').and.stub();
+    const rafSpy = spyOn(window, 'requestAnimationFrame').and.callFake((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+
+    component.printDocument();
+    const printable = document.getElementById('spm-terms-print-root');
+    expect(printable).toBeTruthy();
+    expect(printable?.querySelectorAll('.legal-modal__section').length).toBe(9);
+    expect(printable?.textContent).toContain('9. Aplicación e interpretación');
+    expect(document.querySelector('#spm-terms-print-style')).toBeTruthy();
+    expect(document.querySelector('iframe[title*="términos"]')).toBeFalsy();
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(rafSpy).toHaveBeenCalledTimes(2);
+
+    window.dispatchEvent(new Event('afterprint'));
+    expect(document.getElementById('spm-terms-print-root')).toBeNull();
+    expect(document.getElementById('spm-terms-print-style')).toBeNull();
+  });
+
   it('emite cierre al presionar Escape', () => {
     let closed = false;
     component.closed.subscribe(() => closed = true);

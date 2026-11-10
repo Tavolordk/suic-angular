@@ -1,13 +1,13 @@
 import { DatePipe, isPlatformBrowser } from '@angular/common';
 import { Component, HostListener, OnDestroy, OnInit, PLATFORM_ID, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { TermsDialog } from '../../components/terms-dialog/terms-dialog';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [DatePipe, TermsDialog],
+  imports: [DatePipe, TermsDialog, RouterLink],
   templateUrl: './topbar.html',
   styleUrl: './topbar.scss'
 })

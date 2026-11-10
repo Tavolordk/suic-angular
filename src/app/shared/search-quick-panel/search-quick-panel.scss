@@ -169,3 +169,9 @@
     max-width: none;
   }
 }
+
+.quick-search-panel__notice { font-size: 12px; color: #647485; margin: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.quick-search-panel__lookup { display: flex; gap: 8px; margin: 8px 12px 14px; flex-wrap: wrap;
+  input { flex: 1 1 180px; min-width: 0; padding: 9px; border: 1px solid #d5dbe3; border-radius: 7px; }
+  button { background: #722b4c; border: none; border-radius: 7px; color: white; padding: 9px 12px; cursor: pointer; }
+}

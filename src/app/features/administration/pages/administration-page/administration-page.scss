@@ -1,0 +1,97 @@
+.administration-shell {
+  height: 100dvh;
+  min-height: 400px;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #b5c4d0;
+  color: #253b4b;
+}
+
+.administration-shell__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.administration-rail {
+  flex: 0 0 57px;
+  min-width: 57px;
+  background: #c9d4df;
+  border-right: 1px solid rgba(255,255,255,.56);
+}
+
+.administration-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 21px 0;
+  gap: 15px;
+}
+
+.administration-rail__button {
+  color: #526778;
+  border: 0;
+  background: transparent;
+  width: 41px;
+  height: 41px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 19px;
+  transition: background .16s ease;
+}
+
+.administration-rail__button:hover,
+.administration-rail__button--active {
+  background: #eef3f8;
+  color: #234458;
+}
+
+.administration-rail__button:focus-visible {
+  outline: 2px solid #396d91;
+  outline-offset: 2px;
+}
+
+.administration-shell__content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.administration-shell__notice {
+  flex: none;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 17px;
+  background: #eaf2f7;
+  border-bottom: 1px solid #d1e1e9;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #3a576a;
+}
+
+.administration-shell__notice span { flex: 1; }
+.administration-shell__notice i { color: #3b7495; }
+.administration-shell__notice a { color: #244d68; font-weight: 750; }
+
+.administration-shell__frame {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #b1bfcd;
+}
+
+@media (max-width: 740px) {
+  .administration-rail { display: none; }
+  .administration-shell__notice { padding: 8px 12px; font-size: 10px; }
+  .administration-shell__notice a { white-space: nowrap; }
+}

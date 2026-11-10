@@ -13,13 +13,14 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { finalize, retry, switchMap, throwError, timer } from 'rxjs';
+import { catchError, finalize, map, of, retry, switchMap, throwError, timer } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../../search/data-access/search-state.service';
+import { SavedSearchReferencesService } from '../../../search/data-access/saved-search-references.service';
 import { PivotConsolidationRegistryService } from '../../../graph/data-access/pivot-consolidation-registry.service';
 import { ConsolidatedProfilesApiService } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.service';
-import { ConsolidateProfileRequest } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
+import { ConsolidateProfileRequest, ConsolidatedProfileResponse } from '../../../../core/infrastructure/consolidated-profiles-api/consolidated-profiles-api.models';
 import { SimplePdfExportService } from '../../../../shared/services/simple-pdf-export.service';
 import {
   ProfileFieldViewModel,
@@ -30,6 +31,7 @@ import {
   SelectedProfileFieldViewModel
 } from '../../domain/profile-consolidation.models';
 import { mapSearchResultDetail } from '../../domain/profile-detail.mapper';
+import { mapPersistedConsolidation } from '../../domain/consolidated-profile-view.mapper';
 
 import { Topbar } from '../../../../shared/layout/topbar/topbar';
 import { SearchQuickPanelService } from '../../../../shared/search-quick-panel/search-quick-panel.service';
@@ -136,6 +138,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
   private readonly searchState = inject(SearchStateService);
+  readonly savedReferences = inject(SavedSearchReferencesService);
+  readonly savedRecords = this.savedReferences.records;
   private readonly pivotRegistry = inject(PivotConsolidationRegistryService);
   private readonly consolidatedProfilesApi = inject(ConsolidatedProfilesApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
@@ -147,7 +151,18 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.route.snapshot.queryParamMap.get('searchId')?.trim() ?? '';
   readonly resultId =
     this.route.snapshot.queryParamMap.get('resultId')?.trim() ?? '';
-  readonly routeEntityType = this.route.snapshot.queryParamMap.get('entityType')?.trim() || ''; 
+  readonly routeEntityType = this.route.snapshot.queryParamMap.get('entityType')?.trim() || '';
+  // Estos valores son contexto de navegación, nunca sustituyen a searchId/resultId.
+  readonly routeResultKind = this.route.snapshot.queryParamMap.get('kind')?.trim() || '';
+  readonly routeConsolidatedProfileId = this.route.snapshot.queryParamMap.get('profileId')?.trim() || '';
+  readonly routeVersionNumber = Number(this.route.snapshot.queryParamMap.get('versionNumber')) || 0;
+  readonly isConsolidated = signal(this.routeResultKind === 'ConsolidatedProfile');
+  readonly consolidatedVersionNumber = signal(this.routeVersionNumber);
+  readonly consolidatedLoadMessage = signal<string | null>(null);
+  /** La consolidación de resultados históricos NO está habilitada por este contrato. */
+  readonly isHistorical = this.route.snapshot.queryParamMap.get('historical') === 'true';
+  readonly isPivotingSavedLink = signal(false);
+  readonly historicalPivotError = signal<string | null>(null); 
 
   readonly currentTime = signal(new Date());
   readonly currentDateLabel = computed(() => formatSpanishDate(this.currentTime()));
@@ -162,6 +177,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   @ViewChild('confirmCreateButton') private confirmCreateButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('createProfileDialog') private createProfileDialog?: ElementRef<HTMLElement>;
   readonly accepted = signal(false);
+  readonly canModifyProfile = computed(() => !this.isConsolidated() && !this.isHistorical && !this.accepted() && !this.isSaving());
   readonly consolidatedProfileId = signal('');
   readonly originGraphProfileId = computed(() => {
     const context = this.searchState.pivotContext();
@@ -213,15 +229,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       label: 'Búsqueda por CURP',
       type: 'Personas',
       icon: 'curp'
-    }
-  ];
-
-  readonly savedSearches: QuickSearchItem[] = [
-    {
-      id: 1,
-      label: 'Consulta guardada',
-      type: 'Personas',
-      icon: 'person'
     }
   ];
 
@@ -286,7 +293,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly selectedSlotCount = computed(() => this.sources().reduce((total, source) => total + countSelectedSlots(source.fields), 0));
   readonly remainingRequired = computed(() => this.totalAvailable() - this.selectedSlotCount());
   readonly canCreateProfile = computed(() =>
-    !this.isLoading() && !this.isSaving() && !this.accepted() &&
+    this.canModifyProfile() && !this.isLoading() &&
     this.sources().length > 0 && this.selectedPersonalFields().length > 0 &&
     this.remainingRequired() === 0
   );
@@ -344,7 +351,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     const query = this.sourceFieldQuery().trim().toLocaleLowerCase('es-MX');
     const recordIndex = this.sourceRecordIndex();
     return fields.filter(field =>
-      !selectedKeys.has(fieldSlotKey(field)) &&
+      (this.isConsolidated() || !selectedKeys.has(fieldSlotKey(field))) &&
       (recordIndex === -1 || field.recordIndex === recordIndex) &&
       (!query || `${field.label} ${field.value} ${field.code} registro ${field.recordIndex + 1}`.toLocaleLowerCase('es-MX').includes(query))
     );
@@ -490,13 +497,38 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.saveSuccessMessage.set(null);
     this.showCreateConfirmation.set(false);
     this.consolidatedProfileId.set('');
+    this.consolidatedLoadMessage.set(null);
+    this.isConsolidated.set(this.routeResultKind === 'ConsolidatedProfile');
+    this.consolidatedVersionNumber.set(this.routeVersionNumber);
     this.accepted.set(false);
 
-    this.searchApi
-      .getResultDetail(this.searchId, this.resultId)
-      .pipe(finalize(() => this.isLoading.set(false)))
+    (this.isHistorical
+      ? this.searchApi.getSavedResultDetail(this.searchId, this.resultId)
+      : this.searchApi.getResultDetail(this.searchId, this.resultId))
+      .pipe(
+        // Primero se consulta el detalle real con searchId y resultId.
+        // Sólo después se obtiene la versión consolidada mediante profileId
+        // para conocer los valores que fueron persistidos, nunca para abrir el detalle.
+        switchMap(detail => {
+          const consolidated = detail.kind === 'ConsolidatedProfile'
+            || this.routeResultKind === 'ConsolidatedProfile';
+          const profileId = detail.consolidatedProfile?.profileId || this.routeConsolidatedProfileId;
+          if (!consolidated || !profileId) {
+            return of({ detail, persisted: null as ConsolidatedProfileResponse | null,
+              warning: consolidated && !profileId
+                ? 'El detalle no devolvió un identificador del perfil persistido. Sólo se muestran las evidencias originales.'
+                : null as string | null });
+          }
+          return this.consolidatedProfilesApi.getProfile(profileId).pipe(
+            map(persisted => ({ detail, persisted, warning: null as string | null })),
+            catchError(() => of({ detail, persisted: null as ConsolidatedProfileResponse | null,
+              warning: 'No fue posible consultar los datos persistidos del perfil. Las evidencias originales siguen disponibles para consulta.' }))
+          );
+        }),
+        finalize(() => this.isLoading.set(false))
+      )
       .subscribe({
-        next: (detail) => {
+        next: ({ detail, persisted, warning }) => {
           // Algunas respuestas de detalle no incluyen entityType. Mantener el contexto
           // de la tarjeta para rotular correctamente vehículos y armas sin inventar evidencias.
           const normalizedDetail = {
@@ -506,15 +538,32 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           };
           const viewModel = mapSearchResultDetail(normalizedDetail);
 
-          this.sources.set(viewModel.sources);
-          this.selectedSourceId.set(viewModel.sources[0]?.id ?? '');
+          this.isConsolidated.set(detail.kind === 'ConsolidatedProfile'
+            || this.routeResultKind === 'ConsolidatedProfile');
+          this.consolidatedLoadMessage.set(warning);
+          this.consolidatedProfileId.set(persisted?.profileId || detail.consolidatedProfile?.profileId
+            || (this.isConsolidated() ? this.routeConsolidatedProfileId : ''));
+          this.consolidatedVersionNumber.set(persisted?.versionNumber
+            || detail.consolidatedProfile?.versionNumber || this.routeVersionNumber);
+          const sources = persisted && this.isConsolidated()
+            ? mapPersistedConsolidation(viewModel.sources, persisted)
+            : viewModel.sources;
+          this.sources.set(sources);
+          this.selectedSourceId.set(sources[0]?.id ?? '');
           this.links.set(viewModel.links);
           this.activeLinkGroupId.set(null);
           this.photos.set(viewModel.photos);
           const entityType = normalizedDetail.entityType?.toLowerCase();
           this.profileEntity.set(entityType === 'vehicle' ? 'Vehicle'
             : entityType === 'weapon' ? 'Weapon' : 'Person');
-          this.profileName.set(viewModel.profileName);
+          // Si el detalle omite el nombre pero el resumen Person v2 lo entregó,
+          // recuperar sólo el card de ESTE resultId (nunca buscar por nombre).
+          const summary = this.searchState.page()?.searchId === this.searchId
+            ? this.searchState.page()?.items?.find(item => item.resultId === this.resultId)
+            : undefined;
+          const summaryName = summary?.card?.name?.value?.trim();
+          this.profileName.set(viewModel.profileName === 'Nombre no informado por las fuentes' && summaryName
+            ? summaryName : viewModel.profileName);
           this.profileSubtitle.set(viewModel.profileSubtitle);
           this.profileStatus.set(viewModel.status);
           this.hasConflicts.set(viewModel.hasConflicts);
@@ -527,6 +576,58 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           this.errorMessage.set(this.extractErrorMessage(error));
         }
       });
+  }
+
+  /** El vínculo histórico se obtiene del GET histórico; no se pivotean IDs visuales. */
+  pivotHistoricalLink(item: ProfileLinkItemViewModel, group: ProfileLinkGroupViewModel): void {
+    if (!this.isHistorical || this.isPivotingSavedLink()) return;
+    if (!['person', 'vehicle', 'weapon'].includes(group.kind) || !item.backendLinkId) {
+      this.historicalPivotError.set('Este vínculo no permite crear una búsqueda nueva.');
+      return;
+    }
+    this.historicalPivotError.set(null);
+    this.isPivotingSavedLink.set(true);
+    this.searchApi.pivotSavedLink(this.searchId, this.resultId, item.backendLinkId, 18)
+      .pipe(finalize(() => this.isPivotingSavedLink.set(false)))
+      .subscribe({
+        next: (page) => {
+          if (!page.searchId || !page.pagination || !page.counts) {
+            this.historicalPivotError.set('El servicio no devolvió una búsqueda derivada válida.');
+            return;
+          }
+          // Aunque haya 0 coincidencias, success=true genera una nueva búsqueda temporal.
+          this.searchState.savePivotFromHistorical(page, {
+            searchId: this.searchId, resultId: this.resultId,
+            entityType: this.profileEntity()
+          });
+          void this.router.navigate(['/busqueda']);
+        },
+        error: (error: unknown) => {
+          this.historicalPivotError.set(this.savedLinkError(error));
+        }
+      });
+  }
+
+  private savedLinkError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const codes: Record<string, string> = {
+        PIVOT_INSUFFICIENT_DATA: 'El vínculo no contiene datos suficientes para pivotear.',
+        PIVOT_DATA_AMBIGUOUS: 'Los datos del vínculo son ambiguos.',
+        PIVOT_ENTITY_NOT_SUPPORTED: 'La entidad vinculada no admite pivoteo.',
+        SAVED_SEARCH_ACTIONS_UNAVAILABLE: 'El pivoteo histórico está deshabilitado en este ambiente.',
+        AUTH_PROVIDER_RATE_LIMITED: 'El proveedor de autenticación está limitando solicitudes. Inténtalo más tarde.'
+      };
+      const response = error.error as { errors?: Array<{ code?: string; message?: string }>; message?: string } | null;
+      const code = response?.errors?.find((item) => item.code)?.code;
+      if (code && codes[code]) return codes[code];
+      if (error.status === 401) return 'La sesión terminó. Inicia sesión nuevamente.';
+      if (error.status === 410) return 'La búsqueda guardada ya no está disponible.';
+      if (error.status === 404) return 'El resultado o vínculo histórico no está disponible.';
+      if (error.status === 409) return 'Se produjo un conflicto al pivotear el vínculo.';
+      if (error.status === 503) return 'El servicio de pivoteo histórico no está disponible.';
+      if (response?.message) return response.message;
+    }
+    return error instanceof Error && error.message ? error.message : 'No fue posible pivotear el vínculo histórico.';
   }
 
   selectSource(sourceId: string): void {
@@ -678,6 +779,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   toggleField(fieldId: string): void {
+    if (!this.canModifyProfile()) return;
     const currentSourceId = this.selectedSource()?.id;
     if (!currentSourceId) {
       return;
@@ -729,6 +831,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   removeSelectedField(sourceId: string, fieldId: string): void {
+    if (!this.canModifyProfile()) return;
     this.sources.update((sources) =>
       sources.map((source) =>
         source.id !== sourceId
@@ -747,6 +850,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   removeAddress(address: ConsolidatedAddressViewModel): void {
+    if (!this.canModifyProfile()) return;
     const fieldIdsBySource = new Map<string, Set<string>>();
 
     address.fields.forEach((field) => {
@@ -780,6 +884,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   selectAll(): void {
+    if (!this.canModifyProfile()) return;
     const selectedSource = this.selectedSource();
     if (!selectedSource || !this.getRemainingSourceCount(selectedSource)) {
       return;
@@ -817,6 +922,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   selectAllSources(): void {
+    if (!this.canModifyProfile()) return;
     if (!this.sources().length || this.isSaving() || this.accepted()) return;
     this.sources.update(sources => sources.map(source => {
       const chosen = new Set<string>();
@@ -836,6 +942,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   clearAllSelected(): void {
+    if (!this.canModifyProfile()) return;
     if (!this.totalSelected()) {
       return;
     }
@@ -1052,7 +1159,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   goToResults(): void {
     this.profileOpen.set(false);
     this.activeSidebarPanel.set(null);
-    void this.router.navigateByUrl('/busqueda');
+    void this.router.navigate(['/busqueda'], {
+      queryParams: this.isHistorical ? { savedSearchId: this.searchId } : {}
+    });
   }
 
   goToHistory(): void {
@@ -1093,6 +1202,11 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
 
   runQuickSearch(_item: QuickSearchItem): void {
     this.goToResults();
+  }
+
+  openSavedSearch(id: string): void {
+    this.activeSidebarPanel.set(null);
+    void this.router.navigate(['/busqueda'], { queryParams: { savedSearchId: id } });
   }
 
   getQuickSearchIcon(item: QuickSearchItem): QuickSearchIcon {

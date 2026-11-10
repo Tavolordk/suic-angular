@@ -44,6 +44,10 @@
                 aria-label="Abrir usuarios del sistema" (click)="goToUsers()">
                 <i class="fa-solid fa-users" aria-hidden="true"></i>
             </button>
+            <a routerLink="/administracion" class="profile-sidebar__button"
+                title="Centro de administración (propuesta)" aria-label="Centro de administración (propuesta)">
+                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+            </a>
         </aside>
 
         @if (activeSidebarPanel() === 'history') {
@@ -103,30 +107,14 @@
             </header>
 
             <div class="profile-side-panel__list">
-                @for (item of savedSearches; track item.id) {
-                <button type="button" class="profile-quick-search" (click)="runQuickSearch(item)">
-                    <span class="profile-quick-search__icon">
-                        @switch (getQuickSearchIcon(item)) {
-                        @case ('person') {
-                        <i class="fa-regular fa-user"></i>
-                        }
-                        @case ('curp') {
-                        <i class="fa-regular fa-id-card"></i>
-                        }
-                        @case ('vehicle') {
-                        <i class="fa-solid fa-car-side"></i>
-                        }
-                        @case ('weapon') {
-                        <i class="fa-solid fa-gun"></i>
-                        }
-                        }
-                    </span>
-
-                    <span>
-                        <strong>{{ item.label }}</strong>
-                        <small>{{ item.type }}</small>
-                    </span>
+                @for (item of savedRecords(); track item.searchId) {
+                <button type="button" class="profile-quick-search" (click)="openSavedSearch(item.searchId)">
+                    <span class="profile-quick-search__icon"><i class="fa-regular fa-bookmark"></i></span>
+                    <span><strong>{{ item.entityType }}</strong><small>{{ item.searchId }}</small></span>
                 </button>
+                }
+                @if (savedRecords().length === 0) {
+                <p class="profile-historical-empty">No hay referencias guardadas desde este navegador para esta cuenta. El listado remoto está pendiente de contrato.</p>
                 }
             </div>
         </aside>
@@ -134,9 +122,21 @@
 
         <main class="profile-content">
             <div class="profile-content__scroll">
+                @if (isHistorical) {
+                <section class="profile-historical-notice" role="status">
+                    <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
+                    <span>Estás consultando las evidencias originales de una búsqueda guardada. La consolidación histórica todavía no está habilitada; puedes explorar los vínculos y crear búsquedas hijas temporales.</span>
+                </section>
+                }
+                @if (isConsolidated()) {
+                <section class="profile-historical-notice" role="status">
+                    <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <span>Perfil consolidado{{ consolidatedVersionNumber() ? ' · Versión ' + consolidatedVersionNumber() : '' }}. Consulta de solo lectura: los datos y evidencias no se pueden modificar ni guardar nuevamente.</span>
+                </section>
+                }
                 <section class="profile-header-card">
                     <div>
-                        <h1>{{ profileEntity() === 'Vehicle' ? (accepted() ? 'Perfil consolidado de vehículo' : 'Preconsolidación de vehículo') : profileEntity() === 'Weapon' ? (accepted() ? 'Perfil consolidado de arma' : 'Preconsolidación de arma') : 'Perfil consolidado' }}</h1>
+                        <h1>{{ profileEntity() === 'Vehicle' ? ((accepted() || isConsolidated()) ? 'Perfil consolidado de vehículo' : 'Preconsolidación de vehículo') : profileEntity() === 'Weapon' ? ((accepted() || isConsolidated()) ? 'Perfil consolidado de arma' : 'Preconsolidación de arma') : 'Perfil consolidado' }}</h1>
                         <p>{{ profileName() }} · {{ profileSubtitle() }}</p>
                     </div>
 
@@ -154,12 +154,14 @@
                             Exportar PDF
                         </button>
 
+                        @if (!isConsolidated()) {
                         <button type="button" class="profile-header-card__primary"
                             [class.profile-header-card__primary--accepted]="accepted()"
                             [disabled]="!canCreateProfile()" (click)="accept()">
                             <i class="fa-regular fa-floppy-disk"></i>
                             {{ isSaving() ? 'Guardando...' : (accepted() ? 'Perfil guardado' : 'Crear perfil') }}
                         </button>
+                        }
                     </div>
                 </section>
 
@@ -187,6 +189,9 @@
                     </div>
                 </section>
                 } @else if (selectedSource(); as source) {
+                @if (consolidatedLoadMessage()) {
+                <p class="profile-save-feedback" role="status">{{ consolidatedLoadMessage() }}</p>
+                }
                 @if (saveErrorMessage()) {
                 <section class="profile-header-card" role="alert">
                     <div>
@@ -199,7 +204,7 @@
                     <article class="profile-card profile-card--sources">
                         <header class="profile-card__header">
                             <h2>1. Fuentes detectadas</h2>
-                            <p>Selecciona una fuente para elegir sus campos</p>
+                            <p>{{ isConsolidated() ? 'Consulta las fuentes de este perfil' : 'Selecciona una fuente para elegir sus campos' }}</p>
                         </header>
 
                         <div class="profile-sources profile-carousel__viewport">
@@ -218,8 +223,8 @@
 
                                     <span class="source-card__match">
                                         <strong>{{ getDisplayableSourceCount(item) }}</strong>
-                                        <small>datos seleccionables</small>
-                                        <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : 'No incluido' }}</em>
+                                        <small>{{ isConsolidated() ? 'datos disponibles' : 'datos seleccionables' }}</small>
+                                        <em>{{ getSelectedSourceCount(item) > 0 ? 'Incluido' : (isConsolidated() ? 'Consultable' : 'No incluido') }}</em>
                                     </span>
                                 </button>
                                 }
@@ -242,8 +247,8 @@
 
                     <article class="profile-card profile-card--selection">
                         <header class="profile-card__header">
-                            <h2>2. Selección de datos</h2>
-                            <p>Elige los campos a incluir en el perfil</p>
+                            <h2>{{ isConsolidated() ? '2. Datos de la fuente' : '2. Selección de datos' }}</h2>
+                            <p>{{ isConsolidated() ? 'Consulta las evidencias originales y los datos incluidos' : 'Elige los campos a incluir en el perfil' }}</p>
                         </header>
 
                         <section class="selection-source">
@@ -263,9 +268,14 @@
                         </section>
 
                         <p class="selection-source-explanation" role="note">
+                            @if (isConsolidated()) {
+                            Esta fuente contiene {{ getDisplayableSourceCount(source) }} datos consultables en {{ source.recordCount }} registros.
+                            Los datos incluidos en la consolidación están identificados y no pueden modificarse.
+                            } @else {
                             Esta fuente envió {{ source.rawEvidenceCount }} evidencias en {{ source.recordCount }} registros.
                             Hay {{ getDisplayableSourceCount(source) }} datos seleccionables tras excluir identificadores técnicos
                             y agrupar variantes del mismo dato. Puedes elegir una evidencia de cada dato y comparar los registros.
+                            }
                         </p>
                         <div class="source-record-controls">
                             <label>Filtrar por registro
@@ -281,6 +291,7 @@
                                     (input)="changeSourceFieldQuery($any($event.target).value)" />
                             </label>
                         </div>
+                        @if (!isConsolidated()) {
                         <section class="selection-counter">
                             <span>
                                 {{ getRemainingSourceCount(source) }} datos pendientes de {{ getDisplayableSourceCount(source) }} seleccionables
@@ -291,19 +302,29 @@
                                 {{ getRemainingSourceCount(source) === 0 ? 'Todo seleccionado' : 'Seleccionar todo' }}
                             </button>
                         </section>
+                        }
 
                         <section class="selection-fields-carousel">
                             @if (availableSourceFields().length === 0) {
                             <div class="selection-fields-empty">
                                 <i class="fa-solid fa-circle-check"></i>
                                 <div>
-                                    <strong>{{ getRemainingSourceCount(source) === 0 ? 'Todos los datos seleccionables de esta fuente están incluidos.' : 'Sin datos pendientes para este filtro.' }}</strong>
-                                    <span>{{ getRemainingSourceCount(source) === 0 ? 'Para cambiarlos, quita un dato del perfil consolidado.' : 'Elige otro registro o elimina el texto del filtro.' }}</span>
+                                    <strong>{{ isConsolidated() ? 'Sin evidencias para este filtro.' : getRemainingSourceCount(source) === 0 ? 'Todos los datos seleccionables de esta fuente están incluidos.' : 'Sin datos pendientes para este filtro.' }}</strong>
+                                    <span>{{ isConsolidated() ? 'Elige otro registro o elimina el texto del filtro.' : getRemainingSourceCount(source) === 0 ? 'Para cambiarlos, quita un dato del perfil consolidado.' : 'Elige otro registro o elimina el texto del filtro.' }}</span>
                                 </div>
                             </div>
                             } @else {
                             <div class="selection-fields profile-carousel__page">
                                 @for (field of visibleSourceFields(); track field.id) {
+                                @if (isConsolidated()) {
+                                <div class="field-row" [title]="field.selected ? 'Dato incluido en el consolidado' : 'Evidencia original consultable'">
+                                    <span class="field-row__checkbox field-row__checkbox--selected">
+                                        <i [class]="field.selected ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info'" aria-hidden="true"></i>
+                                    </span>
+                                    <strong>{{ field.label }}</strong>
+                                    <span [title]="field.value">{{ field.value }}</span>
+                                </div>
+                                } @else {
                                 <button type="button" class="field-row" (click)="toggleField(field.id)"
                                     [attr.aria-label]="'Agregar ' + field.label + ' al perfil consolidado'">
                                     <span class="field-row__checkbox">
@@ -313,6 +334,7 @@
                                     <strong>{{ field.label }}</strong>
                                     <span [title]="field.value">{{ field.value }}</span>
                                 </button>
+                                }
                                 }
                             </div>
 
@@ -338,8 +360,12 @@
                             <div>
                                 <strong>Información</strong>
                                 <p>
+                                    @if (isConsolidated()) {
+                                    Esta vista es de consulta. Los indicadores distinguen los datos incluidos en el perfil de las evidencias originales.
+                                    } @else {
                                     Al seleccionar un dato se quitará de esta sección y pasará al Perfil consolidado.
                                     Los datos que sigues viendo aquí son los que faltan por integrar.
+                                    }
                                 </p>
                             </div>
                         </footer>
@@ -348,9 +374,10 @@
                     <article class="profile-card profile-card--consolidated">
                         <header class="profile-card__header">
                             <h2>3. Perfil consolidado</h2>
-                            <p>Verifica las evidencias incluidas antes de crear el perfil.</p>
+                            <p>{{ isConsolidated() ? 'Datos persistidos y procedencia del perfil · solo lectura' : 'Verifica las evidencias incluidas antes de crear el perfil.' }}</p>
                         </header>
 
+                        @if (!isConsolidated()) {
                         <section class="consolidated-progress" aria-label="Avance de consolidación">
                             <div class="consolidated-progress__top">
                                 <div class="consolidated-progress__label">
@@ -380,6 +407,7 @@
                                 </button>
                             </div>
                         </section>
+                        }
 
                         @if (photos().length > 0) {
                         <section class="profile-gallery">
@@ -415,6 +443,7 @@
                                 <span>Evidencias incluidas</span>
                             </div>
                         </div>
+                        @if (!isConsolidated()) {
                         <p class="consolidation-requirements"
                             [class.consolidation-requirements--complete]="remainingRequired() === 0 && selectedPersonalFields().length > 0"
                             role="status">
@@ -429,9 +458,10 @@
                                 }
                             </span>
                         </p>
+                        }
                         <details class="consolidation-summary">
                             <summary>
-                                <span><i class="fa-regular fa-clipboard" aria-hidden="true"></i> Revisar evidencias seleccionadas</span>
+                                <span><i class="fa-regular fa-clipboard" aria-hidden="true"></i> {{ isConsolidated() ? 'Revisar datos consolidados' : 'Revisar evidencias seleccionadas' }}</span>
                                 <span class="consolidation-summary__count">{{ selectedEvidenceCount() }} evidencias <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></span>
                             </summary>
                             @if (uniqueSelectedData().length === 0) {
@@ -475,11 +505,13 @@
                                             @for (field of group.evidences; track field.sourceId + field.id) {
                                             <span class="selected-field__source">
                                                 <small [style.background]="field.sourceColor" [title]="field.sourceTitle">{{ field.sourceCode }}</small>
+                                                @if (!isConsolidated()) {
                                                 <button type="button" class="selected-field__remove"
                                                     [attr.aria-label]="'Quitar ' + field.label + ' de ' + field.sourceTitle"
                                                     (click)="removeSelectedField(field.sourceId, field.id)">
                                                     <i class="fa-solid fa-xmark"></i>
                                                 </button>
+                                                }
                                             </span>
                                             }
                                         </div>
@@ -536,12 +568,14 @@
                                                     [style.background]="address.sourceColor" [title]="address.sourceTitle">
                                                     {{ address.sourceCode }}
                                                 </span>
+                                                @if (!isConsolidated()) {
                                                 <button type="button" class="selected-field__remove"
                                                     aria-label="Quitar dirección del perfil consolidado"
                                                     title="Quitar dirección y regresarla a Selección de datos"
                                                     (click)="removeAddress(address)">
                                                     <i class="fa-solid fa-xmark"></i>
                                                 </button>
+                                                }
                                             </div>
                                         </header>
 
@@ -616,6 +650,9 @@
                                 }
                             </div>
 
+                            @if (historicalPivotError()) {
+                            <p class="profile-historical-error" role="alert">{{ historicalPivotError() }}</p>
+                            }
                             @if (activeLinkGroup(); as activeLink) {
                             <div class="link-details" role="tabpanel">
                                 @if (activeLink.items.length === 0) {
@@ -646,6 +683,13 @@
                                             }
                                         </footer>
                                         }
+                                        @if (isHistorical && item.backendLinkId && (activeLink.kind === 'person' || activeLink.kind === 'vehicle' || activeLink.kind === 'weapon')) {
+                                        <button type="button" class="profile-historical-pivot"
+                                            [disabled]="isPivotingSavedLink()" (click)="pivotHistoricalLink(item, activeLink)">
+                                            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                            {{ isPivotingSavedLink() ? 'Buscando...' : 'Buscar desde este vínculo' }}
+                                        </button>
+                                        }
                                     </article>
                                     }
                                 </div>
@@ -670,7 +714,13 @@
                         }
 
                         <footer class="consolidated-footer">
-                            @if (!accepted()) {
+                            @if (isConsolidated()) {
+                            <span class="accepted-button"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Consolidado · solo lectura</span>
+                            @if (consolidatedProfileId()) {
+                            <a routerLink="/grafo" [queryParams]="{ profileId: consolidatedProfileId(), entityType: profileEntity() }"
+                                class="graph-button"><i class="fa-solid fa-share-nodes"></i> Visualizar grafo</a>
+                            }
+                            } @else if (!accepted()) {
                             <button type="button" class="accept-button" [disabled]="!canCreateProfile()"
                                 (click)="accept()">
                                 Crear perfil

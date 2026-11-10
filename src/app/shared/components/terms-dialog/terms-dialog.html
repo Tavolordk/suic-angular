@@ -142,7 +142,18 @@
 
     <footer class="legal-modal__footer">
       <span>SPM-1.0 © 2026</span>
-      <button type="button" class="legal-modal__done" (click)="close()">Cerrar</button>
+      <div class="legal-modal__actions">
+        <button type="button" class="legal-modal__print" (click)="printDocument()"
+          aria-label="Imprimir términos y condiciones o guardar como PDF" title="Imprimir o guardar como PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <path d="M6 14h12v7H6z" />
+          </svg>
+          Imprimir / Guardar PDF
+        </button>
+        <button type="button" class="legal-modal__done" (click)="close()">Cerrar</button>
+      </div>
     </footer>
   </section>
 </div>

@@ -43,6 +43,7 @@ export interface ProfileLinkSourceViewModel {
 
 export interface ProfileLinkItemViewModel {
   id: string;
+  backendLinkId?: string;
   fields: ProfileLinkFieldViewModel[];
   sources: ProfileLinkSourceViewModel[];
 }

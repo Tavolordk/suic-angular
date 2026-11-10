@@ -348,3 +348,6 @@
     height: 40px;
   }
 }
+
+.topbar__terms[routerLink] { text-decoration: none; }
+.topbar__terms[routerLink] i { width: 16px; flex: 0 0 16px; text-align: center; }

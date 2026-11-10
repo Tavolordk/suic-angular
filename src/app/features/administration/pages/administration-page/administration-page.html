@@ -1,0 +1,52 @@
+<section class="administration-shell">
+  <app-topbar />
+
+  <div class="administration-shell__body">
+    <nav class="administration-rail" aria-label="Navegación de Plataforma México">
+      <a routerLink="/busqueda" routerLinkActive="administration-rail__button--active"
+         class="administration-rail__button" title="Búsqueda principal" aria-label="Búsqueda principal">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      </a>
+      <button type="button" class="administration-rail__button" (click)="openHistory()"
+        title="Historial de búsquedas" aria-label="Historial de búsquedas">
+        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="administration-rail__button" (click)="openSavedSearches()"
+        title="Búsquedas guardadas" aria-label="Búsquedas guardadas">
+        <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
+      </button>
+      <a class="administration-rail__button" routerLink="/lineas-investigacion"
+        title="Líneas de investigación" aria-label="Líneas de investigación">
+        <i class="fa-solid fa-diagram-project" aria-hidden="true"></i>
+      </a>
+      <a class="administration-rail__button" routerLink="/investigaciones"
+        title="Investigaciones" aria-label="Investigaciones">
+        <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+      </a>
+      <a class="administration-rail__button" routerLink="/investigaciones"
+        [queryParams]="{ screen: 'users' }" title="Usuarios del sistema" aria-label="Usuarios del sistema">
+        <i class="fa-solid fa-users" aria-hidden="true"></i>
+      </a>
+      <a class="administration-rail__button administration-rail__button--active" routerLink="/administracion"
+        title="Centro de Administración (propuesta)" aria-label="Centro de Administración (propuesta)"
+        aria-current="page">
+        <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+      </a>
+    </nav>
+
+    <main class="administration-shell__content">
+      <div class="administration-shell__notice" role="status">
+        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+        <span><strong>Propuesta visual.</strong> Los datos, perfiles y operaciones de administración son demostrativos; no modifican información real.</span>
+        <a routerLink="/busqueda">Volver a búsqueda</a>
+      </div>
+      <iframe
+        class="administration-shell__frame"
+        title="Centro de Administración y Control de Accesos SPM-1.0 — prototipo visual"
+        src="/assets/administracion/spm-centro-administracion.html?embedded=1"
+        sandbox="allow-scripts allow-downloads allow-popups allow-popups-to-escape-sandbox"
+        referrerpolicy="no-referrer">
+      </iframe>
+    </main>
+  </div>
+</section>

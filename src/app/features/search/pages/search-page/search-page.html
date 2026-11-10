@@ -54,6 +54,10 @@
                 (click)="goToUsers()">
                 <i class="fa-solid fa-users" aria-hidden="true"></i>
             </button>
+            <a routerLink="/administracion" class="search-sidebar__button"
+                title="Centro de administración (propuesta)" aria-label="Centro de administración (propuesta)">
+                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+            </a>
         </aside>
 
         <div class="search-sidebar-overlay" *ngIf="activeSidebarPanel()" (click)="closeSidebarPanel()"></div>
@@ -67,7 +71,9 @@
                     <h2>
                         {{ activeSidebarPanel() === 'history' ? 'Búsquedas recientes' : 'Búsquedas guardadas' }}
                     </h2>
-                    <p>Selecciona un registro para volver a cargar sus criterios.</p>
+                    <p>{{ activeSidebarPanel() === 'history'
+                            ? 'Abre búsquedas temporales vigentes sin ejecutarlas de nuevo.'
+                            : 'Abre búsquedas ya conservadas en el servidor.' }}</p>
                 </div>
 
                 <button type="button" class="search-sidebar-panel__close" aria-label="Cerrar panel"
@@ -80,35 +86,65 @@
             </header>
 
             <div class="search-sidebar-panel__list">
-                <button type="button" class="search-sidebar-panel__item"
-                    *ngFor="let item of activeSidebarPanel() === 'history' ? recentSearches : savedSearches"
-                    (click)="runQuickSearch(item)">
-                    <span class="search-sidebar-panel__icon">
-                        <svg *ngIf="getQuickSearchIcon(item) === 'person'" viewBox="0 0 24 24" fill="none"
-                            aria-hidden="true">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            </path>
-                        </svg>
-
-                        <img *ngIf="getQuickSearchIcon(item) === 'curp'"
-                            src="https://bonus-gala-11863518.figma.site/_assets/v11/ff18e8075cb586c62294e1272a694991d94c9827.png"
-                            alt="" class="search-sidebar-panel__curp-icon" />
-
-                    </span>
-
-                    <span class="search-sidebar-panel__content">
-                        <span class="search-sidebar-panel__item-topline">
-                            <strong>{{ item.label }}</strong>
-                            <small>{{ getQuickSearchTypeLabel(item) }}</small>
+                <ng-container *ngIf="activeSidebarPanel() === 'history'; else savedRecordsList">
+                    <p class="search-sidebar-panel__notice" *ngIf="searchHistory.loading()" role="status">Consultando búsquedas recientes...</p>
+                    <p class="search-sidebar-panel__notice" *ngIf="searchHistory.error()" role="alert">{{ searchHistory.error() }}</p>
+                    <p class="search-sidebar-panel__notice" *ngIf="historyOpenError()" role="alert">{{ historyOpenError() }}</p>
+                    <button type="button" class="search-sidebar-panel__item"
+                        *ngFor="let item of searchHistory.items()" (click)="openRecentSearch(item)"
+                        [disabled]="!!historyOpeningId() || isSearching()"
+                        [attr.aria-label]="'Abrir búsqueda reciente ' + historyTitle(item)">
+                        <span class="search-sidebar-panel__icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
+                        <span class="search-sidebar-panel__content">
+                            <span class="search-sidebar-panel__item-topline">
+                                <strong>{{ historyTitle(item) }}</strong><small>{{ historyEntityLabel(item.entityType) }}</small>
+                            </span>
+                            <span class="search-sidebar-panel__description">{{ historyInputsLabel(item.inputs) }}</span>
+                            <span class="search-sidebar-panel__description">
+                                {{ item.counts.totalItems }} {{ item.counts.totalItems === 1 ? 'resultado' : 'resultados' }}
+                                <ng-container *ngIf="item.counts.consolidated"> · {{ item.counts.consolidated }} consolidados</ng-container>
+                                · {{ historyDate(item.createdAtUtc) }}
+                            </span>
+                            <span class="search-sidebar-panel__description">Vence: {{ historyDate(item.expiresAtUtc) }}</span>
                         </span>
-                        <span class="search-sidebar-panel__description">{{ getQuickSearchDescription(item) }}</span>
-                    </span>
-
-                    <svg class="search-sidebar-panel__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                </button>
+                        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                    <p class="search-sidebar-panel__notice" *ngIf="!searchHistory.loading() && !searchHistory.error() && searchHistory.items().length === 0">
+                        No hay búsquedas temporales vigentes para tu cuenta.
+                    </p>
+                    <p class="search-sidebar-panel__notice" *ngIf="!searchHistory.loading() && !searchHistory.error()">{{ searchHistory.totalItems() }} {{ searchHistory.totalItems() === 1 ? 'búsqueda vigente' : 'búsquedas vigentes' }}</p>
+                    <div class="search-sidebar-panel__lookup">
+                        <button type="button" (click)="searchHistory.reload()" [disabled]="searchHistory.loading()"
+                            aria-label="Actualizar historial de búsquedas">Actualizar</button>
+                        <ng-container *ngIf="searchHistory.pagination().totalPages > 1">
+                            <button type="button" (click)="searchHistory.goToPage(searchHistory.pagination().page - 1)"
+                                [disabled]="!searchHistory.pagination().hasPreviousPage || searchHistory.loading()">Anterior</button>
+                            <span class="search-sidebar-panel__notice">{{ searchHistory.pagination().page }} / {{ searchHistory.pagination().totalPages }}</span>
+                            <button type="button" (click)="searchHistory.goToPage(searchHistory.pagination().page + 1)"
+                                [disabled]="!searchHistory.pagination().hasNextPage || searchHistory.loading()">Siguiente</button>
+                        </ng-container>
+                    </div>
+                </ng-container>
+                <ng-template #savedRecordsList>
+                    <p class="search-sidebar-panel__notice">Estas referencias corresponden únicamente a las búsquedas guardadas desde este navegador y esta cuenta. El listado completo del servidor todavía no tiene endpoint.</p>
+                    <button type="button" class="search-sidebar-panel__item"
+                        *ngFor="let item of savedSearchRecords()" (click)="openSavedById(item.searchId)">
+                        <span class="search-sidebar-panel__icon"><i class="fa-regular fa-bookmark"></i></span>
+                        <span class="search-sidebar-panel__content">
+                            <span class="search-sidebar-panel__item-topline"><strong>{{ item.entityType === 'vehiculo' ? 'Vehículo' : item.entityType === 'armas' ? 'Arma' : 'Persona' }}</strong><small>Guardada</small></span>
+                            <span class="search-sidebar-panel__description">{{ item.searchId }}</span>
+                            <span class="search-sidebar-panel__description">Conservación hasta: {{ formatSavedRetention(item.retainUntilUtc) }}</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                    <p *ngIf="savedSearchRecords().length === 0" class="search-sidebar-panel__notice">Todavía no se ha guardado una búsqueda desde este navegador con la cuenta actual.</p>
+                    <label class="search-sidebar-panel__notice" for="historical-search-id">¿Tienes un searchId conservado? Puedes abrirlo directamente.</label>
+                    <div class="search-sidebar-panel__lookup">
+                        <input #savedSearchIdInput id="historical-search-id" type="text" placeholder="UUID de búsqueda guardada" autocomplete="off" />
+                        <button type="button" (click)="openSavedById(savedSearchIdInput.value)">Abrir</button>
+                    </div>
+                    <p class="search-sidebar-panel__notice" role="alert" *ngIf="saveSearchError()">{{ saveSearchError() }}</p>
+                </ng-template>
             </div>
         </section>
 
@@ -168,6 +204,27 @@
                             stroke-linejoin="round"></path>
                     </svg>
                 </button>
+            </section>
+
+            <section class="search-snapshot-actions" *ngIf="hasSearched() && searchId() && !isSearching()" aria-label="Conservar búsqueda">
+                <div>
+                    <strong>{{ historicalSearchId() === searchId() ? 'Consultando búsqueda guardada' : 'Conservar esta búsqueda' }}</strong>
+                    <small>{{ historicalSearchId() === searchId() ? 'Los resultados y detalles corresponden al registro histórico.' : 'Se guardará la búsqueda completa, incluidos todos sus resultados, no una tarjeta individual.' }}</small>
+                </div>
+                <button type="button" class="search-report-button"
+                    [disabled]="isSavingSearch() || historicalSearchId() === searchId()"
+                    (click)="saveCurrentSearch()">
+                    <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
+                    {{ isSavingSearch() ? 'Guardando...' : historicalSearchId() === searchId() ? 'Búsqueda histórica' : isCurrentSearchSaved() ? 'Guardar nuevamente' : 'Guardar búsqueda' }}
+                </button>
+                <p *ngIf="saveSearchFeedback()" class="search-snapshot-actions__feedback" role="status">{{ saveSearchFeedback() }}</p>
+                <p *ngIf="saveSearchError()" class="search-snapshot-actions__error" role="alert">{{ saveSearchError() }}</p>
+            </section>
+
+            <section class="search-snapshot-actions" *ngIf="historicalPivotParent() && hasSearched()">
+                <div><strong>Búsqueda derivada de un vínculo histórico</strong>
+                <small>La nueva búsqueda es temporal y no modifica la búsqueda padre conservada.</small></div>
+                <button type="button" class="search-report-button" (click)="returnToHistoricalParent()">Volver al resultado guardado</button>
             </section>
 
             <section class="search-panel" [class.search-panel--collapsed]="!searchPanelExpanded()">
@@ -358,6 +415,7 @@
                     <p>
                         <strong>{{ totalResults() }}</strong>
                         {{ totalResults() === 1 ? "resultado encontrado" : "resultados encontrados" }}
+                        <small *ngIf="consolidatedResultsCount() > 0">· {{ consolidatedResultsCount() }} {{ consolidatedResultsCount() === 1 ? 'consolidado' : 'consolidados' }}</small>
                         <small *ngIf="executionStatus() || isPartialResult()">
                             {{ executionStatus() || 'Completada' }}
                             <span *ngIf="isPartialResult()">· La respuesta de algunas fuentes fue incompleta. Podrían faltar coincidencias o atributos; el servicio no identifica qué fuentes o datos faltaron.</span>
@@ -459,9 +517,14 @@
                 <p role="alert" class="search-feedback" *ngIf="reportError()">{{ reportError() }}</p>
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"
-                        [style.animation-delay.ms]="i * 35" [title]="result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : result.entity === 'armas' ? 'Abrir preconsolidación del arma' : 'Abrir detalle del perfil'" tabindex="0"
+                        [style.animation-delay.ms]="i * 35" [title]="result.kind === 'ConsolidatedProfile' ? 'Consultar perfil consolidado en solo lectura' : result.entity === 'vehiculo' ? 'Abrir preconsolidación del vehículo' : result.entity === 'armas' ? 'Abrir preconsolidación del arma' : 'Abrir detalle del perfil'" tabindex="0"
                         (click)="openResultDetail(result)" (keydown.enter)="openResultDetail(result)">
                         <div class="search-result-card__header">
+                            <div class="search-result-tag search-result-tag--person"
+                                *ngIf="result.kind === 'ConsolidatedProfile'" title="Perfil consolidado · solo lectura">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <span>Consolidado<span *ngIf="result.consolidatedVersionNumber"> · v{{ result.consolidatedVersionNumber }}</span></span>
+                            </div>
                             <div class="search-result-card__tags" *ngIf="result.tags.length > 0">
                                 <div *ngFor="let tag of result.tags" class="search-result-tag"
                                     [ngClass]="getTagClass(tag)" [title]="getTagLabel(tag) + ': ' + tag.count">
@@ -504,15 +567,7 @@
                                 <span>Sin vínculos</span>
                             </div>
 
-                            <button type="button" class="search-result-card__save"
-                                [class.search-result-card__save--active]="result.saved"
-                                [title]="result.saved ? 'Quitar de guardados' : 'Guardar'"
-                                (click)="toggleSave(result, $event)">
-                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                    <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                </svg>
-                            </button>
+
                         </div>
 
                         <div class="search-result-card__data">

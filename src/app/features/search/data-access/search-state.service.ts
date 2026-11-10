@@ -1,7 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import {
   SearchRequest,
-  SearchResultsPageResponse
+  SearchResultsPageResponse,
+  SearchHistoryItemDto
 } from '../../../core/infrastructure/search-api/search-api.models';
 import { PersonSearchFormValue } from '../domain/person-search.models';
 import { VehicleSearchFormValue } from '../domain/vehicle-search.models';
@@ -28,8 +29,54 @@ export class SearchStateService {
   readonly formValue = signal<PersonSearchFormValue | null>(null);
   readonly vehicleFormValue = signal<VehicleSearchFormValue | null>(null);
   readonly weaponFormValue = signal<WeaponSearchFormValue | null>(null);
-  readonly savedResultIds = signal<ReadonlySet<string>>(new Set<string>());
   readonly pivotContext = signal<PivotSearchContext | null>(null);
+  readonly historicalSearchId = signal<string | null>(null);
+  readonly recentResultsUrl = signal<string | null>(null);
+  readonly recentHistoryItem = signal<SearchHistoryItemDto | null>(null);
+  readonly historicalPivotParent = signal<{ searchId: string; resultId: string; entityType: string } | null>(null);
+
+  /** Recuperación reciente: se conserva resultsUrl para todas las páginas posteriores. */
+  saveRecentResults(item: SearchHistoryItemDto, page: SearchResultsPageResponse, pageSize: 10 | 18): void {
+    this.request.set(null);
+    this.formValue.set(null);
+    this.vehicleFormValue.set(null);
+    this.weaponFormValue.set(null);
+    this.pivotContext.set(null);
+    this.historicalPivotParent.set(null);
+    this.historicalSearchId.set(null);
+    this.recentResultsUrl.set(item.resultsUrl);
+    this.recentHistoryItem.set(item);
+    this.page.set(page);
+    this.pageSize.set(pageSize);
+  }
+
+  saveHistoricalResults(page: SearchResultsPageResponse, pageSize: 10 | 18): void {
+    this.request.set(null);
+    this.formValue.set(null);
+    this.vehicleFormValue.set(null);
+    this.weaponFormValue.set(null);
+    this.pivotContext.set(null);
+    this.historicalPivotParent.set(null);
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(page.searchId);
+    this.page.set(page);
+    this.pageSize.set(pageSize);
+  }
+
+  savePivotFromHistorical(page: SearchResultsPageResponse, parent: { searchId: string; resultId: string; entityType: string }): void {
+    this.request.set(null);
+    this.formValue.set(null);
+    this.vehicleFormValue.set(null);
+    this.weaponFormValue.set(null);
+    this.pivotContext.set(null);
+    this.historicalSearchId.set(null); // la hija usa GET temporal, nunca GET histórico
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalPivotParent.set(parent);
+    this.page.set(page);
+    this.pageSize.set(18);
+  }
 
   saveSearch(
     request: SearchRequest,
@@ -37,6 +84,10 @@ export class SearchStateService {
     pageSize: 10 | 18,
     formValue: PersonSearchFormValue
   ): void {
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(null);
+    this.historicalPivotParent.set(null);
     this.request.set(request);
     this.page.set(page);
     this.pageSize.set(pageSize);
@@ -47,6 +98,10 @@ export class SearchStateService {
   }
 
   saveVehicleSearch(request: SearchRequest, page: SearchResultsPageResponse, pageSize: 10 | 18, formValue: VehicleSearchFormValue): void {
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(null);
+    this.historicalPivotParent.set(null);
     this.request.set(request);
     this.page.set(page);
     this.pageSize.set(pageSize);
@@ -57,6 +112,10 @@ export class SearchStateService {
   }
 
   saveWeaponSearch(request: SearchRequest, page: SearchResultsPageResponse, pageSize: 10 | 18, formValue: WeaponSearchFormValue): void {
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(null);
+    this.historicalPivotParent.set(null);
     this.request.set(request);
     this.page.set(page);
     this.pageSize.set(pageSize);
@@ -68,6 +127,10 @@ export class SearchStateService {
 
   /** El pivoteo produce una búsqueda nueva, no criterios capturados en el formulario. */
   savePivotResults(page: SearchResultsPageResponse, context: PivotSearchContext): void {
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(null);
+    this.historicalPivotParent.set(null);
     this.request.set(null);
     this.formValue.set(null);
     this.vehicleFormValue.set(null);
@@ -86,17 +149,11 @@ export class SearchStateService {
     this.pageSize.set(pageSize);
   }
 
-  toggleSavedResult(resultId: string): void {
-    const next = new Set(this.savedResultIds());
-    if (next.has(resultId)) {
-      next.delete(resultId);
-    } else {
-      next.add(resultId);
-    }
-    this.savedResultIds.set(next);
-  }
-
   clear(): void {
+    this.recentResultsUrl.set(null);
+    this.recentHistoryItem.set(null);
+    this.historicalSearchId.set(null);
+    this.historicalPivotParent.set(null);
     this.request.set(null);
     this.page.set(null);
     this.formValue.set(null);

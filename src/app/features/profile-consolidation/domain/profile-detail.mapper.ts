@@ -539,6 +539,7 @@ function mapLinkItem(
 
   return {
     id: `link-${groupIndex}-${itemIndex}`,
+    backendLinkId: item.linkId,
     fields: deduplicateLinkFields(fields),
     sources: mapLinkSources(item, groupIndex, itemIndex)
   };

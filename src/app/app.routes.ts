@@ -29,6 +29,14 @@ export const routes: Routes = [
       )
   },
   {
+    path: 'administracion',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/administration/pages/administration-page/administration-page').then(
+        (m) => m.AdministrationPage
+      )
+  },
+  {
     path: 'busqueda',
     canActivate: [authGuard],
     loadComponent: () =>
