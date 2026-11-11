@@ -449,7 +449,7 @@
                             </button>
                         </div>
 
-                        <button type="button" class="search-report-button" title="Exportar resultados de la búsqueda en PDF"
+                        <button type="button" *ngIf="!useMotorPersonReport()" class="search-report-button" title="Exportar resultados de la búsqueda en PDF"
                             [disabled]="isExportingReport()" (click)="exportGeneralReport()">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M6 2h9l3 3v17H6V2z" stroke="currentColor" stroke-width="1.8"
@@ -458,6 +458,21 @@
                                     stroke-linecap="round"></path>
                             </svg>
                             {{ isExportingReport() ? 'Generando reporte...' : 'Reporte general' }}
+                        </button>
+
+                        <button type="button" *ngIf="useMotorPersonReport()" class="search-report-button"
+                            title="Solicitar al Motor el reporte PDF completo de personas"
+                            [disabled]="isRequestingPersonReport() || isPollingPersonReport() || personReportFileAvailable() || isDownloadingPersonReport()"
+                            (click)="requestPersonReport()">
+                            <i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
+                            {{ isRequestingPersonReport() ? 'Solicitando PDF...' : isPollingPersonReport() ? 'Preparando PDF...' : personReportFileAvailable() ? 'PDF listo' : reportJobId() ? 'Consultar PDF' : 'Generar PDF' }}
+                        </button>
+                        <button type="button" *ngIf="useMotorPersonReport() && personReportFileAvailable()"
+                            class="search-report-button"
+                            [disabled]="isDownloadingPersonReport()"
+                            (click)="downloadPersonReport()" title="Descargar archivo PDF del Motor">
+                            <i class="fa-solid fa-download" aria-hidden="true"></i>
+                            {{ isDownloadingPersonReport() ? 'Descargando...' : 'Descargar PDF' }}
                         </button>
 
                         <div class="search-page-size">
@@ -514,6 +529,20 @@
                     </div>
                 </div>
 
+                <div *ngIf="useMotorPersonReport() && reportJobId()" class="search-report-progress" role="status" aria-live="polite">
+                    <span class="search-report-progress__title">
+                        <i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
+                        {{ personReportFileAvailable() ? 'Reporte PDF disponible' : 'Reporte PDF · ' + personReportStatusLabel() }}
+                    </span>
+                    <span *ngIf="personReportProgress() !== null" class="search-report-progress__percentage">{{ personReportProgress() }}%</span>
+                    <div *ngIf="personReportProgress() !== null" class="search-report-progress__track"
+                        role="progressbar" [attr.aria-valuenow]="personReportProgress()" aria-valuemin="0" aria-valuemax="100"
+                        aria-label="Avance de generación del PDF">
+                        <span [style.width.%]="personReportProgress()"></span>
+                    </div>
+                    <small *ngIf="personReportNotice()">{{ personReportNotice() }}</small>
+                    <small *ngIf="personReportFileAvailable() && personReportFileName()">{{ personReportFileName() }}</small>
+                </div>
                 <p role="alert" class="search-feedback" *ngIf="reportError()">{{ reportError() }}</p>
                 <div class="search-results__grid" [class.search-results__grid--compact]="pageSize() === 18">
                     <article class="search-result-card" *ngFor="let result of visibleResults(); let i = index"

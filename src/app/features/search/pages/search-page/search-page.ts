@@ -10,6 +10,7 @@ import {
   OnInit,
   PLATFORM_ID,
   computed,
+  effect,
   inject,
   signal
 } from '@angular/core';
@@ -31,6 +32,8 @@ import {
   SearchResultsPageResponse
 } from '../../../../core/infrastructure/search-api/search-api.models';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
+import { PersonReportApiService } from '../../../../core/infrastructure/search-api/person-report-api.service';
+import { PersonReportStatusResponse } from '../../../../core/infrastructure/search-api/person-report-api.models';
 import { SearchStateService } from '../../data-access/search-state.service';
 import { SearchHistoryService } from '../../data-access/search-history.service';
 import { historyDate, historyEntityLabel, historyInputsLabel, historyTitle } from '../../domain/search-history.mapper';
@@ -118,6 +121,7 @@ export class SearchPage implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly searchApi = inject(SearchApiService);
   private readonly pdfExport = inject(SimplePdfExportService);
+  private readonly personReportApi = inject(PersonReportApiService);
   private readonly searchState = inject(SearchStateService);
   readonly searchHistory = inject(SearchHistoryService);
   readonly historyOpenError = signal<string | null>(null);
@@ -157,6 +161,25 @@ export class SearchPage implements OnInit, OnDestroy {
   readonly isSearching = signal(false);
   readonly isExportingReport = signal(false);
   readonly reportError = signal<string | null>(null);
+  readonly isRequestingPersonReport = signal(false);
+  readonly isPollingPersonReport = signal(false);
+  readonly isDownloadingPersonReport = signal(false);
+  readonly reportJobId = signal<string | null>(null);
+  readonly personReportStatus = signal<string | null>(null);
+  readonly personReportNotice = signal<string | null>(null);
+  readonly personReportProgress = signal<number | null>(null);
+  readonly personReportFileName = signal<string | null>(null);
+  readonly personReportFileAvailable = signal(false);
+  readonly personReportAccessExpiresAtUtc = signal<string | null>(null);
+  readonly personReportFileExpiresAtUtc = signal<string | null>(null);
+  readonly personReportStatusLabel = computed(() => ({
+    Queued: 'En cola', Accepted: 'Aceptado', Delivering: 'Enviando',
+    RetryScheduled: 'Reintento programado', Processing: 'Procesando',
+    Completed: 'Completado', Failed: 'Fallido', Expired: 'Vencido'
+  } as Record<string, string>)[this.personReportStatus() || ''] || this.personReportStatus() || 'Solicitado');
+  readonly useMotorPersonReport = computed(() =>
+    this.selectedEntity() === 'personas' && this.historicalSearchId() !== this.searchId()
+  );
   readonly searchTipIndex = signal(0);
   readonly searchTips = [
     'Consultando coincidencias en las fuentes disponibles.',
@@ -255,6 +278,24 @@ export class SearchPage implements OnInit, OnDestroy {
   private clockInterval?: ReturnType<typeof setInterval>;
   private querySubscription?: Subscription;
   private searchTipInterval?: ReturnType<typeof setInterval>;
+  private personReportPollTimer?: ReturnType<typeof setTimeout>;
+  private personReportRequestSub?: Subscription;
+  private personReportStatusSub?: Subscription;
+  private personReportDownloadSub?: Subscription;
+  private personReportPolls = 0;
+  private personReportTransientErrors = 0;
+  private reportOwnerAccount: string | null = null;
+
+  constructor() {
+    // Al cambiar la identidad de la sesión, detener las consultas del reporte anterior.
+    effect(() => {
+      const currentAccount = this.authService.accountNumber();
+      if (this.reportOwnerAccount !== null && this.reportOwnerAccount !== currentAccount) {
+        this.resetPersonReportState();
+      }
+      this.reportOwnerAccount = currentAccount;
+    });
+  }
 
   readonly activeForm = computed<FormGroup>(() => {
     switch (this.selectedEntity()) {
@@ -386,6 +427,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.resetPersonReportState();
     this.querySubscription?.unsubscribe();
     if (this.clockInterval) {
       clearInterval(this.clockInterval);
@@ -491,6 +533,7 @@ export class SearchPage implements OnInit, OnDestroy {
       return;
     }
 
+    this.resetPersonReportState();
     this.profileOpen.set(false);
     this.searchState.clearPivotContext();
     this.linkFilter.set('all');
@@ -530,8 +573,19 @@ export class SearchPage implements OnInit, OnDestroy {
       });
   }
 
-  /** Exporta los resultados recuperados de la búsqueda, sin inventar un endpoint de reportes. */
+  /**
+   * Person temporal: el Motor prepara todas las tarjetas, incluso de otras páginas.
+   * Las otras entidades y las búsquedas históricas mantienen la exportación local anterior.
+   */
   exportGeneralReport(): void {
+    if (this.useMotorPersonReport()) {
+      this.requestPersonReport();
+      return;
+    }
+    this.exportLegacyGeneralReport();
+  }
+
+  private exportLegacyGeneralReport(): void {
     const id = this.searchId();
     if (!id || !this.totalResults() || this.isExportingReport()) return;
     const pageSize = this.pageSize();
@@ -587,6 +641,264 @@ export class SearchPage implements OnInit, OnDestroy {
       },
       error: error => { this.reportError.set(this.extractErrorMessage(error)); }
     });
+  }
+
+
+  /** Inicia sólo una orden REP-02 por interacción del usuario; el 202 no equivale a PDF listo. */
+  requestPersonReport(): void {
+    const id = this.searchId();
+    if (!this.isBrowser || !id || this.totalResults() <= 0 || !this.useMotorPersonReport() ||
+        this.isRequestingPersonReport() || this.isPollingPersonReport() || this.personReportFileAvailable() ||
+        this.isDownloadingPersonReport()) return;
+
+    // Si ya existe el trabajo, nunca repetir POST sólo para averiguar su estado.
+    if (this.reportJobId()) {
+      this.resumePersonReportStatus();
+      return;
+    }
+
+    this.reportError.set(null);
+    this.personReportNotice.set(null);
+    this.isRequestingPersonReport.set(true);
+    this.personReportRequestSub = this.personReportApi.requestReport(id)
+      .pipe(finalize(() => this.isRequestingPersonReport.set(false)))
+      .subscribe({
+        next: receipt => {
+          if (this.searchId() !== id) return;
+          if (!receipt.reportJobId?.trim()) {
+            this.reportError.set('El Motor no devolvió el identificador del trabajo de reporte.');
+            return;
+          }
+          this.reportJobId.set(receipt.reportJobId);
+          this.personReportStatus.set(receipt.status?.trim() || 'Queued');
+          this.personReportNotice.set(receipt.reused
+            ? 'Se reutilizó una solicitud anterior. Consultando el estado del PDF.'
+            : 'Reporte solicitado. El Motor está preparando el archivo completo.');
+          this.resumePersonReportStatus();
+        },
+        error: error => {
+          if (this.searchId() === id) {
+            this.reportError.set(this.personReportRequestError(error));
+          }
+        }
+      });
+  }
+
+  /** REP-03: consulta secuencial con espera, sin solicitudes simultáneas. */
+  resumePersonReportStatus(): void {
+    const jobId = this.reportJobId();
+    if (!this.isBrowser || !jobId || !this.useMotorPersonReport() || this.isPollingPersonReport()) return;
+    this.reportError.set(null);
+    this.personReportPolls = 0;
+    this.personReportTransientErrors = 0;
+    this.isPollingPersonReport.set(true);
+    this.checkPersonReportStatus(jobId);
+  }
+
+  private checkPersonReportStatus(jobId: string): void {
+    if (!this.isBrowser || this.reportJobId() !== jobId) return;
+    if (!this.authService.isAuthenticated()) {
+      this.pausePersonReportPolling('La sesión ya no está activa. Inicia sesión para consultar el reporte.');
+      return;
+    }
+    if (this.personReportPolls >= 120) {
+      this.pausePersonReportPolling('La generación está tardando más de lo esperado. Puedes consultar el estado sin solicitar otro reporte.');
+      return;
+    }
+    if (this.personReportAccessExpiresAtUtc()) {
+      const expiry = Date.parse(this.personReportAccessExpiresAtUtc()!);
+      if (Number.isFinite(expiry) && expiry <= Date.now()) {
+        this.personReportStatus.set('Expired');
+        this.pausePersonReportPolling('El acceso al trabajo PDF ha vencido.');
+        return;
+      }
+    }
+    this.personReportPolls++;
+    this.personReportStatusSub = this.personReportApi.getStatus(jobId).subscribe({
+      next: data => {
+        if (this.reportJobId() !== jobId) return;
+        if (data.reportJobId !== jobId || data.searchId !== this.searchId()) {
+          this.pausePersonReportPolling('El Motor devolvió identificadores que no corresponden a la búsqueda actual.');
+          return;
+        }
+        this.personReportTransientErrors = 0;
+        this.applyPersonReportStatus(data);
+        if (data.status === 'Completed') {
+          if (data.file?.available) {
+            this.personReportFileAvailable.set(true);
+            this.personReportNotice.set('Tu reporte está listo para descargar.');
+            this.isPollingPersonReport.set(false);
+          } else {
+            this.pausePersonReportPolling('La generación finalizó, pero el archivo PDF no está disponible.');
+          }
+          return;
+        }
+        if (data.status === 'Failed' || data.status === 'Expired') {
+          this.pausePersonReportPolling(data.error?.message ||
+            (data.status === 'Expired' ? 'El reporte ha vencido.' : 'No fue posible generar el reporte.'));
+          return;
+        }
+        if (!['Queued', 'Delivering', 'RetryScheduled', 'Accepted', 'Processing'].includes(data.status || '')) {
+          this.pausePersonReportPolling('El Motor devolvió un estado no reconocido. Consulta el estado más tarde.');
+          return;
+        }
+        this.schedulePersonReportPoll(jobId, 3000);
+      },
+      error: error => {
+        if (this.reportJobId() !== jobId) return;
+        if (error instanceof HttpErrorResponse && (error.status === 502 || error.status === 503 || error.status === 504 || error.status === 0)) {
+          this.personReportTransientErrors++;
+          if (this.personReportTransientErrors <= 4) {
+            this.personReportNotice.set('El servicio de reportes no está disponible temporalmente. Reintentando la consulta...');
+            this.schedulePersonReportPoll(jobId, Math.min(this.personReportTransientErrors * 3000, 15000));
+            return;
+          }
+        }
+        this.pausePersonReportPolling(this.extractErrorMessage(error));
+      }
+    });
+  }
+
+  private applyPersonReportStatus(data: PersonReportStatusResponse): void {
+    this.personReportStatus.set(data.status || 'Sin estado');
+    this.personReportProgress.set(typeof data.progress?.percentage === 'number'
+      ? Math.max(0, Math.min(100, data.progress.percentage)) : null);
+    this.personReportFileName.set(data.file?.fileName?.trim() || null);
+    this.personReportAccessExpiresAtUtc.set(data.accessExpiresAtUtc || null);
+    this.personReportFileExpiresAtUtc.set(data.file?.availableUntilUtc || null);
+    this.personReportFileAvailable.set(false);
+    if (data.status !== 'Completed') {
+      this.personReportNotice.set('Preparando el PDF completo de la búsqueda.');
+    }
+  }
+
+  private schedulePersonReportPoll(jobId: string, delay: number): void {
+    this.clearPersonReportPollTimer();
+    if (this.reportJobId() !== jobId || !this.isPollingPersonReport()) return;
+    this.personReportPollTimer = setTimeout(() => {
+      this.personReportPollTimer = undefined;
+      this.checkPersonReportStatus(jobId);
+    }, delay);
+  }
+
+  private pausePersonReportPolling(message: string): void {
+    this.clearPersonReportPollTimer();
+    this.isPollingPersonReport.set(false);
+    this.personReportNotice.set(null);
+    this.reportError.set(message);
+  }
+
+  /** REP-04: descarga el Blob autenticado sólo si REP-03 confirmó disponibilidad. */
+  downloadPersonReport(): void {
+    const jobId = this.reportJobId();
+    if (!this.isBrowser || !jobId || !this.personReportFileAvailable() || this.isDownloadingPersonReport()) return;
+    const expirations = [this.personReportAccessExpiresAtUtc(), this.personReportFileExpiresAtUtc()];
+    if (expirations.some(value => value && Number.isFinite(Date.parse(value)) && Date.parse(value) <= Date.now())) {
+      this.personReportFileAvailable.set(false);
+      this.personReportStatus.set('Expired');
+      this.reportError.set('El acceso al reporte venció.');
+      return;
+    }
+    this.isDownloadingPersonReport.set(true);
+    this.reportError.set(null);
+    this.personReportDownloadSub = this.personReportApi.downloadReport(jobId)
+      .pipe(finalize(() => this.isDownloadingPersonReport.set(false)))
+      .subscribe({
+        next: response => { void this.savePersonReportFile(jobId, response.body, response.headers.get('Content-Type')); },
+        error: error => { void this.handlePersonReportDownloadError(jobId, error); }
+      });
+  }
+
+  private async savePersonReportFile(jobId: string, blob: Blob | null, contentType: string | null): Promise<void> {
+    if (this.reportJobId() !== jobId) return;
+    if (!contentType?.toLowerCase().includes('application/pdf') || !blob || blob.size === 0 ||
+        await blob.slice(0, 5).text() !== '%PDF-') {
+      this.reportError.set('La descarga no devolvió un archivo PDF válido.');
+      return;
+    }
+    if (this.reportJobId() !== jobId) return;
+    const requestedName = this.personReportFileName() || `reporte-general-${jobId}.pdf`;
+    const fileName = requestedName.replace(/[\/\\:*?"<>|\x00-\x1f]/g, '_').trim();
+    const cleanName = fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = cleanName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  private async handlePersonReportDownloadError(jobId: string, error: unknown): Promise<void> {
+    if (this.reportJobId() !== jobId) return;
+    let code: string | null = null;
+    let message: string | null = null;
+    if (error instanceof HttpErrorResponse && error.error instanceof Blob) {
+      try {
+        const json = JSON.parse(await error.error.text()) as {
+          message?: string; errors?: Array<{ code?: string; message?: string }>;
+        };
+        code = json.errors?.[0]?.code || null;
+        message = json.errors?.[0]?.message || json.message || null;
+      } catch { /* cuerpo de error no JSON */ }
+    }
+    if (this.reportJobId() !== jobId) return;
+    if (code === 'REPORT_FILE_NOT_READY' || (error instanceof HttpErrorResponse && error.status === 409)) {
+      this.personReportFileAvailable.set(false);
+      this.personReportNotice.set('El archivo aún no está listo. Consultando nuevamente el estado.');
+      this.resumePersonReportStatus();
+      return;
+    }
+    if (code === 'REPORT_FILE_EXPIRED' || (error instanceof HttpErrorResponse && error.status === 410)) {
+      this.personReportFileAvailable.set(false);
+      this.personReportStatus.set('Expired');
+      this.reportError.set('El archivo PDF ha vencido y ya no se puede descargar.');
+      return;
+    }
+    this.reportError.set(message || this.extractErrorMessage(error));
+  }
+
+  private personReportRequestError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 404 || error.status === 410) {
+        this.searchHistory.reload();
+        return 'La búsqueda temporal ya no está disponible. Puedes actualizar el historial o ejecutar una nueva búsqueda.';
+      }
+      if (error.status === 409) return 'La búsqueda no tiene resultados o presenta un conflicto para generar el reporte.';
+      if (error.status === 422) return 'El generador PDF sólo admite búsquedas de personas.';
+    }
+    return this.extractErrorMessage(error);
+  }
+
+  private clearPersonReportPollTimer(): void {
+    if (this.personReportPollTimer) {
+      clearTimeout(this.personReportPollTimer);
+      this.personReportPollTimer = undefined;
+    }
+  }
+
+  private resetPersonReportState(): void {
+    this.clearPersonReportPollTimer();
+    this.personReportRequestSub?.unsubscribe();
+    this.personReportStatusSub?.unsubscribe();
+    this.personReportDownloadSub?.unsubscribe();
+    this.reportJobId.set(null);
+    this.personReportStatus.set(null);
+    this.personReportNotice.set(null);
+    this.personReportProgress.set(null);
+    this.personReportFileName.set(null);
+    this.personReportAccessExpiresAtUtc.set(null);
+    this.personReportFileExpiresAtUtc.set(null);
+    this.personReportFileAvailable.set(false);
+    this.isRequestingPersonReport.set(false);
+    this.isPollingPersonReport.set(false);
+    this.isDownloadingPersonReport.set(false);
+    this.personReportPolls = 0;
+    this.personReportTransientErrors = 0;
   }
 
   /** Coincidencias observables en datos resumidos; no equivalen al criterio interno del buscador. */
@@ -674,6 +986,7 @@ export class SearchPage implements OnInit, OnDestroy {
   logout(): void {
     this.closeProfile();
     this.activeSidebarPanel.set(null);
+    this.resetPersonReportState();
     this.searchState.clear();
     this.searchHistory.clear();
     this.authService.logout();
@@ -717,6 +1030,7 @@ export class SearchPage implements OnInit, OnDestroy {
         this.removeHistoricalQueryParam();
         this.pageSize.set(18);
         this.applyHistoryCriteria(item);
+        this.resetPersonReportState();
         this.searchState.saveRecentResults(item, page, 18);
         this.applyPage(page);
         this.hasSearched.set(true);
@@ -801,6 +1115,7 @@ export class SearchPage implements OnInit, OnDestroy {
     this.activeSidebarPanel.set(null);
     this.saveSearchError.set(null);
     this.saveSearchFeedback.set(null);
+    this.resetPersonReportState();
     this.reportError.set(null);
     this.errorMessage.set(null);
     this.hasSearched.set(false);
@@ -1184,6 +1499,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   private applyPage(page: SearchResultsPageResponse): void {
+    if (this.searchId() !== page.searchId) this.resetPersonReportState();
     this.searchId.set(page.searchId);
     // Algunas respuestas paginadas omiten entityType. En tal caso preservar la selección.
     if (page.entityType?.toLowerCase() === 'vehicle') this.selectedEntity.set('vehiculo');
@@ -1264,6 +1580,7 @@ export class SearchPage implements OnInit, OnDestroy {
   }
 
   private resetResultState(): void {
+    this.resetPersonReportState();
     this.stopSearchTipRotation();
     this.hasSearched.set(false);
     this.isSearching.set(false);
