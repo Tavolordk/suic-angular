@@ -27,6 +27,14 @@ export interface ConsolidatedProfileAddressDto {
   origins?: ConsolidatedProfileOriginDto[] | null;
 }
 
+/** Referencia del snapshot de búsqueda conservado por el motor SPM. */
+export interface ConsolidatedSearchEvidenceReference {
+  snapshotId: string;
+  snapshotVersion: number;
+  snapshotContractVersion?: string | null;
+  retainUntilUtc: string;
+}
+
 export interface ConsolidatedProfileResponse {
   contractVersion?: string | null;
   profileId: string;
@@ -37,6 +45,9 @@ export interface ConsolidatedProfileResponse {
   effectiveAtUtc: string;
   data?: ConsolidatedProfileDataDto[] | null;
   addresses?: ConsolidatedProfileAddressDto[] | null;
+  searchEvidence?: ConsolidatedSearchEvidenceReference | null;
+  entityType?: string | null;
+  linkGroups?: import('../search-api/search-api.models').SearchResultLinkGroupDto[] | null;
 }
 
 export interface ConsolidatedProfilesPageResponse {

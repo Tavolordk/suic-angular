@@ -13,7 +13,7 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, finalize, map, of, Subject, Subscription, switchMap, takeUntil, throwError } from 'rxjs';
+import { catchError, finalize, map, Observable, of, Subject, Subscription, switchMap, takeUntil, throwError } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import { answerGraphFacts, compactGraphFacts } from '../../../../core/intelligence/graph-factual-answers';
 import { LinceMascotComponent } from '../../../../shared/ui/lince-mascot/lince-mascot.component';
@@ -598,6 +598,35 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
 
+  /** El snapshot de evidencia indica que los vínculos deben consultarse en el histórico. */
+  private usesSavedGraphEvidence(profile: ConsolidatedProfileResponse): boolean {
+    return !!profile.searchEvidence?.snapshotId?.trim();
+  }
+
+  private getGraphResultDetail(
+    searchId: string, resultId: string, profile: ConsolidatedProfileResponse
+  ): Observable<SearchResultDetailResponse> {
+    return this.usesSavedGraphEvidence(profile)
+      ? this.searchApi.getSavedResultDetail(searchId, resultId)
+      : this.searchApi.getResultDetail(searchId, resultId);
+  }
+
+  private pivotGraphLink(
+    searchId: string, resultId: string, linkId: string, profile: ConsolidatedProfileResponse
+  ): Observable<import('../../../../core/infrastructure/search-api/search-api.models').SearchResultsPageResponse> {
+    return this.usesSavedGraphEvidence(profile)
+      ? this.searchApi.pivotSavedLink(searchId, resultId, linkId, 18)
+      : this.searchApi.pivotLink(searchId, resultId, linkId, 18);
+  }
+
+  /** Cada vínculo puede venir del perfil raíz o de una rama consolidada expandida. */
+  private graphProfileForLink(link: GraphLink): ConsolidatedProfileResponse | null {
+    if (link.branchProfileId) {
+      return this.expandedPivotBranches().find(branch => branch.profile.profileId === link.branchProfileId)?.profile ?? null;
+    }
+    return this.loadedProfile();
+  }
+
   private loadRelationshipGraph(profile: ConsolidatedProfileResponse): void {
     const searchId = profile.searchId?.trim();
     const resultId = profile.preconsolidatedResultId?.trim();
@@ -606,7 +635,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.searchApi.getResultDetail(searchId, resultId).pipe(takeUntil(this.graphContextChanged)).subscribe({
+    this.getGraphResultDetail(searchId, resultId, profile).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (detail) => {
         this.aiSourceDetail.set(detail);
         this.relationshipCatalog.set(collectGraphRelations(detail));
@@ -834,7 +863,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         const searchId = profile.searchId?.trim();
         const resultId = profile.preconsolidatedResultId?.trim();
         if (!searchId || !resultId) return of({ profile, relations: [] as GraphRelationEntry[], detailError: false });
-        return this.searchApi.getResultDetail(searchId, resultId).pipe(
+        return this.getGraphResultDetail(searchId, resultId, profile).pipe(
           map(detail => ({ profile, relations: collectGraphRelations(detail), detailError: false })),
           catchError(() => of({ profile, relations: [] as GraphRelationEntry[], detailError: true }))
         );
@@ -962,7 +991,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.pivotError.set(null);
     this.pivotNoResults.set(null);
 
-    this.searchApi.getResultDetail(searchId, resultId).pipe(
+    const sourceProfile = this.graphProfileForLink(link);
+    if (!sourceProfile) {
+      this.pivotLoading.set(false);
+      this.pivotError.set('No se encontró el perfil origen de este vínculo.');
+      return;
+    }
+
+    this.getGraphResultDetail(searchId, resultId, sourceProfile).pipe(
       switchMap((detail) => {
         // Comprobar el ID real y su entidad antes del POST: nunca usar IDs visuales
         // ni pivoteos de otra clase de vínculo si cambió el resultado padre.
@@ -973,7 +1009,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         if (!belongsToEntity) {
           return throwError(() => new Error('Este vínculo ya no está disponible para el tipo de nodo seleccionado. Actualiza el grafo e inténtalo de nuevo.'));
         }
-        return this.searchApi.pivotLink(searchId, resultId, linkId, 18);
+        return this.pivotGraphLink(searchId, resultId, linkId, sourceProfile);
       }),
       finalize(() => this.pivotLoading.set(false))
     ).pipe(takeUntil(this.graphContextChanged)).subscribe({
@@ -1238,7 +1274,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     if (!this.aiSourceDetail() && searchId && resultId) {
       this.isAiLoading.set(true);
       this.aiErrorMessage.set(null);
-      this.searchApi.getResultDetail(searchId, resultId).pipe(takeUntil(this.graphContextChanged)).subscribe({
+      this.getGraphResultDetail(searchId, resultId, profile).pipe(takeUntil(this.graphContextChanged)).subscribe({
         next: (detail) => {
           this.aiSourceDetail.set(detail);
           this.relationshipCatalog.set(collectGraphRelations(detail));

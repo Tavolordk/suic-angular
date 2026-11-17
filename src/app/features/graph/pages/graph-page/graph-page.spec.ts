@@ -36,6 +36,8 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
   let component: GraphPage;
   let searchState: SearchStateService;
   let pivotCalls: string[][];
+  let savedPivotCalls: string[][];
+  let savedDetailCalls: string[][];
   let navigations: unknown[][];
   let detail: SearchResultDetailResponse;
   let response: SearchResultsPageResponse;
@@ -43,6 +45,8 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
 
   beforeEach(() => {
     pivotCalls = [];
+    savedPivotCalls = [];
+    savedDetailCalls = [];
     navigations = [];
     response = makePage(1);
     recordsByLink = {};
@@ -55,6 +59,14 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
         { provide: Router, useValue: { navigate: (...args: unknown[]) => { navigations.push(args); return Promise.resolve(true); } } },
         { provide: SearchApiService, useValue: {
           getResultDetail: () => of(detail),
+          getSavedResultDetail: (searchId: string, resultId: string) => {
+            savedDetailCalls.push([searchId, resultId]);
+            return of(detail);
+          },
+          pivotSavedLink: (searchId: string, resultId: string, linkId: string, size: number) => {
+            savedPivotCalls.push([searchId, resultId, linkId, String(size)]);
+            return of(response);
+          },
           pivotLink: (searchId: string, resultId: string, linkId: string, size: number) => {
             pivotCalls.push([searchId, resultId, linkId, String(size)]);
             return of(response);
@@ -73,6 +85,9 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
   });
 
   function selectChild(type: NodeType, linkId = 'real-link'): void {
+    component.loadedProfile.set({ profileId: 'profile-origin', profileVersionId: 'version-origin',
+      versionNumber: 1, searchId: 'search-origin', preconsolidatedResultId: 'result-origin',
+      effectiveAtUtc: '2026-11-17T00:00:00Z' });
     component.nodes.set([
       { id: 'profile-origin', type: 'person', title: 'Principal', subtitle: '', x: 0, y: 0,
         radius: 35, details: [], links: emptyLinks },
@@ -99,6 +114,27 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
       expect(navigations[0][0]).toEqual(['/busqueda']);
     });
   }
+
+  it('usa detalle y pivoteo históricos cuando el perfil conserva searchEvidence', () => {
+    selectChild('vehicle');
+    component.loadedProfile.update(profile => ({ ...profile!, searchEvidence: {
+      snapshotId: 'snapshot-123', snapshotVersion: 1,
+      retainUntilUtc: '2026-12-01T00:00:00Z'
+    } }));
+    component.pivotSelectedNode();
+    expect(savedDetailCalls).toEqual([['search-origin', 'result-origin']]);
+    expect(savedPivotCalls).toEqual([['search-origin', 'result-origin', 'real-link', '18']]);
+    expect(pivotCalls.length).toBe(0);
+    expect(searchState.page()).toEqual(response);
+  });
+
+  it('mantiene el endpoint temporal cuando no existe evidencia guardada', () => {
+    selectChild('weapon');
+    component.pivotSelectedNode();
+    expect(savedDetailCalls.length).toBe(0);
+    expect(savedPivotCalls.length).toBe(0);
+    expect(pivotCalls.length).toBe(1);
+  });
 
   it('rechaza un vínculo cuyo tipo ya no coincide con el detalle real', () => {
     selectChild('weapon');
