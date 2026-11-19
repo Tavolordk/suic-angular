@@ -227,6 +227,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   private dragStartPanY = 0;
   private pointerMoved = false;
   private suppressNodeClick = false;
+  private pendingNodeClick?: ReturnType<typeof setTimeout>;
   private introTimer?: ReturnType<typeof setTimeout>;
 
   readonly activeFilters = signal<Record<GraphNodeType, boolean>>({
@@ -491,6 +492,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       const routeKey = JSON.stringify([profileId, type, returnLinkId]);
       if (routeKey === previousRouteKey) return;
       previousRouteKey = routeKey;
+      this.cancelNodeClick();
+      this.pivotNoResults.set(null);
       // Angular reuses this page when only the query parameters change.
       this.graphContextVersion += 1;
       this.stopAiGeneration();
@@ -531,6 +534,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.cancelNodeClick();
     this.graphRouteSubscription?.unsubscribe();
     this.graphContextVersion += 1;
     this.graphContextChanged.next();
@@ -821,7 +825,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
           ...branches.filter(branch => branch.record.profileId === record.profileId)
         ]);
         this.renderRelationshipPage(undefined, true);
-        this.focusExpandedBranch(record.profileId);
         onComplete?.();
         return;
       }
@@ -860,7 +863,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
         this.expandedPivotBranches.update(branches => [...branches, { record, profile, relations }]);
         this.renderRelationshipPage(undefined, true);
         this.selectSourceLink(record);
-        this.focusExpandedBranch(record.profileId);
       },
       error: (error: unknown) => this.pivotExpansionError.set(extractErrorMessage(error))
     });
@@ -874,25 +876,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.selectedNodeId.set(node.id);
     this.selectedLinkId.set(link?.id ?? null);
     this.detailPanelOpen.set(true);
-  }
-
-  /** Focus the selected origin and its new branch, without modifying the other graph nodes. */
-  private focusExpandedBranch(profileId: string): void {
-    const related = this.nodes().filter(node => node.branchProfileId === profileId);
-    const parent = this.selectedNode();
-    if (!related.length) return;
-    const displayed = [...related, parent, this.rootNode()];
-    const minX = Math.min(...displayed.map(node => node.x));
-    const maxX = Math.max(...displayed.map(node => node.x));
-    const minY = Math.min(...displayed.map(node => node.y));
-    const maxY = Math.max(...displayed.map(node => node.y));
-    const targetZoom = clamp(Math.min(
-      1, (this.viewBoxWidth - 150) / Math.max(1, maxX - minX),
-      (this.viewBoxHeight - 150) / Math.max(1, maxY - minY)
-    ), 0.15, 1);
-    this.zoom.set(Number(targetZoom.toFixed(2)));
-    this.panX.set(this.viewBoxWidth / 2 - (minX + maxX) / 2 * targetZoom);
-    this.panY.set(this.viewBoxHeight / 2 - (minY + maxY) / 2 * targetZoom);
   }
 
   openPivotProfileGraph(profileId: string): void {
@@ -1692,6 +1675,41 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   goBack(): void {
     this.router.navigateByUrl('/lineas-investigacion');
+  }
+
+  private cancelNodeClick(): void {
+    clearTimeout(this.pendingNodeClick);
+    this.pendingNodeClick = undefined;
+  }
+
+  onNodeClick(nodeId: string, event: MouseEvent): void {
+    event.stopPropagation();
+    this.cancelNodeClick();
+    if (this.suppressNodeClick || event.detail > 1) return;
+    // Esperar el segundo clic antes de expandir o contraer una rama.
+    this.pendingNodeClick = setTimeout(() => {
+      this.pendingNodeClick = undefined;
+      this.selectNode(nodeId);
+    }, 350);
+  }
+
+  searchFromNode(nodeId: string, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.cancelNodeClick();
+    if (this.suppressNodeClick || this.pivotLoading()) return;
+    this.selectedNodeId.set(nodeId);
+    const link = this.selectedPivotLink();
+    this.selectedLinkId.set(link?.id ?? null);
+    this.detailPanelOpen.set(true);
+    this.setDetailTab('summary');
+    if (!link) {
+      this.pivotError.set(nodeId === this.rootNode().id
+        ? 'Este es el perfil de origen. Elige un nodo vinculado para buscar desde él.'
+        : 'Este nodo no tiene un identificador de vínculo para iniciar la búsqueda.');
+      return;
+    }
+    this.pivotSelectedNode();
   }
 
   selectNode(nodeId: string, event?: Event): void {

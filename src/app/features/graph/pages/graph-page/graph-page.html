@@ -185,13 +185,14 @@
                         }
                     </div>
                     }
-                    @if (pivotError()) {
+                </section>
+                }
+
+                @if (pivotError()) {
                     <p class="graph-pivot__message graph-pivot__message--error" role="alert">
                         <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
                     </p>
                     }
-                </section>
-                }
 
                 @if (detailTab() === 'links') {
                 @if (selectedLink(); as link) {
@@ -604,9 +605,11 @@
                         role="button" tabindex="0"
                         [attr.aria-label]="'Seleccionar nodo ' + node.title + (node.subtitle ? ' ' + node.subtitle : '')"
                         (pointerdown)="$event.stopPropagation()"
-                        (click)="selectNode(node.id, $event)"
-                        (keydown.enter)="selectNode(node.id, $event)"
+                        (click)="onNodeClick(node.id, $event)"
+                        (dblclick)="searchFromNode(node.id, $event)"
+                        (keydown.enter)="searchFromNode(node.id, $event)"
                         (keydown.space)="selectNode(node.id, $event)">
+                        <title>{{ node.id === rootNode().id ? node.title : node.title + ' · Doble clic para buscar' }}</title>
                         <circle class="graph-node__hit-area" [attr.r]="node.radius + 12"></circle>
                         @if (isSelected(node)) {
                         <circle class="graph-node__pulse" [attr.r]="node.radius + 4" fill="none"

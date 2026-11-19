@@ -141,7 +141,9 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
       searchId: 'expired', preconsolidatedResultId: 'old-result',
       linkGroups: [{ entityType: 'Person', count: 1, items: [{ linkId: 'vehicle-person' }] }]
     });
+    component.zoom.set(0.49);
     component.expandPivotProfile(record);
+    expect(component.zoom()).toBe(0.49);
     expect(component.expandedPivotBranches()[0]?.relations[0]?.item.linkId).toBe('vehicle-person');
     expect(savedDetailCalls).toEqual([]);
     expect(component.pivotExpansionError()).toBeNull();
@@ -164,6 +166,15 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
     expect(navigations.length).toBe(0);
   });
 
+  it('el doble clic cancela el clic pendiente y navega una sola vez con resultados', () => {
+    selectChild('vehicle');
+    component.onNodeClick('child', new MouseEvent('click', { detail: 1 }));
+    component.onNodeClick('child', new MouseEvent('click', { detail: 2 }));
+    component.searchFromNode('child', new MouseEvent('dblclick'));
+    expect(pivotCalls.length).toBe(1);
+    expect(navigations.length).toBe(1);
+  });
+
   it('evita enviar ID de vínculo ausente o visual', () => {
     selectChild('vehicle', '');
     expect(component.selectedPivotLink()).toBeNull();
@@ -174,7 +185,7 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
   it('no sale del grafo ni borra contexto cuando el pivoteo no tiene resultados', () => {
     selectChild('vehicle');
     response = makePage(0);
-    component.pivotSelectedNode();
+    component.searchFromNode('child', new MouseEvent('dblclick'));
     expect(component.pivotNoResults()).toEqual({ nodeTitle: 'Nodo vehicle', nodeType: 'vehicle', isPartial: false });
     expect(searchState.page()).toBeNull();
     expect(navigations.length).toBe(0);
