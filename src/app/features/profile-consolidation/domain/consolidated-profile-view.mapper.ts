@@ -47,7 +47,7 @@ export function mapPersistedConsolidation(
       if (!source) {
         source = {
           id: `persisted-source-${normalize(sourceCode)}`,
-          code: sourceCode === 'Perfil consolidado' ? 'PC' : normalize(sourceCode).slice(0, 2),
+          code: sourceCode === 'Perfil consolidado' ? 'PC' : sourceCode.toUpperCase(),
           title: sourceCode,
           description: 'Datos registrados en el perfil consolidado',
           color: '#1C6A54',

@@ -184,6 +184,37 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     return context && this.searchId === this.searchState.page()?.searchId ? context.graphProfileId : null;
   });
   readonly originGraphLinkId = computed(() => this.searchState.pivotContext()?.parentLinkId ?? null);
+  readonly panelOptions = [
+    { id: 'sources', label: 'Fuentes', icon: 'fa-solid fa-layer-group' },
+    { id: 'selection', label: 'Datos', icon: 'fa-solid fa-list-check' },
+    { id: 'summary', label: 'Resumen', icon: 'fa-solid fa-address-card' }
+  ] as const;
+  readonly visiblePanels = signal<readonly string[]>(['sources', 'selection', 'summary']);
+  readonly readOnlySources = computed(() => this.isConsolidated() || this.isHistorical);
+  readonly workSources = computed(() => this.sources().filter(source =>
+    this.readOnlySources() || this.getRemainingSourceCount(source) > 0
+  ));
+  readonly minimizedPanels = computed(() =>
+    this.panelOptions.filter(panel => !this.visiblePanels().includes(panel.id))
+  );
+
+  minimizePanel(id: string): void {
+    this.visiblePanels.update(panels => panels.filter(panel => panel !== id));
+    requestAnimationFrame(() => document.getElementById('restore-' + id)?.focus({ preventScroll: true }));
+  }
+
+  restorePanel(id: string): void {
+    this.visiblePanels.update(panels => panels.includes(id) ? panels : [...panels, id]);
+    requestAnimationFrame(() => document.getElementById('minimize-' + id)?.focus({ preventScroll: true }));
+  }
+
+  private advanceCompletedSource(): void {
+    const next = this.workSources()[0];
+    if (next && !this.workSources().some(source => source.id === this.selectedSourceId())) {
+      this.selectSource(next.id);
+    }
+  }
+
   readonly selectedSourceId = signal('');
   readonly sources = signal<ProfileSourceViewModel[]>([]);
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
@@ -233,7 +264,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   ];
 
   readonly selectedSource = computed<ProfileSourceViewModel | null>(() => {
-    const items = this.sources();
+    const items = this.workSources().length ? this.workSources() : this.sources();
     if (!items.length) {
       return null;
     }
@@ -332,7 +363,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly sourcePages = computed(() =>
-    chunkItems(this.sources(), SOURCES_PER_PAGE)
+    chunkItems(this.workSources(), SOURCES_PER_PAGE)
   );
   readonly sourcePageCount = computed(() => this.sourcePages().length);
   readonly normalizedSourcePageIndex = computed(() =>
@@ -351,7 +382,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     const query = this.sourceFieldQuery().trim().toLocaleLowerCase('es-MX');
     const recordIndex = this.sourceRecordIndex();
     return fields.filter(field =>
-      (this.isConsolidated() || !selectedKeys.has(fieldSlotKey(field))) &&
+      (this.readOnlySources() || !selectedKeys.has(fieldSlotKey(field))) &&
       (recordIndex === -1 || field.recordIndex === recordIndex) &&
       (!query || `${field.label} ${field.value} ${field.code} registro ${field.recordIndex + 1}`.toLocaleLowerCase('es-MX').includes(query))
     );
@@ -468,6 +499,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       return;
     }
 
+    if (window.innerWidth < 720) this.visiblePanels.set(['sources']);
     this.clockInterval = setInterval(() => this.currentTime.set(new Date()), 1000);
     this.loadProfile();
   }
@@ -549,7 +581,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
             ? mapPersistedConsolidation(viewModel.sources, persisted)
             : viewModel.sources;
           this.sources.set(sources);
-          this.selectedSourceId.set(sources[0]?.id ?? '');
+          this.selectedSourceId.set(this.workSources()[0]?.id ?? '');
           this.links.set(viewModel.links);
           this.activeLinkGroupId.set(null);
           this.photos.set(viewModel.photos);
@@ -631,7 +663,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   selectSource(sourceId: string): void {
-    const sourceIndex = this.sources().findIndex(
+    const sourceIndex = this.workSources().findIndex(
       (source) => source.id === sourceId
     );
 
@@ -825,6 +857,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       })
     );
 
+    this.advanceCompletedSource();
     this.focusConsolidatedField(currentSourceId, fieldId);
     this.saveErrorMessage.set(null);
     this.accepted.set(false);
@@ -915,6 +948,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
       })
     );
 
+    this.advanceCompletedSource();
     this.sourceFieldPageIndex.set(0);
     this.consolidatedFieldPageIndex.set(0);
     this.addressPageIndex.set(0);
@@ -1235,7 +1269,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   private focusAvailableField(sourceId: string, fieldId: string): void {
-    const sourceIndex = this.sources().findIndex((source) => source.id === sourceId);
+    const sourceIndex = this.workSources().findIndex((source) => source.id === sourceId);
     if (sourceIndex < 0) {
       return;
     }
@@ -1245,7 +1279,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.sourceFieldQuery.set('');
     this.sourcePageIndex.set(Math.floor(sourceIndex / SOURCES_PER_PAGE));
 
-    const source = this.sources()[sourceIndex];
+    const source = this.workSources()[sourceIndex];
     const availableFields = getDisplayableSourceFields(source.fields).filter(
       (field) => !field.selected
     );

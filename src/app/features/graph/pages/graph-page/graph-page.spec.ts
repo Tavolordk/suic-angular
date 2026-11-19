@@ -58,7 +58,7 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: params }, queryParamMap: of(params) } },
         { provide: Router, useValue: { navigate: (...args: unknown[]) => { navigations.push(args); return Promise.resolve(true); } } },
         { provide: SearchApiService, useValue: {
-          getResultDetail: () => of(detail),
+          getResultDetail: () => { throw new Error('La búsqueda temporal expiró'); },
           getSavedResultDetail: (searchId: string, resultId: string) => {
             savedDetailCalls.push([searchId, resultId]);
             return of(detail);
@@ -85,7 +85,8 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
   });
 
   function selectChild(type: NodeType, linkId = 'real-link'): void {
-    component.loadedProfile.set({ profileId: 'profile-origin', profileVersionId: 'version-origin',
+    detail.linkGroups = [{ entityType: entityType[type], count: 1, items: [{ linkId }] }];
+    component.loadedProfile.set({ linkGroups: detail.linkGroups, profileId: 'profile-origin', profileVersionId: 'version-origin',
       versionNumber: 1, searchId: 'search-origin', preconsolidatedResultId: 'result-origin',
       effectiveAtUtc: '2026-11-17T00:00:00Z' });
     component.nodes.set([
@@ -98,7 +99,6 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
       type, externalId: linkId, label: 'Relacionado', status: '', details: [], sourceNames: [],
       searchId: 'search-origin', resultId: 'result-origin' }]);
     component.selectedNodeId.set('child');
-    detail.linkGroups = [{ entityType: entityType[type], count: 1, items: [{ linkId }] }];
   }
 
   for (const type of ['person', 'vehicle', 'weapon'] as const) {
@@ -115,17 +115,36 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
     });
   }
 
-  it('usa detalle y pivoteo históricos cuando el perfil conserva searchEvidence', () => {
+  it('usa pivoteo histórico sin consultar el detalle cuando el perfil conserva searchEvidence', () => {
     selectChild('vehicle');
     component.loadedProfile.update(profile => ({ ...profile!, searchEvidence: {
       snapshotId: 'snapshot-123', snapshotVersion: 1,
       retainUntilUtc: '2026-12-01T00:00:00Z'
     } }));
     component.pivotSelectedNode();
-    expect(savedDetailCalls).toEqual([['search-origin', 'result-origin']]);
+    expect(savedDetailCalls).toEqual([]);
     expect(savedPivotCalls).toEqual([['search-origin', 'result-origin', 'real-link', '18']]);
     expect(pivotCalls.length).toBe(0);
     expect(searchState.page()).toEqual(response);
+  });
+
+  it('expande un vehículo desde sus vínculos persistidos sin depender de su búsqueda de origen', () => {
+    selectChild('vehicle');
+    const record: PivotConsolidationRecord = {
+      graphProfileId: 'profile-origin', parentSearchId: 'search-origin', parentResultId: 'result-origin',
+      parentLinkId: 'real-link', pivotSearchId: 'expired', pivotResultId: 'old-result',
+      profileId: 'saved-vehicle', savedAt: '2026-11-19T00:00:00Z'
+    };
+    recordsByLink['real-link'] = [record];
+    TestBed.inject(ConsolidatedProfilesApiService).getProfile = () => of({
+      ...component.loadedProfile()!, profileId: record.profileId, entityType: 'Vehicle',
+      searchId: 'expired', preconsolidatedResultId: 'old-result',
+      linkGroups: [{ entityType: 'Person', count: 1, items: [{ linkId: 'vehicle-person' }] }]
+    });
+    component.expandPivotProfile(record);
+    expect(component.expandedPivotBranches()[0]?.relations[0]?.item.linkId).toBe('vehicle-person');
+    expect(savedDetailCalls).toEqual([]);
+    expect(component.pivotExpansionError()).toBeNull();
   });
 
   it('mantiene el endpoint temporal cuando no existe evidencia guardada', () => {
@@ -138,7 +157,7 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
 
   it('rechaza un vínculo cuyo tipo ya no coincide con el detalle real', () => {
     selectChild('weapon');
-    detail.linkGroups = [{ entityType: 'Person', count: 1, items: [{ linkId: 'real-link' }] }];
+    component.loadedProfile.update(profile => ({ ...profile!, linkGroups: [{ entityType: 'Person', count: 1, items: [{ linkId: 'real-link' }] }] }));
     component.pivotSelectedNode();
     expect(pivotCalls.length).toBe(0);
     expect(component.pivotError()).toContain('tipo de nodo');
@@ -334,6 +353,37 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
     expect(shared.length).toBe(1);
     expect(result.links.some(edge => edge.sourceId === 'node-a' && edge.targetId === shared[0].id)).toBeTrue();
     expect(result.links.some(edge => edge.sourceId === 'node-b' && edge.targetId === shared[0].id)).toBeTrue();
+  });
+
+  it('conecta el vehículo al vecino directo identificado en la rama y conserva el vínculo de la raíz', () => {
+    const record: PivotConsolidationRecord = {
+      graphProfileId: 'profile-origin', parentSearchId: 'search', parentResultId: 'result',
+      parentLinkId: 'vehicle-link', pivotSearchId: 'pivot', pivotResultId: 'item',
+      profileId: 'saved-vehicle', savedAt: '2026-11-19T00:00:00Z'
+    };
+    recordsByLink = { 'vehicle-link': [record] };
+    const root = { id: 'profile-origin', type: 'person' as const, title: 'SALVADOR NAVA LUNA',
+      subtitle: '', x: 620, y: 320, radius: 35, details: [], links: emptyLinks };
+    const person = { ...root, id: 'person', x: 220, title: 'REY PABLO II OLMOS RIOS', subtitle: 'Persona vinculada' };
+    const vehicle = { ...root, id: 'vehicle', x: 1000, type: 'vehicle' as const, title: 'VOLKSWAGEN 2011' };
+    const graph = { nodes: [root, person, vehicle], links: [person, vehicle].map(node => ({
+      id: node.id + '-link', externalId: node.id + '-link', sourceId: root.id, targetId: node.id,
+      type: node.type, label: 'Relacionado', status: '', details: [], sourceNames: [],
+      searchId: 'search', resultId: 'result'
+    })) };
+    component.expandedPivotBranches.set([{ record, profile: {
+      profileId: record.profileId, profileVersionId: 'v', versionNumber: 1, entityType: 'Vehicle',
+      searchId: 'pivot', preconsolidatedResultId: 'item', effectiveAtUtc: record.savedAt
+    }, relations: [{ type: 'person', item: {
+      linkId: 'owner', identifiers: [{ evidenceId: 'c', code: 'CURP', value: 'CURP-DE-PRUEBA' }],
+      attributes: [{ evidenceId: 'n', code: 'nombreCompleto', value: 'Rey Pablo II Olmos Ríos' }]
+    } }] }]);
+    const result = component['appendPivotBranches'](graph);
+    expect(result.nodes.length).toBe(3);
+    expect(result.nodes.find(node => node.id === person.id)?.subtitle).toBe('CURP-DE-PRUEBA');
+    expect(result.links.map(edge => [edge.sourceId, edge.targetId])).toEqual([
+      [root.id, person.id], [root.id, vehicle.id], [vehicle.id, person.id]
+    ]);
   });
 
   it('mantiene separados los homónimos con identificadores contradictorios', () => {

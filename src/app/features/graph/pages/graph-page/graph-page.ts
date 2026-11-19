@@ -13,7 +13,7 @@ import {
   signal
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, finalize, map, Observable, of, Subject, Subscription, switchMap, takeUntil, throwError } from 'rxjs';
+import { finalize, Observable, Subject, Subscription, takeUntil } from 'rxjs';
 import { IntelligenceApiService } from '../../../../core/intelligence/intelligence-api.service';
 import { answerGraphFacts, compactGraphFacts } from '../../../../core/intelligence/graph-factual-answers';
 import { LinceMascotComponent } from '../../../../shared/ui/lince-mascot/lince-mascot.component';
@@ -32,7 +32,6 @@ import { SearchApiService } from '../../../../core/infrastructure/search-api/sea
 import { SearchStateService } from '../../../search/data-access/search-state.service';
 import { PivotConsolidationRecord, PivotConsolidationRegistryService } from '../../data-access/pivot-consolidation-registry.service';
 import {
-  SearchResultDetailResponse,
   SearchResultLinkItemDto
 } from '../../../../core/infrastructure/search-api/search-api.models';
 import {
@@ -250,7 +249,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   readonly addressPageIndex = signal(0);
 
   readonly relationshipCatalog = signal<GraphRelationEntry[]>([]);
-  private readonly aiSourceDetail = signal<SearchResultDetailResponse | null>(null);
+  readonly expansionNotice = signal<string | null>(null);
   readonly relationshipTotals = signal<GraphNodeLinks>({ persons: 0, vehicles: 0, weapons: 0 });
   readonly relationshipViewType = signal<GraphRelationshipView>('all');
   readonly relationshipQuery = signal('');
@@ -519,6 +518,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       this.detailView.set({ nodeId: profileId, tab: 'summary', query: '', page: 0 });
       this.pivotError.set(null);
       this.pivotExpansionError.set(null);
+      this.expansionNotice.set(null);
       this.aiMessages.set([]);
       this.aiAnswer.set(null);
       this.aiSnapshot.set(null);
@@ -552,7 +552,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.aiSourceDetail.set(null);
     this.consolidatedProfilesApi.getProfile(this.profileId).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (profile) => {
         const graph = mapProfileToGraph(profile, [], undefined, this.rootTypeHint);
@@ -598,17 +597,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
 
-  /** El snapshot de evidencia indica que los vínculos deben consultarse en el histórico. */
+  /** Selecciona el endpoint para una nueva búsqueda por pivoteo. */
   private usesSavedGraphEvidence(profile: ConsolidatedProfileResponse): boolean {
     return !!profile.searchEvidence?.snapshotId?.trim();
-  }
-
-  private getGraphResultDetail(
-    searchId: string, resultId: string, profile: ConsolidatedProfileResponse
-  ): Observable<SearchResultDetailResponse> {
-    return this.usesSavedGraphEvidence(profile)
-      ? this.searchApi.getSavedResultDetail(searchId, resultId)
-      : this.searchApi.getResultDetail(searchId, resultId);
   }
 
   private pivotGraphLink(
@@ -628,29 +619,9 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadRelationshipGraph(profile: ConsolidatedProfileResponse): void {
-    const searchId = profile.searchId?.trim();
-    const resultId = profile.preconsolidatedResultId?.trim();
-
-    if (!searchId || !resultId) {
-      return;
-    }
-
-    this.getGraphResultDetail(searchId, resultId, profile).pipe(takeUntil(this.graphContextChanged)).subscribe({
-      next: (detail) => {
-        this.aiSourceDetail.set(detail);
-        this.relationshipCatalog.set(collectGraphRelations(detail));
-        this.relationshipTotals.set(collectRelationshipTotals(detail));
-        this.relationshipViewType.set('all');
-        this.relationshipQuery.set('');
-        this.relationshipPageIndex.set(0);
-        this.pivotError.set(null);
-        this.renderRelationshipPage(profile);
-      },
-      error: () => {
-        // El perfil raíz sigue disponible aunque el endpoint de detalle no responda.
-        // Así el grafo nunca queda sin estado ni bloquea el análisis del perfil consolidado.
-      }
-    });
+    this.relationshipCatalog.set(collectGraphRelations(profile));
+    this.relationshipTotals.set(collectRelationshipTotals(profile));
+    this.renderRelationshipPage(profile);
   }
 
   private renderRelationshipPage(profile = this.loadedProfile(), preserveView = false): void {
@@ -703,8 +674,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
   /** Reuse confirmed identities without losing links from other consolidated profiles. */
   private appendPivotBranches(graph: { nodes: GraphNode[]; links: GraphLink[] }): { nodes: GraphNode[]; links: GraphLink[] } {
-    const root = graph.nodes[0];
-    if (!root) return graph;
+    if (!graph.nodes.length) return graph;
+    const root = { ...graph.nodes[0] };
     const nodes: GraphNode[] = [root];
     const links: GraphLink[] = [];
     const identities = new Map<string, GraphNode>();
@@ -724,11 +695,12 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       // In an expanded branch, reuse a uniquely matching consolidated node rather
       // than draw a second person, provided no stable identifiers contradict it.
       const existing = identified ?? (fromPivotBranch
-        ? findUniqueConsolidatedNameMatch(candidate, nodes, root.id) : undefined);
+        ? findUniquePersonNameMatch(candidate, nodes, root.id) : undefined);
       const node = existing ?? { ...candidate, consolidations: [] };
       if (!existing) nodes.push(node);
       node.consolidations = [...(node.consolidations ?? []), ...records].filter((record, index, all) =>
         all.findIndex(other => other.profileId === record.profileId) === index);
+      node.identityKeys = [...new Set([...(node.identityKeys ?? []), ...(candidate.identityKeys ?? [])])];
       for (const key of keys) identities.set(key, node);
       return { node, isNew: !existing };
     };
@@ -761,7 +733,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       const parentNode = nodes.find(node => node.consolidations?.some(record =>
         record.profileId === branch.record.profileId))!;
       const childGraph = mapProfileToGraph(branch.profile, branch.relations.slice(0, BRANCH_RELATIONSHIP_LIMIT), undefined, parentNode.type);
-      for (const key of childGraph.nodes[0].identityKeys ?? []) identities.set(key, parentNode);
+      parentNode.identityKeys = [...new Set([...(parentNode.identityKeys ?? []), ...(childGraph.nodes[0].identityKeys ?? [])])];
+      for (const key of parentNode.identityKeys) identities.set(key, parentNode);
       identities.set(`profile:${branch.profile.profileId}`, parentNode);
       const direction = Math.atan2(parentNode.y - root.y, parentNode.x - root.x);
       childGraph.nodes.slice(1).forEach((child, index) => {
@@ -797,9 +770,14 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     // making node reuse independent of pivot/expansion order.
     for (const candidate of [...nodes]) {
       if (!candidate.branchProfileId || candidate.type !== 'person') continue;
-      const target = findUniqueConsolidatedNameMatch(candidate,
-        nodes.filter(node => node !== candidate), root.id);
+      const target = findUniquePersonNameMatch(candidate,
+        nodes.filter(node => node !== candidate), root.id, true);
       if (!target) continue;
+      const hadIdentity = !!target.identityKeys?.length;
+      target.identityKeys = [...new Set([...(target.identityKeys ?? []), ...(candidate.identityKeys ?? [])])];
+      if (!hadIdentity && candidate.identityKeys?.length) target.subtitle = candidate.subtitle;
+      target.details = [...target.details, ...candidate.details.filter(field =>
+        !target.details.some(existing => existing.label === field.label && existing.value === field.value))];
       target.consolidations = [...(target.consolidations ?? []), ...(candidate.consolidations ?? [])]
         .filter((record, index, all) => all.findIndex(other => other.profileId === record.profileId) === index);
       for (const edge of links) {
@@ -849,6 +827,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       }
       this.expandedPivotBranches.update(branches => branches.filter(branch => branch.record.profileId !== record.profileId));
       this.pivotExpansionError.set(null);
+      this.expansionNotice.set(null);
       this.renderRelationshipPage(undefined, true);
       // Restoring the parent node is less confusing than selecting a disappeared child.
       this.selectSourceLink(record);
@@ -858,34 +837,27 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     const contextVersion = this.graphContextVersion;
     this.expandingPivotProfileId.set(record.profileId);
     this.pivotExpansionError.set(null);
+    this.expansionNotice.set(null);
     this.consolidatedProfilesApi.getProfile(record.profileId).pipe(
-      switchMap(profile => {
-        const searchId = profile.searchId?.trim();
-        const resultId = profile.preconsolidatedResultId?.trim();
-        if (!searchId || !resultId) return of({ profile, relations: [] as GraphRelationEntry[], detailError: false });
-        return this.getGraphResultDetail(searchId, resultId, profile).pipe(
-          map(detail => ({ profile, relations: collectGraphRelations(detail), detailError: false })),
-          catchError(() => of({ profile, relations: [] as GraphRelationEntry[], detailError: true }))
-        );
-      }),
       finalize(() => {
         if (contextVersion !== this.graphContextVersion) return;
         this.expandingPivotProfileId.set(null);
         onComplete?.();
       })
     ).pipe(takeUntil(this.graphContextChanged)).subscribe({
-      next: data => {
-        if (data.detailError) {
-          this.pivotExpansionError.set('No fue posible consultar los vínculos del perfil consolidado. Inténtalo de nuevo.');
+      next: profile => {
+        if (!Array.isArray(profile.linkGroups)) {
+          this.pivotExpansionError.set('El perfil hijo no devolvió sus grupos de vínculos.');
           return;
         }
-        if (!data.relations.length) {
-          this.pivotExpansionError.set(
-            'El perfil está consolidado, pero no tiene vínculos adicionales disponibles para desplegar.'
-          );
+        const relations = collectGraphRelations(profile);
+        if (!relations.length) {
+          this.expansionNotice.set(profile.linkGroups.some(group => (group.count ?? 0) > 0)
+            ? 'El perfil reporta vínculos, pero no entregó relaciones disponibles para dibujar.'
+            : 'El perfil hijo no tiene vínculos guardados para desplegar.');
           return;
         }
-        this.expandedPivotBranches.update(branches => [...branches, { record, ...data }]);
+        this.expandedPivotBranches.update(branches => [...branches, { record, profile, relations }]);
         this.renderRelationshipPage(undefined, true);
         this.selectSourceLink(record);
         this.focusExpandedBranch(record.profileId);
@@ -998,19 +970,16 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.getGraphResultDetail(searchId, resultId, sourceProfile).pipe(
-      switchMap((detail) => {
-        // Comprobar el ID real y su entidad antes del POST: nunca usar IDs visuales
-        // ni pivoteos de otra clase de vínculo si cambió el resultado padre.
-        const belongsToEntity = (detail.linkGroups ?? []).some((group) =>
-          resolveGraphNodeType(group.entityType) === node.type &&
-          (group.items ?? []).some((item) => item.linkId === linkId)
-        );
-        if (!belongsToEntity) {
-          return throwError(() => new Error('Este vínculo ya no está disponible para el tipo de nodo seleccionado. Actualiza el grafo e inténtalo de nuevo.'));
-        }
-        return this.pivotGraphLink(searchId, resultId, linkId, sourceProfile);
-      }),
+    const belongsToEntity = (sourceProfile.linkGroups ?? []).some(group =>
+      resolveGraphNodeType(group.entityType) === node.type &&
+      (group.items ?? []).some(item => item.linkId === linkId)
+    );
+    if (!belongsToEntity) {
+      this.pivotLoading.set(false);
+      this.pivotError.set('Este vínculo no está disponible para el tipo de nodo seleccionado. Actualiza el grafo e inténtalo de nuevo.');
+      return;
+    }
+    this.pivotGraphLink(searchId, resultId, linkId, sourceProfile).pipe(
       finalize(() => this.pivotLoading.set(false))
     ).pipe(takeUntil(this.graphContextChanged)).subscribe({
       next: (page) => {
@@ -1266,31 +1235,6 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // Las relaciones proceden del detalle de búsqueda, no únicamente de la página
-    // actualmente visible. Si el usuario pregunta antes de cargar ese endpoint,
-    // esperamos su respuesta en vez de mandar un grafo incompleto a la IA.
-    const searchId = profile.searchId?.trim();
-    const resultId = profile.preconsolidatedResultId?.trim();
-    if (!this.aiSourceDetail() && searchId && resultId) {
-      this.isAiLoading.set(true);
-      this.aiErrorMessage.set(null);
-      this.getGraphResultDetail(searchId, resultId, profile).pipe(takeUntil(this.graphContextChanged)).subscribe({
-        next: (detail) => {
-          this.aiSourceDetail.set(detail);
-          this.relationshipCatalog.set(collectGraphRelations(detail));
-          this.relationshipTotals.set(collectRelationshipTotals(detail));
-          this.renderRelationshipPage(profile, true);
-          this.isAiLoading.set(false);
-          this.askAi(question);
-        },
-        error: () => {
-          this.isAiLoading.set(false);
-          this.aiErrorMessage.set('No fue posible consultar el detalle de búsqueda. Inténtalo nuevamente; no se generó una respuesta incompleta.');
-        }
-      });
-      return;
-    }
-
     const requestId = ++this.aiRequestSequence;
     this.activeAiRequestId = requestId;
 
@@ -1317,8 +1261,8 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
 
     // Para listados y relaciones explícitas, respondemos desde los 2 endpoints
     // ya consultados, sin el truncamiento del fast-path del backend (12 vehículos).
-    const factualAnswer = this.aiSourceDetail()
-      ? answerGraphFacts(question, this.aiSourceDetail()!, history)
+    const factualAnswer = profile.linkGroups
+      ? answerGraphFacts(question, profile, history)
       : null;
     if (factualAnswer) {
       this.updateAiMessage(assistantMessage.id, (message) => ({
@@ -1672,7 +1616,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private currentAiGraphPayload(): IntelligenceGraphPayload {
-    const detail = this.aiSourceDetail();
+    const detail = this.loadedProfile();
     if (detail) {
       // No limitar el contexto a la página/filtro visible del SVG.
       // Para grafos masivos se acota a 120 relaciones; los listados completos
@@ -1764,6 +1708,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.selectedNodeId.set(nodeId);
     this.pivotError.set(null);
     this.pivotExpansionError.set(null);
+    this.expansionNotice.set(null);
     const rootId = this.rootNode().id;
     const connectedLink = nodeId === rootId
       ? undefined
@@ -2078,6 +2023,7 @@ export class GraphPage implements OnInit, AfterViewInit, OnDestroy {
     this.pivotError.set(null);
     this.expandedPivotBranches.set([]);
     this.pivotExpansionError.set(null);
+    this.expansionNotice.set(null);
     this.selectedNodeId.set(this.profileId || 'profile');
     this.selectedLinkId.set(null);
     this.expandedLinkType.set(null);
@@ -2207,7 +2153,7 @@ function mapProfileToGraph(
   return { nodes, links };
 }
 
-function collectGraphRelations(detail?: SearchResultDetailResponse | null): GraphRelationEntry[] {
+function collectGraphRelations(detail?: Pick<ConsolidatedProfileResponse, 'linkGroups'> | null): GraphRelationEntry[] {
   if (!detail?.linkGroups?.length) {
     return [];
   }
@@ -2222,7 +2168,7 @@ function collectGraphRelations(detail?: SearchResultDetailResponse | null): Grap
   });
 }
 
-function collectRelationshipTotals(detail?: SearchResultDetailResponse | null): GraphNodeLinks {
+function collectRelationshipTotals(detail?: Pick<ConsolidatedProfileResponse, 'linkGroups'> | null): GraphNodeLinks {
   const totals: GraphNodeLinks = { persons: 0, vehicles: 0, weapons: 0 };
 
   for (const group of detail?.linkGroups ?? []) {
@@ -2602,8 +2548,8 @@ function normalizedFullPersonName(value: string): string | null {
  * name; never override two different known identifiers or merge free-text peers.
  * The source relationship remains on its own edge for traceability.
  */
-function findUniqueConsolidatedNameMatch(
-  candidate: GraphNode, nodes: GraphNode[], rootProfileId: string
+function findUniquePersonNameMatch(
+  candidate: GraphNode, nodes: GraphNode[], rootProfileId: string, reconcileDirectNeighbor = false
 ): GraphNode | undefined {
   if (candidate.type !== 'person') return undefined;
   const name = normalizedFullPersonName(candidate.title);
@@ -2614,12 +2560,15 @@ function findUniqueConsolidatedNameMatch(
   // ambiguous. Do not silently merge people when evidence is insufficient.
   if (matches.length !== 1) return undefined;
   const target = matches[0];
-  if (target.id !== rootProfileId && !(target.consolidations?.length)) return undefined;
   const incomingKeys = candidate.identityKeys ?? [];
   const targetKeys = target.identityKeys ?? [];
   // If both sides have independent known IDs, full-name equality isn't proof.
   if (incomingKeys.length && targetKeys.length) return undefined;
-  return target;
+  if (target.id === rootProfileId || target.consolidations?.length) return target;
+  // A direct neighbor can also be the person returned by an expanded vehicle.
+  // Resolve after all branches are present so other namesakes remain visible.
+  return reconcileDirectNeighbor && !target.branchProfileId && (incomingKeys.length || targetKeys.length)
+    ? target : undefined;
 }
 
 function normalizeDetailSearch(value: string): string {

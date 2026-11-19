@@ -266,7 +266,7 @@ function mapSourceGroup(
 
   return {
     id: createSourceId(title, sourceIndex),
-    code: createSourceInitials(sourceCode || sourceName || title),
+    code: sourceCode.toUpperCase() || createSourceInitials(sourceName || title),
     title,
     description:
       sourceName && sourceName !== title
@@ -985,8 +985,8 @@ function resolveLinkLabel(entityType: string, count: number): string {
 }
 
 function createSourceInitials(value: string): string {
-  const compact = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return compact.slice(0, 2) || 'FU';
+  const words = value.trim().toUpperCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  return words.length > 1 ? words.map(word => word[0]).join('') : words[0] || 'FU';
 }
 
 function createSourceId(value: string, index: number): string {

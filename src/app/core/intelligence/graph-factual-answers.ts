@@ -16,7 +16,7 @@ function relationKind(value: string | null | undefined): Kind | null {
   return null;
 }
 
-function entries(detail: SearchResultDetailResponse): RelationshipRecord[] {
+function entries(detail: Pick<SearchResultDetailResponse, 'linkGroups'>): RelationshipRecord[] {
   return (detail.linkGroups ?? []).flatMap((group) => {
     const kind = relationKind(group.entityType);
     return kind ? (group.items ?? []).map((item) => ({ kind, item })) : [];
@@ -72,7 +72,7 @@ function evidenceFor(record: RelationshipRecord, index: number): IntelligenceEvi
 /** Respuestas completas y trazables para preguntas que no requieren generación de un LLM. */
 export function answerGraphFacts(
   question: string,
-  detail: SearchResultDetailResponse,
+  detail: Pick<SearchResultDetailResponse, 'linkGroups'>,
   history: IntelligenceChatHistoryMessage[] = []
 ): IntelligenceAnswer | null {
   const q = normalize(question.trim());
@@ -175,7 +175,7 @@ export function answerGraphFacts(
 }
 
 /** El modelo sólo recibe campos relevantes, nunca identificadores técnicos de rastreo. */
-export function compactGraphFacts(detail: SearchResultDetailResponse): Array<{
+export function compactGraphFacts(detail: Pick<SearchResultDetailResponse, 'linkGroups'>): Array<{
   id: string; type: string; title: string; subtitle: string; details: Array<{ label: string; value: string }>;
 }> {
   return entries(detail).slice(0, 120).map(({ item, kind }) => {

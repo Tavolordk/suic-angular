@@ -185,9 +185,6 @@
                         }
                     </div>
                     }
-                    @if (pivotExpansionError()) {
-                    <p class="graph-pivot__message graph-pivot__message--error" role="alert">{{ pivotExpansionError() }}</p>
-                    }
                     @if (pivotError()) {
                     <p class="graph-pivot__message graph-pivot__message--error" role="alert">
                         <i class="fa-solid fa-circle-exclamation"></i>{{ pivotError() }}
@@ -414,6 +411,14 @@
 
             <div class="graph-stage-controls">
             <section class="graph-explorer" aria-label="Explorador de vínculos">
+                @if (errorMessage(); as error) {
+                <p role="alert">{{ error }} <button type="button" (click)="loadProfile()">Reintentar</button></p>
+                } @else if (loadedProfile(); as profile) {
+                @if (profile.linkGroups == null) {
+                <p role="alert">El perfil no devolvió sus grupos de vínculos. <button type="button" (click)="loadProfile()">Reintentar</button></p>
+                } @else if (!relationshipCatalog().length && !reportedRelationshipCount()) {
+                <p role="status">Este perfil no tiene vínculos guardados.</p>
+                }
                 <div class="graph-explorer__filters" title="Delimita los vínculos que se exploran y paginan">
                     <button type="button" [class.graph-explorer__filter--active]="relationshipViewType() === 'all'"
                         (click)="setRelationshipView('all')">
@@ -464,6 +469,12 @@
                     <i class="fa-solid fa-circle-info"></i>
                     El servicio reporta más vínculos de los que entregó en este lote. Se visualiza únicamente la muestra recibida para mantener el grafo estable.
                 </div>
+                }
+                }
+                @if (pivotExpansionError(); as error) {
+                <p role="alert">No fue posible cargar los vínculos del perfil hijo. {{ error }}</p>
+                } @else if (expansionNotice(); as notice) {
+                <p role="status">{{ notice }}</p>
                 }
             </section>
 
