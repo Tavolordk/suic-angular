@@ -1,0 +1,33 @@
+:host,.scene,.layer,.effects,.effects canvas {position:absolute;inset:0;pointer-events:none}
+.scene {overflow:hidden;background:#223544}
+.layer {background-size:100% 100%;background-repeat:no-repeat}
+.effects {opacity:.25;background:linear-gradient(115deg,#223544,#99a8be,#223544);background-size:180% 180%;animation:atmosphere 18s ease-in-out infinite alternate}
+.effects canvas {width:100%;height:100%}
+.effects canvas:last-child {opacity:.22}
+@keyframes atmosphere {to {background-position:100% 100%}}
+@media(prefers-reduced-motion:reduce){.effects{animation:none}}
+.background-atmosphere {background-image:url('../../../../../assets/suic-login/background-atmosphere.svg');}
+.constelacion-de-investigacion {background-image:url('../../../../../assets/suic-login/constelacion-de-investigacion.svg');}
+.distant-lower-network {background-image:url('../../../../../assets/suic-login/distant-lower-network.svg');}
+.distant-upper-network {background-image:url('../../../../../assets/suic-login/distant-upper-network.svg');}
+.left-edge-branches {background-image:url('../../../../../assets/suic-login/left-edge-branches.svg');}
+.lower-distant-nodes {background-image:url('../../../../../assets/suic-login/lower-distant-nodes.svg');}
+.lower-left-network {background-image:url('../../../../../assets/suic-login/lower-left-network.svg');}
+.lower-primary-nodes {background-image:url('../../../../../assets/suic-login/lower-primary-nodes.svg');}
+.upper-distant-nodes {background-image:url('../../../../../assets/suic-login/upper-distant-nodes.svg');}
+.upper-edge-branches {background-image:url('../../../../../assets/suic-login/upper-edge-branches.svg');}
+.upper-primary-nodes {background-image:url('../../../../../assets/suic-login/upper-primary-nodes.svg');}
+.upper-right-network {background-image:url('../../../../../assets/suic-login/upper-right-network.svg');}
+.vector {background-image:url('../../../../../assets/suic-login/vector.svg');}
+.vector1 {background-image:url('../../../../../assets/suic-login/vector1.svg');opacity:.25;}
+.vector10 {background-image:url('../../../../../assets/suic-login/vector10.svg');opacity:.25;}
+.vector11 {background-image:url('../../../../../assets/suic-login/vector11.svg');opacity:.25;}
+.vector12 {background-image:url('../../../../../assets/suic-login/vector12.svg');opacity:.25;}
+.vector2 {background-image:url('../../../../../assets/suic-login/vector2.svg');opacity:.25;}
+.vector3 {background-image:url('../../../../../assets/suic-login/vector3.svg');opacity:.25;}
+.vector4 {background-image:url('../../../../../assets/suic-login/vector4.svg');opacity:.25;}
+.vector5 {background-image:url('../../../../../assets/suic-login/vector5.svg');opacity:.25;}
+.vector6 {background-image:url('../../../../../assets/suic-login/vector6.svg');opacity:.25;}
+.vector7 {background-image:url('../../../../../assets/suic-login/vector7.svg');opacity:.25;}
+.vector8 {background-image:url('../../../../../assets/suic-login/vector8.svg');opacity:.25;}
+.vector9 {background-image:url('../../../../../assets/suic-login/vector9.svg');opacity:.25;}

@@ -1,6 +1,10 @@
 :host {
   display: block;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-padding-block: 16px;
 }
 
 .two-step-page,
@@ -10,12 +14,11 @@
 
 .two-step-page {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  display: grid;
+  grid-template: 1fr auto / minmax(0, 1fr);
+  min-height: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow-x: clip;
   font-family: 'Noto Sans', Arial, sans-serif;
 }
 
@@ -51,7 +54,8 @@
   align-items: center;
   gap: 18px;
   width: 100%;
-  padding: 0 16px;
+  align-self: center;
+  padding: 20px 16px 8px;
 }
 
 .two-step-logo {
@@ -74,7 +78,8 @@
 
 .two-step-logo__image {
   position: relative;
-  width: auto;
+  background: url('../../../../../assets/suic-login/seguridad.png') center/contain no-repeat;
+  width: 374px;
   height: 72px;
   max-width: min(374px, 80vw);
   object-fit: contain;
@@ -183,7 +188,8 @@
 }
 
 .two-step-code {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 38px));
   justify-content: center;
   gap: 7px;
   width: 100%;
@@ -191,7 +197,8 @@
 }
 
 .two-step-code__input {
-  width: 38px;
+  width: 100%;
+  min-width: 0;
   height: 45px;
   border: 1.5px solid rgba(255, 255, 255, 0.9);
   border-radius: 8px;
@@ -310,9 +317,8 @@
 }
 
 .two-step-version {
-  position: absolute;
-  right: 20px;
-  bottom: 16px;
+  justify-self: end;
+  padding: 8px 16px max(8px, env(safe-area-inset-bottom));
   z-index: 2;
   margin: 0;
   color: #98989a;
@@ -355,13 +361,17 @@
   }
 
   .two-step-code__input {
-    width: 36px;
     height: 43px;
   }
 
   .two-step-version {
-    right: 12px;
-    bottom: 8px;
     font-size: 10px;
   }
+}
+
+.two-step-card { overflow-wrap: anywhere; }
+@media (max-height: 640px) {
+  .two-step-page__content { gap: 8px; padding-block: 12px 4px; }
+  .two-step-logo__image { height: 44px; }
+  .two-step-card { min-height: auto; }
 }

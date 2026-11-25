@@ -1,108 +1,32 @@
 import { isPlatformBrowser } from '@angular/common';
-import {
-    AfterViewInit,
-    Component,
-    ElementRef,
-    NgZone,
-    OnDestroy,
-    PLATFORM_ID,
-    ViewChild,
-    inject
-} from '@angular/core';
-
-import { createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-
-import {
-    FigmaOrbitalBackgroundReact
-} from './figma-orbital-background.react';
+import { AfterViewInit, Component, ElementRef, inject, NgZone, OnDestroy, PLATFORM_ID, ViewChild } from '@angular/core';
 
 @Component({
     selector: 'app-figma-orbital-background',
     standalone: true,
-    template: `
-        <div #reactHost class="figma-orbital-background__host"></div>
-    `,
-    styles: [
-        `
-        :host {
-            position: absolute;
-            inset: 0;
-            display: block;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .figma-orbital-background__host {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .figma-orbital-background__host canvas {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        `
-    ]
+    templateUrl: './constellation.html',
+    styleUrl: './constellation.scss'
 })
-export class FigmaOrbitalBackgroundComponent
-    implements AfterViewInit, OnDestroy {
-
-    @ViewChild('reactHost', { static: true })
-    private readonly reactHost?: ElementRef<HTMLDivElement>;
-
-    private readonly ngZone = inject(NgZone);
-    private readonly platformId = inject(PLATFORM_ID);
-    private readonly isBrowser = isPlatformBrowser(this.platformId);
-
-    private reactRoot?: Root;
-    private destroyed = false;
+export class FigmaOrbitalBackgroundComponent implements AfterViewInit, OnDestroy {
+    @ViewChild('morph', { static: true }) private morph!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('nebula', { static: true }) private nebula!: ElementRef<HTMLCanvasElement>;
+    private readonly zone = inject(NgZone);
+    private readonly platform = inject(PLATFORM_ID);
+    private readonly lifecycle = new AbortController();
 
     ngAfterViewInit(): void {
-        if (!this.isBrowser) {
-            return;
-        }
-
-        const host = this.reactHost?.nativeElement;
-
-        if (!host) {
-            return;
-        }
-
-        this.ngZone.runOutsideAngular(() => {
-            this.mountReactBackground(host);
+        if (!isPlatformBrowser(this.platform)) return;
+        this.zone.runOutsideAngular(async () => {
+            try {
+                const { animateConstellation } = await import('./constellation-effects.js');
+                await animateConstellation([this.morph.nativeElement, this.nebula.nativeElement], this.lifecycle.signal);
+            } catch {
+                // La constelación y la atmósfera CSS siguen visibles sin WebGPU.
+            }
         });
     }
 
     ngOnDestroy(): void {
-        this.destroyed = true;
-
-        if (!this.isBrowser || !this.reactRoot) {
-            return;
-        }
-
-        this.ngZone.runOutsideAngular(() => {
-            this.reactRoot?.unmount();
-            this.reactRoot = undefined;
-        });
-    }
-
-    private mountReactBackground(host: HTMLDivElement): void {
-        if (this.destroyed) {
-            return;
-        }
-
-        this.reactRoot = createRoot(host);
-
-        this.reactRoot.render(
-            createElement(FigmaOrbitalBackgroundReact)
-        );
+        this.lifecycle.abort();
     }
 }

@@ -220,6 +220,14 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly links = signal<ProfileLinkGroupViewModel[]>([]);
   readonly activeLinkGroupId = signal<string | null>(null);
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
+  readonly previewPhoto = signal<ProfilePhotoViewModel | null>(null);
+  readonly photoValues = computed(() => new Set(this.photos().map(photo => photo.src)));
+  readonly relatedFiles = computed(() => this.sources().flatMap(source =>
+    source.fields.filter(field => field.isFile).map(field => ({
+      id: source.id + '|' + field.id, label: field.label, sourceTitle: source.title
+    }))
+  ));
+  readonly additionalGroups = computed(() => this.links().filter(group => group.kind === 'other'));
   readonly profileName = signal('Cargando perfil...');
   readonly profileSubtitle = signal('Perfil de persona');
   readonly profileEntity = signal<'Person' | 'Vehicle' | 'Weapon'>('Person');

@@ -326,7 +326,7 @@
                                             <i [class]="field.selected ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info'" aria-hidden="true"></i>
                                         </span>
                                         <strong>{{ field.label }}</strong>
-                                        <span [title]="field.value">{{ field.value }}</span>
+                                        @if (photoValues().has(field.value)) { <img class="field-photo" [src]="field.value" [alt]="field.label" /> } @else { <span [title]="field.value">{{ field.value }}</span> }
                                     </div>
                                     } @else {
                                     <button type="button" class="field-row" (click)="toggleField(field.id)"
@@ -336,7 +336,7 @@
                                         </span>
 
                                         <strong>{{ field.label }}</strong>
-                                        <span [title]="field.value">{{ field.value }}</span>
+                                        @if (photoValues().has(field.value)) { <img class="field-photo" [src]="field.value" [alt]="field.label" /> } @else { <span [title]="field.value">{{ field.value }}</span> }
                                     </button>
                                     }
                                     }
@@ -419,8 +419,12 @@
                                 </button>
 
                                 <div class="profile-gallery__images profile-carousel__page">
-                                    @for (photo of visiblePhotos(); track photo.id) {
-                                    <img [src]="photo.src" [alt]="photo.alt + ' · ' + photo.sourceTitle" />
+                                    @for (photo of visiblePhotos(); track $index) {
+                                    <button type="button" class="gallery-thumb" [attr.aria-label]="'Ampliar ' + photo.alt + ' de ' + photo.sourceTitle"
+                                        (click)="previewPhoto.set(photo); photoDialog.showModal()">
+                                        <img [src]="photo.src" alt="" />
+                                        <span>{{ photo.alt }} · {{ photo.sourceTitle }}</span>
+                                    </button>
                                     }
                                 </div>
 
@@ -432,6 +436,14 @@
                                 @if (photoPageCount() > 1) {
                                 <span class="profile-gallery__page">{{ photoPageLabel() }}</span>
                                 }
+                            <dialog #photoDialog class="gallery-preview" aria-label="Vista ampliada de la fotografía"
+                                    (close)="previewPhoto.set(null)">
+                                    @if (previewPhoto(); as photo) {
+                                    <button type="button" autofocus (click)="photoDialog.close()">Cerrar</button>
+                                    <img [src]="photo.src" [alt]="photo.alt" />
+                                    <p>{{ photo.alt }} · {{ photo.sourceTitle }}</p>
+                                    }
+                                </dialog>
                             </section>
                             }
 
@@ -471,22 +483,22 @@
                                 } @else {
                                   <ul>
                                   @for (item of uniqueSelectedData(); track item.label + '|' + item.value) {
-                                    <li><strong>{{ item.label }}:</strong> <span>{{ item.value }}</span>
+                                    <li><strong>{{ item.label }}:</strong> @if (photoValues().has(item.value)) { <img class="field-photo" [src]="item.value" [alt]="item.label" /> } @else { <span>{{ item.value }}</span> }
                                       <small>Procedencia: {{ item.sources.join(', ') }}</small>
                                     </li>
                                   }
                                   </ul>
                                 }
                             </details>
-                            <section class="accordion-card accordion-card--open">
-                                <button type="button" class="accordion-card__button">
+                            <details class="accordion-card" open>
+                                <summary class="accordion-card__button">
                                     <span>
                                         <i class="fa-regular fa-user"></i>
                                         {{ selectedDataLabel() }}
                                     </span>
 
-                                    <i class="fa-solid fa-chevron-up"></i>
-                                </button>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </summary>
 
                                 @if (selectedPersonalFields().length === 0) {
                                 <div class="accordion-card__empty">
@@ -500,7 +512,7 @@
                                         <article class="selected-field selected-field--grouped">
                                             <div>
                                                 <span>{{ group.label }}</span>
-                                                <strong [title]="group.value">{{ group.value }}</strong>
+                                                @if (photoValues().has(group.value)) { <img class="field-photo" [src]="group.value" [alt]="group.label" /> } @else { <strong [title]="group.value">{{ group.value }}</strong> }
                                                 <small>{{ group.evidences.length }} {{ group.evidences.length === 1 ? 'evidencia' : 'evidencias' }}</small>
                                             </div>
                                             <div class="selected-field__sources" aria-label="Fuentes que aportan el dato">
@@ -537,17 +549,17 @@
                                     }
                                 </div>
                                 }
-                            </section>
+                            </details>
 
-                            <section class="accordion-card accordion-card--open">
-                                <button type="button" class="accordion-card__button">
+                            <details class="accordion-card" open>
+                                <summary class="accordion-card__button">
                                     <span>
                                         <i class="fa-solid fa-location-dot"></i>
                                         Direcciones
                                     </span>
 
-                                    <i class="fa-solid fa-chevron-up"></i>
-                                </button>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </summary>
 
                                 @if (selectedAddresses().length === 0) {
                                 <div class="accordion-card__empty">
@@ -609,29 +621,39 @@
                                     }
                                 </div>
                                 }
-                            </section>
+                            </details>
 
-                            <section class="accordion-card">
-                                <button type="button" class="accordion-card__button">
+                            <details class="accordion-card">
+                                <summary class="accordion-card__button">
                                     <span>
                                         <i class="fa-solid fa-paperclip"></i>
                                         Archivos relacionados {{ relatedFileCount() }}
                                     </span>
 
                                     <i class="fa-solid fa-chevron-down"></i>
-                                </button>
-                            </section>
+                                </summary>
+                                @for (file of relatedFiles(); track file.id) {
+                                <div class="accordion-entry">{{ file.label }} · {{ file.sourceTitle }}</div>
+                                } @empty {
+                                <div class="accordion-card__empty">Sin archivos relacionados</div>
+                                }
+                            </details>
 
-                            <section class="accordion-card">
-                                <button type="button" class="accordion-card__button">
+                            <details class="accordion-card">
+                                <summary class="accordion-card__button">
                                     <span>
                                         <i class="fa-solid fa-border-all"></i>
                                         Objetos adicionales {{ additionalObjectCount() }}
                                     </span>
 
                                     <i class="fa-solid fa-chevron-down"></i>
-                                </button>
-                            </section>
+                                </summary>
+                                @for (group of additionalGroups(); track group.id) {
+                                <div class="accordion-entry">{{ group.label }} · {{ group.count }}</div>
+                                } @empty {
+                                <div class="accordion-card__empty">Sin objetos adicionales</div>
+                                }
+                            </details>
 
                             @if (links().length > 0) {
                             <section class="links-card" [class.links-card--expanded]="activeLinkGroup() !== null">

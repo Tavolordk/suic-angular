@@ -1,229 +1,63 @@
 <section class="login-page">
-    <div class="login-page__background"></div>
-    <app-figma-orbital-background class="login-page__canvas"></app-figma-orbital-background>
-    <div class="login-page__vignette"></div>
-
-    <main class="login-page__content">
-        <header class="login-header">
-            <div class="login-header__logo-wrap">
-                <div class="login-header__glow"></div>
-                <img src="/login-seguridad-logo.png" alt="Logotipo institucional" class="login-header__logo" />
-            </div>
-
-            <div class="login-header__text">
-                <h1>Sistema Plataforma México</h1>
-                <p>Bienvenido</p>
-            </div>
+    <app-figma-orbital-background />
+    <main>
+        <header class="brand">
+            <span class="brand-logo" role="img" aria-label="Seguridad, Secretaría de Seguridad y Protección Ciudadana"></span>
+            <h1>Sistema Plataforma México</h1>
         </header>
-
-        <section class="login-card" aria-label="Formulario de inicio de sesión">
-            <div class="login-card__steps">
-                <span class="login-card__step login-card__step--active"></span>
-                <span class="login-card__step"></span>
-            </div>
-
-            <p class="login-card__subtitle">
-                Ingresa tus credenciales para continuar
-            </p>
-
-            <p class="login-error" role="alert" *ngIf="auth.error()">{{ auth.error() }}</p>
-                <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
-                <div class="login-field">
-                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(usuario)">
-                        <span class="login-field__icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 26" fill="none">
-                                <path
-                                    d="M21.75 24.25V21.75C21.75 19.27 19.73 17.25 17.25 17.25H6.75C4.27 17.25 2.25 19.27 2.25 21.75V24.25M16.75 6.75C16.75 9.51 14.51 11.75 11.75 11.75C8.99 11.75 6.75 9.51 6.75 6.75C6.75 3.99 8.99 1.75 11.75 1.75C14.51 1.75 16.75 3.99 16.75 6.75Z"
-                                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                                    stroke-linejoin="round" />
-                            </svg>
-                        </span>
-
-                        <input type="text" formControlName="usuario" placeholder="Usuario" autocomplete="off"
-                            maxlength="80" />
+        <section class="access-card" aria-labelledby="login-title">
+            <h2 id="login-title">Iniciar sesión</h2>
+            <p class="intro">Ingrese sus credenciales para acceder al sistema.</p>
+            <form [formGroup]="form" (ngSubmit)="submit()">
+                <label>Usuario
+                    <input formControlName="usuario" autocomplete="username" maxlength="80" required />
+                    @if (shouldShowError(usuario)) { <small>Ingresa tu usuario.</small> }
+                </label>
+                <label class="contact-field">Correo electrónico
+                    <input type="email" formControlName="correo" autocomplete="email" maxlength="120" placeholder="usuario@dominio.gob.mx" />
+                    @if (shouldShowError(form.controls.correo)) { <small>Ingresa un correo válido.</small> }
+                </label>
+                <label class="contact-field">Número de celular
+                    <input type="tel" formControlName="telefono" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="10 dígitos" />
+                    @if (shouldShowError(form.controls.telefono)) { <small>Ingresa los 10 dígitos del celular.</small> }
+                </label>
+                <fieldset>
+                    <legend>Método de envío de código</legend>
+                    <div class="channels">
+                        <button type="button" [attr.aria-pressed]="channel() === 'telegram'" [disabled]="isBusy" (click)="selectChannel('telegram')"><i class="telegram"></i>Telegram</button>
+                        <button type="button" [attr.aria-pressed]="channel() === 'correo'" [disabled]="isBusy" (click)="selectChannel('correo')"><i class="correo"></i>Correo</button>
+                        <button type="button" disabled title="SMS no disponible"><i class="sms"></i>SMS</button>
                     </div>
-
-                    <small class="login-error" *ngIf="shouldShowError(usuario)">
-                        El usuario es obligatorio.
-                    </small>
-                </div>
-
-                <div class="login-field">
-                    <div class="login-field__control" [class.login-field__control--invalid]="shouldShowError(contacto)">
-                        <span class="login-field__icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M4 4H20V16H7L4 19V4Z" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round" />
-                                <path d="M7 8H17M7 12H13" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
-                        </span>
-
-                        <input type="text" formControlName="contacto" placeholder="Correo o teléfono" autocomplete="off"
-                            autocapitalize="none" spellcheck="false" inputmode="text" maxlength="120"
-                            aria-describedby="contacto-ayuda contacto-error"
-                            [attr.aria-invalid]="shouldShowError(contacto)" (input)="onContactInput($event)" />
-                    </div>
-
-                    <small id="contacto-ayuda" class="login-field__hint">
-                        <ng-container *ngIf="contactIsPhone(); else contactoEjemplo">
-                            {{ contacto?.value?.length || 0 }} de {{ contactPhoneLength }} dígitos
-                        </ng-container>
-
-                        <ng-template #contactoEjemplo>
-                            Ejemplo: usuario&#64;dominio.com o 5512345678
-                        </ng-template>
-                    </small>
-
-                    <div id="contacto-error" class="login-field__messages" *ngIf="shouldShowError(contacto)">
-                        <small class="login-error" *ngIf="contacto?.errors?.['required']">
-                            Ingresa un correo electrónico o un teléfono.
-                        </small>
-
-                        <small class="login-error" *ngIf="contacto?.errors?.['maxlength']">
-                            El dato no puede superar los 120 caracteres.
-                        </small>
-
-                        <small class="login-error" *ngIf="contacto?.errors?.['phoneLength']">
-                            El teléfono debe tener exactamente 10 dígitos.
-                        </small>
-
-                        <small class="login-error" *ngIf="contacto?.errors?.['phoneFormat']">
-                            Captura únicamente 10 dígitos. No se permiten +52, espacios, guiones ni paréntesis.
-                        </small>
-
-                        <small class="login-error" *ngIf="contacto?.errors?.['emailFormat']">
-                            El formato del correo electrónico no es válido.
-                        </small>
-
-                        <small class="login-error" *ngIf="contacto?.errors?.['contactMethod']">
-                            Ingresa un correo electrónico válido o un teléfono de 10 dígitos.
-                        </small>
-                    </div>
-                </div>
-
+                </fieldset>
                 <div class="captcha">
-                    <div class="captcha__header">
-                        <label>
-                            Verificación CAPTCHA
-                        </label>
-
-                        <div class="captcha__meta">
-                            <span class="captcha__countdown"
-                                [class.captcha__countdown--warning]="captcha.remainingSeconds() <= 15"
-                                aria-live="polite">
-                                <ng-container *ngIf="captcha.loading(); else captchaCountdown">
-                                    Actualizando...
-                                </ng-container>
-
-                                <ng-template #captchaCountdown>
-                                    <ng-container *ngIf="captcha.challenge(); else captchaMissing">
-                                        Caduca en {{ captcha.expirationLabel() }}
-                                    </ng-container>
-                                </ng-template>
-
-                                <ng-template #captchaMissing>Sin captcha</ng-template>
-                            </span>
-
-                            <button type="button" class="captcha__refresh" title="Actualizar CAPTCHA"
-                                aria-label="Actualizar CAPTCHA" [disabled]="isBusy" (click)="refreshCaptcha()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                                    [class.captcha__refresh-icon--spinning]="captcha.loading()">
-                                    <path d="M21 2v6h-6"></path>
-                                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                    <path d="M3 22v-6h6"></path>
-                                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                                </svg>
-                            </button>
+                    <label for="captcha-answer">CAPTCHA de seguridad</label>
+                    <div class="challenge">
+                        <div class="challenge-image">
+                            @if (captcha.imageDataUrl(); as image) {
+                                <img [src]="image" alt="CAPTCHA de seguridad" draggable="false" />
+                            } @else { {{ captcha.loading() ? 'Generando CAPTCHA…' : 'CAPTCHA no disponible' }} }
                         </div>
+                        <button type="button" aria-label="Actualizar CAPTCHA" [disabled]="isBusy" (click)="refreshCaptcha()">↻</button>
                     </div>
-
-                    <div class="captcha__box">
-                        <img *ngIf="captcha.imageDataUrl() as captchaImage; else captchaPlaceholder"
-                            class="captcha__image" [src]="captchaImage" alt="Imagen del captcha de seguridad"
-                            draggable="false" />
-
-                        <ng-template #captchaPlaceholder>
-                            <span class="captcha__code">
-                                {{ captcha.loading() ? 'Generando captcha...' : 'No se pudo cargar el captcha' }}
-                            </span>
-                        </ng-template>
-                    </div>
-
-                    <div class="login-field__control"
-                        [class.login-field__control--invalid]="shouldShowError(captchaControl)">
-                        <span class="login-field__icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </span>
-
-                        <input type="text" formControlName="captcha" placeholder="Escribe el código" autocomplete="off"
-                            [attr.maxlength]="captchaLength" class="captcha__input" [readOnly]="isBusy"
-                            (input)="onCaptchaInput($event)" />
-                    </div>
-
-                    <small class="login-error" *ngIf="shouldShowError(captchaControl)">
-                        Captura los {{ captchaLength }} caracteres alfanuméricos del CAPTCHA.
-                    </small>
-
-                    <small class="login-error" *ngIf="captcha.error()">
-                        {{ captcha.error() }}
-                    </small>
+                    <input id="captcha-answer" formControlName="captcha" [attr.maxlength]="captchaLength"
+                        placeholder="Escribe el código" autocomplete="off" [readOnly]="isBusy" (input)="onCaptchaInput($event)" />
+                    @if (captcha.challenge()) { <span class="hint">Caduca en {{ captcha.expirationLabel() }}</span> }
+                    @if (shouldShowError(captchaControl)) { <small>Captura los {{ captchaLength }} caracteres del CAPTCHA.</small> }
+                    @if (captcha.error()) { <small role="alert">{{ captcha.error() }}</small> }
                 </div>
-
                 <div class="terms">
-                    <button type="button" class="terms__checkbox"
-                        [class.terms__checkbox--checked]="aceptaTerminos?.value"
-                        [class.terms__checkbox--invalid]="shouldShowError(aceptaTerminos)"
-                        aria-label="Aceptar términos y condiciones"
-                        (click)="form.patchValue({ aceptaTerminos: !aceptaTerminos?.value })">
-                        <svg *ngIf="aceptaTerminos?.value" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                            <path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4"
-                                stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </button>
-
-                    <p>
-                        Acepto
-                        <button type="button" class="terms__link" (click)="openTerms()"
-                            aria-haspopup="dialog">términos y condiciones</button>
-                    </p>
+                    <input id="accept-terms" type="checkbox" formControlName="aceptaTerminos" />
+                    <label for="accept-terms">Acepto los</label>
+                    <button type="button" (click)="openTerms()" aria-haspopup="dialog">términos y condiciones</button>
                 </div>
-
-                <small class="login-error login-error--center" *ngIf="shouldShowError(aceptaTerminos)">
-                    Debes aceptar los términos y condiciones.
-                </small>
-
-                <p class="login-error login-error--center" *ngIf="loginError()">
-                    {{ loginError() }}
-                </p>
-
-                <button type="submit" class="login-submit"
-                    [disabled]="isBusy || form.invalid || !captcha.challenge() || captcha.isExpired()">
-                    {{
-                    isBusy
-                    ? 'Validando...'
-                    : 'Enviar código'
-                    }}
+                @if (loginError() || auth.error()) { <small role="alert">{{ loginError() || auth.error() }}</small> }
+                <button type="submit" class="submit" [disabled]="isBusy || form.invalid || !captcha.challenge() || captcha.isExpired()">
+                    {{ isBusy ? 'Validando…' : 'Iniciar sesión' }} <span aria-hidden="true">→</span>
                 </button>
             </form>
+            <p class="secure"><i></i> Acceso seguro con autenticación de dos factores</p>
         </section>
     </main>
-
-    <footer class="login-footer" aria-label="Información del sistema">
-        <span class="login-footer__developer">
-            Desarrollado por UIIVT | DGSI
-        </span>
-
-        <span class="login-footer__version">
-            Versión 1.0.0
-        </span>
-    </footer>
+    <footer><span>Desarrollado por UIIVT | DGSI</span><span>Versión 1.0.0</span></footer>
 </section>
-
-@if (termsOpen()) {
-    <app-terms-dialog (closed)="closeTerms()" />
-}
+@if (termsOpen()) { <app-terms-dialog (closed)="closeTerms()" /> }
