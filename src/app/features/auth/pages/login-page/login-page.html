@@ -9,24 +9,27 @@
             <h2 id="login-title">Iniciar sesión</h2>
             <p class="intro">Ingrese sus credenciales para acceder al sistema.</p>
             <form [formGroup]="form" (ngSubmit)="submit()">
-                <label>Usuario
+                <label class="contact-field">Usuario
                     <input formControlName="usuario" autocomplete="username" maxlength="80" required />
                     @if (shouldShowError(usuario)) { <small>Ingresa tu usuario.</small> }
                 </label>
+                @if (channel() === 'correo') {
                 <label class="contact-field">Correo electrónico
                     <input type="email" formControlName="correo" autocomplete="email" maxlength="120" placeholder="usuario@dominio.gob.mx" />
                     @if (shouldShowError(form.controls.correo)) { <small>Ingresa un correo válido.</small> }
                 </label>
+                } @else {
                 <label class="contact-field">Número de celular
                     <input type="tel" formControlName="telefono" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="10 dígitos" />
                     @if (shouldShowError(form.controls.telefono)) { <small>Ingresa los 10 dígitos del celular.</small> }
                 </label>
+                }
                 <fieldset>
                     <legend>Método de envío de código</legend>
                     <div class="channels">
                         <button type="button" [attr.aria-pressed]="channel() === 'telegram'" [disabled]="isBusy" (click)="selectChannel('telegram')"><i class="telegram"></i>Telegram</button>
                         <button type="button" [attr.aria-pressed]="channel() === 'correo'" [disabled]="isBusy" (click)="selectChannel('correo')"><i class="correo"></i>Correo</button>
-                        <button type="button" disabled title="SMS no disponible"><i class="sms"></i>SMS</button>
+                        <button type="button" [attr.aria-pressed]="channel() === 'sms'" [disabled]="isBusy || !smsEnabled" [title]="smsEnabled ? 'SMS' : 'SMS no disponible'" (click)="selectChannel('sms')"><i class="sms"></i>SMS</button>
                     </div>
                 </fieldset>
                 <div class="captcha">

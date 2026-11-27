@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { GraphPage } from './graph-page';
 import { SearchApiService } from '../../../../core/infrastructure/search-api/search-api.service';
 import { SearchStateService } from '../../../search/data-access/search-state.service';
@@ -164,6 +164,32 @@ describe('GraphPage – pivoteo de nodos hijos', () => {
     expect(pivotCalls.length).toBe(0);
     expect(component.pivotError()).toContain('tipo de nodo');
     expect(navigations.length).toBe(0);
+  });
+
+  it('mantiene el indicador mientras la búsqueda está pendiente y evita peticiones duplicadas', () => {
+    selectChild('vehicle');
+    const pending = new Subject<SearchResultsPageResponse>();
+    let calls = 0;
+    TestBed.inject(SearchApiService).pivotLink = () => { calls++; return pending.asObservable(); };
+    component.searchFromNode('child', new MouseEvent('dblclick'));
+    expect(component.pivotLoading()).toBe(true);
+    component.searchFromNode('child', new MouseEvent('dblclick'));
+    expect(calls).toBe(1);
+    pending.next(makePage(0));
+    pending.complete();
+    expect(component.pivotLoading()).toBe(false);
+    expect(component.pivotNoResults()).not.toBeNull();
+  });
+
+  it('retira el indicador si la búsqueda falla', () => {
+    selectChild('vehicle');
+    const pending = new Subject<SearchResultsPageResponse>();
+    TestBed.inject(SearchApiService).pivotLink = () => pending.asObservable();
+    component.pivotSelectedNode();
+    expect(component.pivotLoading()).toBe(true);
+    pending.error(new Error('Error de consulta'));
+    expect(component.pivotLoading()).toBe(false);
+    expect(component.pivotError()).toBeTruthy();
   });
 
   it('el doble clic cancela el clic pendiente y navega una sola vez con resultados', () => {

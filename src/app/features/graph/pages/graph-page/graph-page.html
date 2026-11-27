@@ -9,7 +9,7 @@
         <rect width="100%" height="100%" fill="url(#dot-grid)"></rect>
     </svg>
 
-    <header class="graph-topbar">
+    <header class="graph-topbar" [attr.inert]="pivotLoading() ? '' : null">
         <div class="graph-topbar__left">
             <button type="button" class="graph-back" (click)="goBack()">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -74,7 +74,7 @@
         </div>
     </header>
 
-    <div class="graph-layout">
+    <div class="graph-layout" [attr.inert]="pivotLoading() ? '' : null">
         @if (detailPanelOpen()) {
         <aside class="graph-detail">
             <header class="graph-detail__header">
@@ -861,4 +861,22 @@
         </aside>
         }
     </div>
+    @if (pivotLoading()) {
+        <div class="graph-pivot-empty-overlay graph-pivot-loading-overlay">
+            <section class="graph-pivot-empty graph-pivot-loading" role="dialog" aria-modal="true" aria-busy="true" aria-labelledby="graph-pivot-loading-title" aria-describedby="graph-pivot-loading-description">
+                <div class="graph-pivot-loading__animation" aria-hidden="true">
+                    <span class="graph-pivot-loading__ring"></span>
+                    <span class="graph-pivot-loading__ring graph-pivot-loading__ring--inner"></span>
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <div role="status" aria-live="polite">
+                    <h2 id="graph-pivot-loading-title">Realizando búsqueda…</h2>
+                    <p id="graph-pivot-loading-description">Consultando las fuentes y los vínculos relacionados con el nodo seleccionado.</p>
+                </div>
+                <div class="graph-pivot-empty__node"><i class="fa-solid fa-circle-nodes" aria-hidden="true"></i><span>{{ selectedNode().title }}</span></div>
+                <div class="graph-pivot-loading__progress" role="progressbar" aria-label="Búsqueda en curso"><span></span></div>
+                <small>Esperando respuesta del servicio de búsqueda.</small>
+            </section>
+        </div>
+    }
 </section>

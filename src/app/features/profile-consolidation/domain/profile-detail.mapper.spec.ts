@@ -525,3 +525,26 @@ describe('perfil raíz de arma', () => {
     ]));
   });
 });
+
+
+describe('Galería de imágenes del tríptico', () => {
+  it('devuelve imágenes de distintas fuentes y archivos gráficos, sin incluir PDF ni valores vacíos', () => {
+    const profile = mapSearchResultDetail({ ...createDetail(), sourceGroups: [
+      { sourceCode: 'FUENTE-A', records: [{ attributes: [
+        { evidenceId: 'foto-a', code: 'foto', value: 'data:image/png;base64,AAAA' },
+        { evidenceId: 'pdf', code: 'archivo', value: '/documento.pdf' }
+      ] }] },
+      { sourceCode: 'FUENTE-B', records: [{ attributes: [
+        { evidenceId: 'foto-b', code: 'archivo', value: '/adjunto.jpg' },
+        { evidenceId: 'foto-c', code: 'imagen', value: '' }
+      ] }] }
+    ] });
+    expect(profile.photos.map(photo => [photo.id, photo.sourceTitle])).toEqual([
+      ['foto-a', 'FUENTE-A'], ['foto-b', 'FUENTE-B']
+    ]);
+  });
+
+  it('devuelve una galería vacía sin fabricar imágenes', () => {
+    expect(mapSearchResultDetail({ ...createDetail(), sourceGroups: [] }).photos).toEqual([]);
+  });
+});

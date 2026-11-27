@@ -687,9 +687,9 @@ function mapPhotos(
 
   return evidence
     .filter((item) => {
-      const code = normalizeCode(item.code || '');
       const value = item.value?.trim() || '';
-      return isPhotoCode(code) && isRenderableImage(value);
+      // Una imagen adjunta también pertenece a la galería, aunque su código sea ARCHIVO.
+      return isRenderableImage(value);
     })
     .map((item, index) => ({
       id: item.evidenceId || `photo-${index}`,
@@ -847,10 +847,6 @@ function isFileEvidence(code: string, value: string): boolean {
     return true;
   }
   return /\.(pdf|docx?|xlsx?|jpe?g|png)(?:\?.*)?$/i.test(value);
-}
-
-function isPhotoCode(code: string): boolean {
-  return /(FOTO|FOTOGRAFIA|IMAGEN|PHOTO|IMAGE)/.test(code);
 }
 
 function isRenderableImage(value: string): boolean {

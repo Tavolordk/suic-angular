@@ -49,7 +49,7 @@ const SOURCES_PER_PAGE = 5;
 const FIELDS_PER_PAGE = 5;
 const CONSOLIDATED_FIELDS_PER_PAGE = 3;
 const ADDRESSES_PER_PAGE = 1;
-const PHOTOS_PER_PAGE = 3;
+const PHOTOS_PER_PAGE = 1;
 const LINK_ITEMS_PER_PAGE = 2;
 
 interface ConsolidatedAddressViewModel {
@@ -198,14 +198,61 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.panelOptions.filter(panel => !this.visiblePanels().includes(panel.id))
   );
 
+  readonly transitioningPanels = signal<readonly string[]>([]);
+  private readonly panelAnimations = new Map<string, Animation>();
+  private destroyed = false;
+
   minimizePanel(id: string): void {
-    this.visiblePanels.update(panels => panels.filter(panel => panel !== id));
-    requestAnimationFrame(() => document.getElementById('restore-' + id)?.focus({ preventScroll: true }));
+    if (!this.visiblePanels().includes(id) || this.transitioningPanels().includes(id)) return;
+    this.animatePanelTransition(id, document.getElementById('panel-' + id), [
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: .65, transform: 'translateY(18px) scale(.96)' },
+      { opacity: 0, transform: 'translateY(42px) scale(.82)' }
+    ], 220, () => {
+      this.visiblePanels.update(panels => panels.filter(panel => panel !== id));
+      requestAnimationFrame(() => {
+        if (!this.destroyed) document.getElementById('restore-' + id)?.focus({ preventScroll: true });
+      });
+    });
   }
 
   restorePanel(id: string): void {
-    this.visiblePanels.update(panels => panels.includes(id) ? panels : [...panels, id]);
-    requestAnimationFrame(() => document.getElementById('minimize-' + id)?.focus({ preventScroll: true }));
+    if (this.visiblePanels().includes(id) || this.transitioningPanels().includes(id)) return;
+    this.animatePanelTransition(id, document.querySelector('#restore-' + id + ' .dock-icon'), [
+      { transform: 'translateY(-8px) scale(1.2)' },
+      { transform: 'translateY(-23px) scale(1.32)', offset: .42 },
+      { transform: 'translateY(-2px) scale(.98)' }
+    ], 300, () => {
+      this.visiblePanels.update(panels => panels.includes(id) ? panels : [...panels, id]);
+      requestAnimationFrame(() => {
+        if (this.destroyed) return;
+        const panel = document.getElementById('panel-' + id);
+        if (panel?.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          panel.animate([{ opacity: 0, transform: 'translateY(16px) scale(.96)' },
+            { opacity: 1, transform: 'none' }], { duration: 240, easing: 'ease-out' });
+        }
+        document.getElementById('minimize-' + id)?.focus({ preventScroll: true });
+      });
+    });
+  }
+
+  private animatePanelTransition(id: string, element: Element | null, frames: Keyframe[],
+    duration: number, complete: () => void): void {
+    if (!element?.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      complete();
+      return;
+    }
+    this.transitioningPanels.update(ids => [...ids, id]);
+    const animation = element.animate(frames, { duration, easing: 'cubic-bezier(.2,.75,.25,1)', fill: 'both' });
+    this.panelAnimations.set(id, animation);
+    const finish = () => {
+      this.panelAnimations.delete(id);
+      if (this.destroyed) return;
+      this.transitioningPanels.update(ids => ids.filter(item => item !== id));
+      animation.cancel();
+      complete();
+    };
+    void animation.finished.then(finish, finish);
   }
 
   private advanceCompletedSource(): void {
@@ -222,12 +269,24 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   readonly photos = signal<ProfilePhotoViewModel[]>([]);
   readonly previewPhoto = signal<ProfilePhotoViewModel | null>(null);
   readonly photoValues = computed(() => new Set(this.photos().map(photo => photo.src)));
-  readonly relatedFiles = computed(() => this.sources().flatMap(source =>
+  readonly unavailablePhotos = signal<ReadonlySet<string>>(new Set());
+  readonly availablePhotos = computed(() => this.photos().filter(photo => !this.unavailablePhotos().has(photo.src)));
+  // Conserva las evidencias originales incluso cuando se muestran los datos persistidos.
+  readonly fileSources = signal<ProfileSourceViewModel[]>([]);
+  readonly relatedFiles = computed(() => this.fileSources().flatMap(source =>
     source.fields.filter(field => field.isFile).map(field => ({
       id: source.id + '|' + field.id, label: field.label, sourceTitle: source.title
     }))
   ));
   readonly additionalGroups = computed(() => this.links().filter(group => group.kind === 'other'));
+  readonly relationshipGroups = computed(() => this.links().filter(group => group.kind !== 'other'));
+  readonly relatedFileCount = computed(() => this.relatedFiles().length +
+    this.additionalGroups().reduce((count, group) => count + Math.max(group.count, group.items.length), 0));
+
+  markPhotoUnavailable(src: string): void {
+    this.unavailablePhotos.update(previous => new Set([...previous, src]));
+  }
+
   readonly profileName = signal('Cargando perfil...');
   readonly profileSubtitle = signal('Perfil de persona');
   readonly profileEntity = signal<'Person' | 'Vehicle' | 'Weapon'>('Person');
@@ -235,8 +294,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     : this.profileEntity() === 'Weapon' ? 'Datos del arma' : 'Datos personales');
   readonly profileStatus = signal('');
   readonly hasConflicts = signal(false);
-  readonly relatedFileCount = signal(0);
-  readonly additionalObjectCount = signal(0);
 
   readonly sourcePageIndex = signal(0);
   readonly sourceFieldPageIndex = signal(0);
@@ -341,7 +398,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     ? Math.round((this.selectedSlotCount() / this.totalAvailable()) * 100) : 0);
 
   readonly totalLinks = computed(() =>
-    this.links().reduce((total, link) => total + link.count, 0)
+    this.relationshipGroups().reduce((total, link) => total + link.count, 0)
   );
 
   readonly activeLinkGroup = computed<ProfileLinkGroupViewModel | null>(() => {
@@ -487,7 +544,7 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   );
 
   readonly photoPages = computed(() =>
-    chunkItems(this.photos(), PHOTOS_PER_PAGE)
+    chunkItems(this.availablePhotos(), PHOTOS_PER_PAGE)
   );
   readonly photoPageCount = computed(() => this.photoPages().length);
   readonly normalizedPhotoPageIndex = computed(() =>
@@ -513,6 +570,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.panelAnimations.forEach(animation => animation.cancel());
+    this.panelAnimations.clear();
     if (this.clockInterval) {
       clearInterval(this.clockInterval);
     }
@@ -592,6 +652,8 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           this.selectedSourceId.set(this.workSources()[0]?.id ?? '');
           this.links.set(viewModel.links);
           this.activeLinkGroupId.set(null);
+          this.fileSources.set(viewModel.sources);
+          this.unavailablePhotos.set(new Set());
           this.photos.set(viewModel.photos);
           const entityType = normalizedDetail.entityType?.toLowerCase();
           this.profileEntity.set(entityType === 'vehicle' ? 'Vehicle'
@@ -607,8 +669,6 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
           this.profileSubtitle.set(viewModel.profileSubtitle);
           this.profileStatus.set(viewModel.status);
           this.hasConflicts.set(viewModel.hasConflicts);
-          this.relatedFileCount.set(viewModel.relatedFileCount);
-          this.additionalObjectCount.set(viewModel.additionalObjectCount);
           this.resetCarouselPages();
         },
         error: (error: unknown) => {
@@ -1360,8 +1420,9 @@ export class ProfileConsolidationPage implements OnInit, OnDestroy {
     this.links.set([]);
     this.activeLinkGroupId.set(null);
     this.photos.set([]);
-    this.relatedFileCount.set(0);
-    this.additionalObjectCount.set(0);
+    this.fileSources.set([]);
+    this.unavailablePhotos.set(new Set());
+    this.previewPhoto.set(null);
     this.profileEntity.set('Person');
     this.profileName.set('Perfil no disponible');
     this.profileSubtitle.set('Perfil de persona');

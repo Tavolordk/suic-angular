@@ -42,7 +42,8 @@ export class LoginPage implements OnDestroy {
 
     readonly currentYear = new Date().getFullYear();
     readonly captchaLength = CAPTCHA_LENGTH;
-    readonly channel = signal<'telegram' | 'correo'>('telegram');
+    readonly smsEnabled = false;
+    readonly channel = signal<'telegram' | 'correo' | 'sms'>('telegram');
 
     readonly termsOpen = signal(false);
     readonly loginError = signal('');
@@ -131,16 +132,18 @@ export class LoginPage implements OnDestroy {
         this.captcha.refresh();
     }
 
-    selectChannel(channel: 'telegram' | 'correo'): void {
-        if (this.isBusy || channel === this.channel()) return;
+    selectChannel(channel: 'telegram' | 'correo' | 'sms'): void {
+        if (this.isBusy || channel === this.channel() || (channel === 'sms' && !this.smsEnabled)) return;
         this.channel.set(channel);
         const { telefono, correo } = this.form.controls;
-        if (channel === 'telegram') {
-            correo.disable();
-            telefono.enable();
-        } else {
+        if (channel === 'correo') {
+            telefono.reset('', { emitEvent: false });
             telefono.disable();
             correo.enable();
+        } else {
+            correo.reset('', { emitEvent: false });
+            correo.disable();
+            telefono.enable();
         }
         this.loginError.set('');
         this.authService.clearError();
@@ -159,7 +162,7 @@ export class LoginPage implements OnDestroy {
     }
 
     submit(): void {
-        if (this.isBusy) {
+        if (this.isBusy || (this.channel() === 'sms' && !this.smsEnabled)) {
             return;
         }
 
@@ -189,7 +192,7 @@ export class LoginPage implements OnDestroy {
             .login({
                 usuario: value.usuario ?? '',
                 correo: this.channel() === 'correo' ? (value.correo ?? '').trim().toLowerCase() : '',
-                telefono: this.channel() === 'telegram' ? value.telefono ?? '' : '',
+                telefono: this.channel() !== 'correo' ? value.telefono ?? '' : '',
                 captcha: value.captcha ?? ''
             })
             .subscribe({

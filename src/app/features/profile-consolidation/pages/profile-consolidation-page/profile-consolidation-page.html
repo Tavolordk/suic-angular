@@ -206,7 +206,7 @@
                             <h2>Fuentes detectadas</h2>
                             <p>{{ readOnlySources() ? 'Consulta las fuentes de este perfil' : 'Selecciona una fuente para elegir sus campos' }}</p>
                             <button id="minimize-sources" class="panel-minimize" type="button"
-                                aria-label="Minimizar Fuentes" title="Minimizar Fuentes" (click)="minimizePanel('sources')">
+                                [attr.aria-disabled]="transitioningPanels().includes('sources')" aria-label="Minimizar Fuentes" title="Minimizar Fuentes" (click)="minimizePanel('sources')">
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
                             </button>
                         </header>
@@ -247,7 +247,7 @@
                             <h2>{{ readOnlySources() ? 'Datos de la fuente' : 'Selección de datos' }}</h2>
                             <p>{{ readOnlySources() ? 'Consulta las evidencias originales y los datos incluidos' : 'Elige los campos a incluir en el perfil' }}</p>
                             <button id="minimize-selection" class="panel-minimize" type="button"
-                                aria-label="Minimizar Datos" title="Minimizar Datos" (click)="minimizePanel('selection')">
+                                [attr.aria-disabled]="transitioningPanels().includes('selection')" aria-label="Minimizar Datos" title="Minimizar Datos" (click)="minimizePanel('selection')">
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
                             </button>
                         </header>
@@ -373,7 +373,7 @@
                             <h2>Perfil consolidado</h2>
                             <p>{{ isConsolidated() ? 'Datos persistidos y procedencia del perfil · solo lectura' : 'Verifica las evidencias incluidas antes de crear el perfil.' }}</p>
                             <button id="minimize-summary" class="panel-minimize" type="button"
-                                aria-label="Minimizar Resumen" title="Minimizar Resumen" (click)="minimizePanel('summary')">
+                                [attr.aria-disabled]="transitioningPanels().includes('summary')" aria-label="Minimizar Resumen" title="Minimizar Resumen" (click)="minimizePanel('summary')">
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
                             </button>
                         </header>
@@ -411,41 +411,57 @@
                             </section>
                             }
 
-                            @if (photos().length > 0) {
-                            <section class="profile-gallery">
-                                <button type="button" class="profile-gallery__arrow" aria-label="Foto anterior"
-                                    [disabled]="photoPageCount() <= 1" (click)="previousPhotoPage()">
-                                    <i class="fa-solid fa-chevron-left"></i>
-                                </button>
-
-                                <div class="profile-gallery__images profile-carousel__page">
-                                    @for (photo of visiblePhotos(); track $index) {
-                                    <button type="button" class="gallery-thumb" [attr.aria-label]="'Ampliar ' + photo.alt + ' de ' + photo.sourceTitle"
-                                        (click)="previewPhoto.set(photo); photoDialog.showModal()">
-                                        <img [src]="photo.src" alt="" />
-                                        <span>{{ photo.alt }} · {{ photo.sourceTitle }}</span>
-                                    </button>
+                            <section class="profile-image-section" aria-labelledby="profile-images-title">
+                                <header class="profile-image-section__header">
+                                    <h3 id="profile-images-title"><i class="fa-regular fa-images" aria-hidden="true"></i> Imágenes</h3>
+                                    <span>{{ availablePhotos().length }}</span>
+                                </header>
+                                @if (availablePhotos().length) {
+                                    <div class="profile-gallery profile-gallery--single" aria-label="Galería de imágenes" aria-roledescription="carrusel">
+                                        @if (photoPageCount() > 1) {
+                                            <button type="button" class="profile-gallery__arrow" aria-label="Foto anterior" (click)="previousPhotoPage()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+                                        }
+                                        <div class="profile-gallery__images" aria-live="polite">
+                                            @for (photo of visiblePhotos(); track photo.id + photo.src + normalizedPhotoPageIndex()) {
+                                                <button type="button" class="gallery-thumb" [attr.aria-label]="'Ampliar ' + photo.alt + ' de ' + photo.sourceTitle" (click)="previewPhoto.set(photo); photoDialog.showModal()">
+                                                    <img [src]="photo.src" [alt]="photo.alt" (error)="markPhotoUnavailable(photo.src)" />
+                                                    <span>{{ photo.alt }} · {{ photo.sourceTitle }}</span>
+                                                </button>
+                                            }
+                                        </div>
+                                        @if (photoPageCount() > 1) {
+                                            <button type="button" class="profile-gallery__arrow" aria-label="Foto siguiente" (click)="nextPhotoPage()"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                                        }
+                                    </div>
+                                    @if (photoPageCount() > 1) {
+                                        <div class="profile-image-section__pagination" aria-label="Posición del carrusel">
+                                            <span aria-live="polite">{{ photoPageLabel() }}</span>
+                                            @for (page of photoPages(); track $index) {
+                                                <button type="button" [class.is-current]="$index === normalizedPhotoPageIndex()" [attr.aria-label]="'Mostrar imagen ' + ($index + 1)" [attr.aria-current]="$index === normalizedPhotoPageIndex() ? 'true' : null" (click)="photoPageIndex.set($index)"></button>
+                                            }
+                                        </div>
                                     }
-                                </div>
-
-                                <button type="button" class="profile-gallery__arrow" aria-label="Foto siguiente"
-                                    [disabled]="photoPageCount() <= 1" (click)="nextPhotoPage()">
-                                    <i class="fa-solid fa-chevron-right"></i>
-                                </button>
-
-                                @if (photoPageCount() > 1) {
-                                <span class="profile-gallery__page">{{ photoPageLabel() }}</span>
+                                } @else {
+                                    <div class="profile-image-section__empty" role="status">
+                                        <svg viewBox="0 0 64 64" width="60" height="60" fill="none" aria-hidden="true">
+                                            <rect x="9" y="12" width="46" height="40" rx="7" stroke="currentColor" stroke-width="2.5" />
+                                            <circle cx="23" cy="25" r="4" stroke="currentColor" stroke-width="2.5" />
+                                            <path d="M12 45l13-12 8 7 7-9 12 13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M8 7l48 50" stroke="#edf2f6" stroke-width="7" stroke-linecap="round" />
+                                            <path d="M8 7l48 50" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                                        </svg>
+                                        <strong>Sin imágenes disponibles</strong>
+                                        <small>Las fuentes no devolvieron imágenes visibles.</small>
+                                    </div>
                                 }
-                            <dialog #photoDialog class="gallery-preview" aria-label="Vista ampliada de la fotografía"
-                                    (close)="previewPhoto.set(null)">
+                                <dialog #photoDialog class="gallery-preview" aria-label="Vista ampliada de la imagen" (close)="previewPhoto.set(null)">
                                     @if (previewPhoto(); as photo) {
-                                    <button type="button" autofocus (click)="photoDialog.close()">Cerrar</button>
-                                    <img [src]="photo.src" [alt]="photo.alt" />
-                                    <p>{{ photo.alt }} · {{ photo.sourceTitle }}</p>
+                                        <button type="button" autofocus (click)="photoDialog.close()">Cerrar</button>
+                                        <img [src]="photo.src" [alt]="photo.alt" />
+                                        <p>{{ photo.alt }} · {{ photo.sourceTitle }}</p>
                                     }
                                 </dialog>
                             </section>
-                            }
 
                             <div class="consolidation-metrics" aria-label="Resumen de datos y evidencias seleccionados">
                                 <div class="consolidation-metrics__item">
@@ -625,42 +641,40 @@
 
                             <details class="accordion-card">
                                 <summary class="accordion-card__button">
-                                    <span>
-                                        <i class="fa-solid fa-paperclip"></i>
-                                        Archivos relacionados {{ relatedFileCount() }}
-                                    </span>
-
-                                    <i class="fa-solid fa-chevron-down"></i>
+                                    <span><i class="fa-solid fa-paperclip"></i> Archivos relacionados {{ relatedFileCount() }}</span>
+                                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                                 </summary>
                                 @for (file of relatedFiles(); track file.id) {
-                                <div class="accordion-entry">{{ file.label }} · {{ file.sourceTitle }}</div>
-                                } @empty {
-                                <div class="accordion-card__empty">Sin archivos relacionados</div>
+                                    <div class="accordion-entry"><i class="fa-regular fa-file" aria-hidden="true"></i> {{ file.label }} · {{ file.sourceTitle }}</div>
                                 }
-                            </details>
-
-                            <details class="accordion-card">
-                                <summary class="accordion-card__button">
-                                    <span>
-                                        <i class="fa-solid fa-border-all"></i>
-                                        Objetos adicionales {{ additionalObjectCount() }}
-                                    </span>
-
-                                    <i class="fa-solid fa-chevron-down"></i>
-                                </summary>
                                 @for (group of additionalGroups(); track group.id) {
-                                <div class="accordion-entry">{{ group.label }} · {{ group.count }}</div>
-                                } @empty {
-                                <div class="accordion-card__empty">Sin objetos adicionales</div>
+                                    <details class="related-file-group">
+                                        <summary>{{ group.label }} · {{ group.count }}</summary>
+                                        @for (item of group.items; track item.id) {
+                                            <article class="related-file-item">
+                                                @for (field of item.fields; track field.id) {
+                                                    <div><strong>{{ field.label }}:</strong> <span>{{ field.value }}</span></div>
+                                                } @empty { <p>Sin datos descriptivos.</p> }
+                                                @if (item.sources.length) {
+                                                    <footer class="link-detail-card__sources">
+                                                        @for (source of item.sources; track source.id) { <span [style.background]="source.color">{{ source.label }}</span> }
+                                                    </footer>
+                                                }
+                                            </article>
+                                        } @empty { <div class="accordion-entry">La fuente reportó archivos, pero no proporcionó su detalle.</div> }
+                                    </details>
+                                }
+                                @if (!relatedFiles().length && !additionalGroups().length) {
+                                    <div class="accordion-card__empty">Sin archivos relacionados</div>
                                 }
                             </details>
 
-                            @if (links().length > 0) {
+                            @if (relationshipGroups().length > 0) {
                             <section class="links-card" [class.links-card--expanded]="activeLinkGroup() !== null">
                                 <p>Se han encontrado <strong>{{ totalLinks() }}</strong> vínculos</p>
 
                                 <div class="links-card__chips" role="tablist" aria-label="Tipos de vínculos encontrados">
-                                    @for (link of links(); track link.id) {
+                                    @for (link of relationshipGroups(); track link.id) {
                                     <button type="button" [class]="getLinkChipClass(link)"
                                         [class.links-card__chip--active]="activeLinkGroupId() === link.id"
                                         [attr.aria-selected]="activeLinkGroupId() === link.id"
@@ -781,7 +795,7 @@
                     @for (panel of minimizedPanels(); track panel.id) {
                     <button type="button" [id]="'restore-' + panel.id" [attr.aria-controls]="'panel-' + panel.id"
                         [attr.aria-label]="'Restaurar ' + panel.label" [title]="'Restaurar ' + panel.label"
-                        (click)="restorePanel(panel.id)">
+                        [attr.aria-disabled]="transitioningPanels().includes(panel.id)" (click)="restorePanel(panel.id)">
                         <span class="dock-icon" [attr.data-panel]="panel.id"><i [class]="panel.icon" aria-hidden="true"></i></span>
                         <span>{{ panel.label }}</span>
                     </button>
